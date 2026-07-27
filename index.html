@@ -220,20 +220,22 @@ function login(msg){
       <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
       <div style="height:22px"></div>
       <button class="btn wide" id="go">Entrar</button>
-      <p style="color:var(--rojo);font-size:13px;text-align:center;min-height:18px;margin:12px 0 0">${esc(msg||'')}</p>
+      <p id="err" style="color:var(--rojo);font-size:15px;text-align:center;min-height:20px;margin:12px 0 0">${esc(msg||'')}</p>
     </div></div>
     <div class="pie">SAN DIEGO · CALIFORNIA</div>
     </div></div>`;
   $('#go').onclick = entrar;
   $('#p').onkeydown = e => { if(e.key==='Enter') entrar(); };
 }
+function errLogin(m){ const e=$('#err'); if(e) e.textContent=m; else login(m); }
 async function entrar(){
   const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
-  if(!u||!p) return login('Escribe usuario y contraseña.');
+  if(!u||!p) return errLogin('Escribe usuario y contraseña.');
+  errLogin('Verificando…');
   const {data,error} = await sb.from('usuarios').select('*').eq('username',u)
     .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
-  if(error) return login('No hay conexión con la base de datos.');
-  if(!data) return login('Usuario o contraseña incorrectos.');
+  if(error) return errLogin('No hay conexión con la base de datos.');
+  if(!data) return errLogin('Usuario o contraseña incorrectos.');
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
   DEP = U.departamento==='ambos' ? 'restoration' : U.departamento;
   V = U.rol==='tecnico' ? 'dia' : 'resumen';
