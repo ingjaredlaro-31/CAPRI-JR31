@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Capri Restoration Services Inc · Administrador Central · JR31</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --azul:#1B56D3; --azul-d:#12408F; --azul-l:#E8F0FD; --azul-b:#B9CCF0;
+  --rojo:#D42129; --rojo-d:#8A1B21; --rojo-l:#FDECEC; --rojo-b:#F5B5B8;
+  --ambar:#C98A00; --ambar-d:#7A5400; --ambar-l:#FDF4DE; --ambar-b:#EBD08A;
+  --tinta:#0B0D11; --gris:#6B7280; --linea:#DDE1E6; --linea2:#EDEFF2;
+  --fondo:#F7F8FA; --blanco:#FFFFFF;
+  --disp:'Big Shoulders',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:15px;line-height:1.5;min-height:100dvh}
+h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-weight:700}
+.mono{font-family:var(--mono)}
+button,input,select,textarea{font-family:inherit;font-size:15px}
+a{color:var(--azul)}
+
+.top{background:var(--azul);color:#fff;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center}
+.top .marca{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:#C3D6F7}
+.top .t{font-family:var(--disp);font-weight:800;font-size:21px;line-height:1.05}
+.top .who{text-align:right;font-size:11px;color:#C3D6F7;line-height:1.3}
+.top .who b{display:block;color:#fff;font-size:12px}
+.franja{height:4px;background:var(--rojo)}
+.franja.split{display:flex}.franja.split i{flex:1;display:block;height:100%}
+.franja.split i:first-child{background:var(--azul)}.franja.split i:last-child{background:var(--rojo)}
+
+main{padding:14px;padding-bottom:96px;max-width:1400px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:9px 2px 11px;font-family:var(--disp);font-size:13px;text-transform:uppercase;cursor:pointer;position:relative}
+nav button.on{color:var(--azul);border-top-color:var(--azul)}
+nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rojo)}
+.side{display:none}
+
+@media(min-width:900px){
+  body{display:flex;min-height:100dvh}
+  .side{display:block;width:210px;flex-shrink:0;background:var(--tinta);position:sticky;top:0;height:100dvh;overflow-y:auto}
+  .side .head{padding:16px 14px;border-bottom:1px solid #1F242C}
+  .side .head .m{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--gris)}
+  .side .head .j{font-family:var(--disp);font-weight:800;font-size:22px;color:#fff;letter-spacing:.08em}
+  .side button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#9AA3AF;padding:10px 14px;font-family:var(--disp);font-size:15px;text-transform:uppercase;cursor:pointer}
+  .side button.on{background:var(--azul);color:#fff;border-left-color:#5B8DEF}
+  .wrap{flex:1;min-width:0}
+  nav{display:none}
+  main{padding:18px 22px 40px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+}
+
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--gris);text-transform:uppercase;margin:20px 0 8px}
+.eyebrow:first-child{margin-top:2px}
+.card{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--azul);padding:12px;margin-bottom:10px}
+.card.rojo{border-left-color:var(--rojo)} .card.ambar{border-left-color:var(--ambar)} .card.gris{border-left-color:#9AA3AF}
+.folio{font-family:var(--mono);font-size:11px;color:var(--azul)}
+.meta{font-family:var(--mono);font-size:11px;color:var(--gris)}
+.tit{font-family:var(--disp);font-size:20px;line-height:1.1;margin:3px 0}
+.sub{font-size:12px;color:var(--gris)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--linea);color:var(--gris);background:#F3F4F6;white-space:nowrap}
+.chip.azul{color:var(--azul-d);border-color:var(--azul-b);background:var(--azul-l)}
+.chip.rojo{color:var(--rojo-d);border-color:var(--rojo-b);background:var(--rojo-l)}
+.chip.ambar{color:var(--ambar-d);border-color:var(--ambar-b);background:var(--ambar-l)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--azul);color:#fff;border:0;border-radius:6px;padding:10px 15px;font-family:var(--disp);font-size:15px;font-weight:700;text-transform:uppercase;cursor:pointer;text-decoration:none}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:#fff;color:var(--tinta);border:1px solid #C9CFD6}
+.btn.rojo{background:var(--rojo)}
+.btn.wide{width:100%;padding:13px}
+.btn.sm{padding:6px 11px;font-size:13px}
+label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gris);margin:13px 0 5px}
+input,select,textarea{width:100%;background:#fff;border:1px solid #C9CFD6;border-radius:6px;color:var(--tinta);padding:10px 11px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);outline-offset:1px}
+textarea{min-height:80px;resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.num{text-align:center;font-family:var(--mono)}
+.empty{text-align:center;color:var(--gris);padding:36px 16px}
+.empty .disp{font-size:20px;color:var(--tinta);margin-bottom:5px}
+.stat{background:#fff;border:1px solid var(--linea);border-radius:8px;padding:11px}
+.stat .l{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--gris)}
+.stat .v{font-family:var(--disp);font-size:24px;line-height:1.1}
+.alerta{border-left:4px solid var(--rojo);background:var(--rojo-l);padding:12px;margin-bottom:14px}
+.alerta .n{font-family:var(--disp);font-weight:800;font-size:34px;line-height:1;color:var(--rojo)}
+.alerta .t{font-size:12px;color:var(--rojo-d)}
+.ok{border-left:4px solid var(--azul);background:var(--azul-l);padding:12px;margin-bottom:14px;font-size:13px;color:var(--azul-d)}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--linea);margin:-14px -14px 14px}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;font-family:var(--disp);font-size:13px;text-transform:uppercase;color:var(--gris);cursor:pointer}
+.tabs button.on{color:var(--azul);border-bottom-color:var(--azul)}
+.tabs .c{font-family:var(--mono);font-size:14px;display:block}
+.linea-t{border-left:2px solid var(--linea);margin-left:5px;padding-left:16px}
+.linea-t .p{position:relative;margin-bottom:12px}
+.linea-t .p i{position:absolute;left:-21px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--azul)}
+.linea-t .p.x i{background:var(--rojo)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;border-radius:4px}
+.sheet{position:fixed;inset:0;z-index:60;background:var(--fondo);overflow-y:auto}
+.sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;align-items:flex-start;padding:13px 16px;padding-top:calc(13px + env(safe-area-inset-top));z-index:2}
+.sheet-body{max-width:900px;margin:0 auto;padding:14px 14px 60px}
+.x{background:none;border:0;color:#C3D6F7;font-size:24px;cursor:pointer;line-height:1}
+.login{max-width:380px;margin:0 auto;padding:40px 20px}
+.login .box{background:#fff;border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+.login .cab{background:var(--tinta);padding:22px 16px;text-align:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:99;background:var(--tinta);color:#fff;padding:11px 18px;border-radius:6px;font-size:14px;z-index:200}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.thumbs img{width:62px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--linea)}
+.lect{display:grid;grid-template-columns:1.3fr 1.3fr .8fr .8fr auto;gap:6px;margin-bottom:6px}
+.lect input{padding:8px}
+.lect button{background:#fff;border:1px solid var(--linea);color:var(--rojo);border-radius:6px;width:34px;cursor:pointer}
+@media print{
+  .top,nav,.side,.sheet-head,.no-print{display:none!important}
+  body,.sheet{background:#fff}
+  .sheet{position:static}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="sheet"></div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN — pon aquí tus datos de Supabase
+   ============================================================ */
+const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_KEY = 'TU-PUBLISHABLE-KEY';
+const EMPRESA = 'Capri Restoration Services Inc';
+const HORA_CORTE = 19;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = s => document.querySelector(s);
+const hoy = () => new Date().toLocaleDateString('en-CA');
+const fmt = d => d ? d.split('-').reverse().join('/') : '—';
+const esc = s => (s??'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cf = n => '$'+Number(n||0).toLocaleString('en-US');
+const hace = d => { const x=new Date(); x.setDate(x.getDate()-d); return x.toLocaleDateString('en-CA'); };
+const dias = (a,b) => Math.round((new Date(b)-new Date(a))/86400000);
+async function sha256(t){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function toast(m){ const e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2600); }
+function cerrar(){ $('#sheet').innerHTML=''; }
+const TIPOS = { restoration:['water','fire','mold','otro'], cleaning:['carpet cleaning','upholstery','vinyl cleaning','tile and grout'] };
+const ESTAT_PART = {pendiente:['PENDIENTE','rojo'],asignada:['ASIGNADA','ambar'],proceso:['EN PROCESO','ambar'],revision:['POR REVISAR','rojo'],aprobada:['APROBADA','azul']};
+
+let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
+
+/* ============================ LOGIN ============================ */
+function login(msg){
+  $('#root').innerHTML = `<div class="wrap"><div class="login"><div class="box">
+    <div class="cab">
+      <div class="mono" style="font-size:9px;letter-spacing:.2em;color:#9AA3AF">${esc(EMPRESA.toUpperCase())}</div>
+      <div class="disp" style="font-weight:800;font-size:26px;color:#fff;line-height:1;margin-top:5px">Administrador<br>Central</div>
+      <div class="mono" style="font-size:12px;letter-spacing:.4em;color:#5B8DEF;margin-top:7px">JR31</div>
+    </div>
+    <div class="franja split"><i></i><i></i></div>
+    <div style="padding:20px">
+      <label>Usuario</label><input id="u" autocapitalize="none">
+      <label>Contraseña</label><input id="p" type="password">
+      <div style="height:18px"></div>
+      <button class="btn wide" id="go">Entrar</button>
+      <p style="color:var(--rojo);font-size:13px;text-align:center;min-height:18px">${esc(msg||'')}</p>
+    </div></div></div></div>`;
+  $('#go').onclick = entrar;
+  $('#p').onkeydown = e => e.key==='Enter' && entrar();
+}
+async function entrar(){
+  const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
+  if(!u||!p) return login('Escribe usuario y contraseña.');
+  const {data,error} = await sb.from('usuarios').select('*').eq('username',u)
+    .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
+  if(error) return login('No hay conexión con la base de datos.');
+  if(!data) return login('Usuario o contraseña incorrectos.');
+  U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
+  DEP = U.departamento==='ambos' ? 'restoration' : U.departamento;
+  V = U.rol==='tecnico' ? 'dia' : 'dia';
+  render();
+}
+function salir(){ sessionStorage.removeItem('jr31'); U=null; login(); }
+
+/* ============================ SHELL ============================ */
+function shell(html){
+  const tabs = U.rol==='tecnico'
+    ? [['dia','Mi día'],['pend','Pendientes'],['hist','Historial']]
+    : [['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']];
+  const esTec = U.rol==='tecnico';
+  const depTec = esTec ? U.departamento : DEP;
+  const azulRojo = depTec==='cleaning';
+  $('#root').innerHTML = `
+    ${esTec?'':`<div class="side">
+      <div class="head"><div class="m">CAPRI RESTORATION</div><div class="j">JR31</div></div>
+      ${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}</button>`).join('')}
+      <button data-v="salir" style="margin-top:20px;color:#6B7280">Salir</button>
+    </div>`}
+    <div class="wrap">
+      <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
+        <div>
+          <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
+          <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':tabs.find(t=>t[0]===V)[1])}</div>
+        </div>
+        <div class="who"><b>${esc(U.nombre)}</b>${esc(U.rol)}${esTec?` · <a href="#" id="out" style="color:#C3D6F7">salir</a>`:''}</div>
+      </div>
+      <div class="franja split"><i></i><i></i></div>
+      <main>${html}</main>
+      ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
+    </div>`;
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.v==='salir') return salir();
+    V=b.dataset.v; render();
+  });
+  const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
+}
+
+async function render(){
+  if(!U) return login();
+  shell('<div class="empty">Cargando…</div>');
+  try{
+    if(U.rol==='tecnico'){
+      if(V==='dia')  return shell(await vTecDia());
+      if(V==='pend') return shell(await vTecPend());
+      if(V==='hist') return shell(await vTecHist());
+    }
+    if(V==='dia')       return shell(await vControl());
+    if(V==='jobs')      return shell(await vJobs());
+    if(V==='schedule')  return shell(await vSchedule());
+    if(V==='estimados') return shell(await vEstimados());
+    if(V==='equipo')    return shell(await vEquipo());
+  }catch(e){ console.error(e); shell(`<div class="empty"><div class="disp">No se pudo cargar</div><p>${esc(e.message||e)}</p></div>`); }
+}
+
+/* ==================== SELECTOR DE DEPARTAMENTO ==================== */
+function selectorDep(){
+  if(U.departamento!=='ambos') return '';
+  return `<div class="row no-print" style="margin-bottom:12px">
+    <button class="chip ${DEP==='restoration'?'azul':''}" data-dep="restoration" style="cursor:pointer;font-size:10px;padding:6px 12px">RESTORATION</button>
+    <button class="chip ${DEP==='cleaning'?'rojo':''}" data-dep="cleaning" style="cursor:pointer;font-size:10px;padding:6px 12px">CLEANING</button>
+  </div>`;
+}
+function engancharDep(){
+  document.querySelectorAll('[data-dep]').forEach(b=>b.onclick=()=>{DEP=b.dataset.dep;render();});
+}
+
+/* ============================ TÉCNICO ============================ */
+async function asigDe(id,d1,d2){
+  const {data,error}=await sb.from('asignaciones').select('*, jobs(*)').eq('tecnico_id',id)
+    .gte('fecha',d1).lte('fecha',d2).order('fecha');
+  if(error) throw error; return data||[];
+}
+async function repsDe(id,d1,d2){
+  const {data,error}=await sb.from('reportes').select('job_id,fecha').eq('tecnico_id',id).gte('fecha',d1).lte('fecha',d2);
+  if(error) throw error; return data||[];
+}
+async function contarPend(){
+  const [a,r]=await Promise.all([asigDe(U.id,hace(14),hoy()),repsDe(U.id,hace(14),hoy())]);
+  const s=new Set(r.map(x=>x.job_id+'|'+x.fecha));
+  const f=a.filter(x=>!s.has(x.job_id+'|'+x.fecha));
+  PEND=f.length; return f;
+}
+function tarjetaTec(a,hecho,tarde){
+  const j=a.jobs; if(!j) return '';
+  const dir=[j.direccion,j.unidad?('Unit '+j.unidad):null,j.ciudad,j.zip].filter(Boolean).join(', ');
+  const maps='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dir);
+  const cl = j.departamento==='cleaning'?'rojo':'';
+  return `<div class="card ${cl}">
+    <div class="row" style="justify-content:space-between">
+      <span class="folio">${esc(j.folio)}</span><span class="meta">${esc(j.tipo)}</span></div>
+    <div class="tit">${esc(j.cliente)}</div>
+    <div class="sub">${esc(dir)}</div>
+    ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
+    ${a.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(a.notas)}</div>`:''}
+    <div class="row" style="margin-top:10px">
+      ${hecho?'<span class="chip azul">REPORTE ENVIADO</span>':(tarde?'<span class="chip rojo">ATRASADO</span>':'<span class="chip rojo">FALTA REPORTE</span>')}
+      <span style="flex:1"></span>
+      <a class="btn ghost sm" href="${maps}" target="_blank" rel="noopener">Ruta</a>
+      <button class="btn sm" data-rep="${a.job_id}" data-f="${a.fecha}">${hecho?'Ver':'Reporte'}</button>
+    </div></div>`;
+}
+function engancharRep(){ document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>formReporte(b.dataset.rep,b.dataset.f)); }
+
+async function vTecDia(){
+  const h=hoy();
+  const [a,r]=await Promise.all([asigDe(U.id,h,h),repsDe(U.id,h,h)]);
+  await contarPend();
+  const hechos=new Set(r.map(x=>x.job_id));
+  const faltan=a.filter(x=>!hechos.has(x.job_id)).length;
+  const tarde=new Date().getHours()>=HORA_CORTE;
+  let out = faltan
+    ? `<div class="alerta"><div class="n">${faltan}</div><div class="t">${faltan===1?'reporte de hoy sin enviar':'reportes de hoy sin enviar'}${tarde?' · ya pasó la hora de corte':''}</div></div>`
+    : (a.length?`<div class="ok">Todos tus reportes de hoy están enviados.</div>`:'');
+  out += `<div class="eyebrow">Trabajos de hoy · ${fmt(h)}</div>`;
+  if(!a.length) return out+`<div class="empty"><div class="disp">Sin trabajos hoy</div><p>Cuando oficina te asigne un job aparece aquí con su ruta.</p></div>`;
+  setTimeout(engancharRep,0);
+  return out + a.map(x=>tarjetaTec(x,hechos.has(x.job_id),tarde)).join('');
+}
+async function vTecPend(){
+  const f=await contarPend();
+  if(!f.length) return `<div class="empty"><div class="disp">Todo al corriente</div><p>No debes ningún reporte de los últimos 14 días.</p></div>`;
+  const por={}; f.forEach(a=>(por[a.fecha]||=[]).push(a));
+  setTimeout(engancharRep,0);
+  return `<div class="alerta"><div class="n">${f.length}</div><div class="t">reportes pendientes de enviar</div></div>` +
+    Object.keys(por).sort().reverse().map(fe=>
+      `<div class="eyebrow">${fmt(fe)}${fe===hoy()?' · hoy':''}</div>`+por[fe].map(a=>tarjetaTec(a,false,fe<hoy())).join('')).join('');
+}
+async function vTecHist(){
+  const {data}=await sb.from('reportes').select('*, jobs(folio,cliente,departamento)').eq('tecnico_id',U.id)
+    .order('fecha',{ascending:false}).limit(50);
+  if(!data?.length) return `<div class="empty"><div class="disp">Sin reportes todavía</div><p>Aquí se guarda todo lo que envías.</p></div>`;
+  return `<div class="eyebrow">Mis últimos reportes</div>`+data.map(r=>`
+    <div class="card ${r.jobs?.departamento==='cleaning'?'rojo':''}">
+      <div class="row" style="justify-content:space-between"><span class="folio">${esc(r.jobs?.folio||'')}</span><span class="chip">${fmt(r.fecha)}</span></div>
+      <div class="tit">${esc(r.jobs?.cliente||'')}</div>
+      <div class="meta">${esc(r.hora_entrada||'—')} → ${esc(r.hora_salida||'—')} · ${(r.lecturas||[]).length} lecturas · ${(r.fotos||[]).length} fotos</div>
+    </div>`).join('');
+}
+
+/* ==================== FORMULARIO DE REPORTE ==================== */
+let FOT=[];
+async function formReporte(jobId,fecha){
+  const [{data:j},{data:prev}] = await Promise.all([
+    sb.from('jobs').select('*').eq('id',jobId).single(),
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle()
+  ]);
+  const r=prev||{}; FOT=r.fotos||[];
+  const esRest = j.departamento==='restoration';
+  const now=new Date().toTimeString().slice(0,5);
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${esRest?'':'style="background:var(--rojo)"'}>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp" style="font-size:19px">${esc(j.cliente)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="eyebrow">Reporte del ${fmt(fecha)}${prev?' · ya enviado, puedes corregirlo':''}</div>
+      <div class="g2">
+        <div><label>Entrada</label><input id="h1" type="time" value="${esc(r.hora_entrada||now)}"></div>
+        <div><label>Salida</label><input id="h2" type="time" value="${esc(r.hora_salida||'')}"></div>
+      </div>
+      <label>Trabajo realizado</label>
+      <textarea id="tr" placeholder="Qué se hizo hoy en el sitio…">${esc(r.trabajo_realizado||'')}</textarea>
+      ${esRest?`
+      <div class="eyebrow">Equipo instalado hoy</div>
+      <div class="g3">
+        <div><label>Deshu</label><input class="num" id="di" type="number" min="0" value="${r.deshu_inst||0}"></div>
+        <div><label>Air mover</label><input class="num" id="ai" type="number" min="0" value="${r.air_inst||0}"></div>
+        <div><label>Scrubber</label><input class="num" id="si" type="number" min="0" value="${r.scrub_inst||0}"></div>
+      </div>
+      <div class="eyebrow">Equipo retirado hoy</div>
+      <div class="g3">
+        <div><label>Deshu</label><input class="num" id="dr" type="number" min="0" value="${r.deshu_ret||0}"></div>
+        <div><label>Air mover</label><input class="num" id="ar" type="number" min="0" value="${r.air_ret||0}"></div>
+        <div><label>Scrubber</label><input class="num" id="sr" type="number" min="0" value="${r.scrub_ret||0}"></div>
+      </div>
+      <div class="eyebrow">Lecturas de humedad</div>
+      <div class="lect meta" style="letter-spacing:.1em;font-size:10px"><span>ÁREA</span><span>MATERIAL</span><span>%MC</span><span>°F</span><span></span></div>
+      <div id="lec"></div>
+      <button class="btn ghost sm" id="addl">+ Agregar lectura</button>
+      <label>¿Se demolió o retiró algo? (genera partida de reparación)</label>
+      <textarea id="dem" placeholder="Ej. drywall cocina 48 sqft, baseboards pasillo…">${esc(r.demolido||'')}</textarea>
+      `:''}
+      <div class="eyebrow">Fotos</div>
+      <input id="ft" type="file" accept="image/*" multiple capture="environment">
+      <div class="thumbs" id="th"></div>
+      <label>Notas para oficina</label>
+      <textarea id="no" placeholder="Algo que deba saber la oficina o el adjuster…">${esc(r.notas||'')}</textarea>
+      <div style="height:16px"></div>
+      <button class="btn wide" id="env">${prev?'Guardar cambios':'Enviar reporte'}</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+
+  if(esRest){
+    const lec=$('#lec');
+    const fila=(l={})=>{const d=document.createElement('div');d.className='lect';
+      d.innerHTML=`<input placeholder="Cocina" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
+        <input class="num" inputmode="decimal" placeholder="18" value="${esc(l.mc||'')}">
+        <input class="num" inputmode="decimal" placeholder="72" value="${esc(l.temp||'')}"><button type="button">✕</button>`;
+      d.querySelector('button').onclick=()=>d.remove(); lec.appendChild(d);};
+    (r.lecturas||[]).forEach(fila); if(!(r.lecturas||[]).length) fila();
+    $('#addl').onclick=()=>fila();
+  }
+  const pintar=()=>$('#th').innerHTML=FOT.map(u=>`<img src="${esc(u)}">`).join('');
+  pintar();
+  $('#ft').onchange=async e=>{
+    const fs=[...e.target.files]; if(!fs.length) return; toast('Subiendo fotos…');
+    for(const f of fs){
+      const n=`rep/${jobId}/${fecha}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+      const {error}=await sb.storage.from('capri').upload(n,f,{contentType:f.type||'image/jpeg'});
+      if(error){toast('No se pudo subir una foto');continue;}
+      FOT.push(sb.storage.from('capri').getPublicUrl(n).data.publicUrl);
+    } pintar(); toast('Fotos listas');
+  };
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#env').onclick=async()=>{
+    if(!$('#tr').value.trim()) return toast('Escribe qué trabajo se hizo hoy.');
+    const p={job_id:jobId,tecnico_id:U.id,fecha,hora_entrada:$('#h1').value,hora_salida:$('#h2').value,
+      trabajo_realizado:$('#tr').value.trim(),fotos:FOT,notas:$('#no').value.trim()};
+    if(esRest){
+      p.deshu_inst=+$('#di').value||0; p.air_inst=+$('#ai').value||0; p.scrub_inst=+$('#si').value||0;
+      p.deshu_ret=+$('#dr').value||0;  p.air_ret=+$('#ar').value||0;  p.scrub_ret=+$('#sr').value||0;
+      p.lecturas=[...$('#lec').children].map(d=>{const i=[...d.querySelectorAll('input')].map(x=>x.value.trim());
+        return {area:i[0],material:i[1],mc:i[2],temp:i[3]};}).filter(l=>l.area||l.material||l.mc);
+      p.demolido=$('#dem').value.trim();
+    }
+    const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
+    if(error) return toast('No se guardó: '+error.message);
+    if(esRest && p.demolido){
+      await sb.from('partidas').insert({job_id:jobId,nombre:'Reparación pendiente',detalle:p.demolido,estatus:'pendiente'});
+    }
+    cerrar(); toast('Reporte enviado'); render();
+  };
+}
+
+/* ==================== CONTROL DEL DÍA ==================== */
+async function vControl(){
+  const h=hoy();
+  const [{data:asig},{data:reps},{data:part},{data:ests}] = await Promise.all([
+    sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').eq('fecha',h),
+    sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
+    sb.from('partidas').select('*, jobs(folio,cliente,departamento), contratistas(nombre)').in('estatus',['pendiente','asignada','proceso','revision']),
+    sb.from('estimados').select('*').eq('estatus','enviado')
+  ]);
+  const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
+  const P=(part||[]).filter(p=>p.jobs?.departamento===DEP);
+  const E=(ests||[]).filter(e=>e.departamento===DEP);
+  const hechos=new Set((reps||[]).map(r=>r.tecnico_id+'|'+r.job_id));
+  const faltan=A.filter(a=>!hechos.has(a.tecnico_id+'|'+a.job_id));
+  const revisar=P.filter(p=>p.estatus==='revision');
+  const tarde=new Date().getHours()>=HORA_CORTE;
+
+  setTimeout(()=>{
+    engancharDep();
+    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;render();});
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+    document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=async()=>{
+      await sb.from('partidas').update({estatus:'aprobada',fecha_fin:hoy()}).eq('id',b.dataset.apr);
+      toast('Partida aprobada'); render();
+    });
+  },0);
+
+  const bloqueHacer = A.length ? A.map(a=>{
+    const ok=hechos.has(a.tecnico_id+'|'+a.job_id);
+    return `<div class="card ${a.jobs.departamento==='cleaning'?'rojo':''}">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(a.jobs.folio)}</span>
+        <span class="meta">${esc(a.hora||'')} · ${esc(a.usuarios?.nombre||'')}</span></div>
+      <div class="tit">${esc(a.jobs.cliente)}</div>
+      <div class="sub">${esc(a.jobs.direccion)}${a.jobs.unidad?' · Unit '+esc(a.jobs.unidad):''}</div>
+      <div class="row" style="margin-top:9px">
+        ${ok?'<span class="chip azul">REPORTE RECIBIDO</span>':(tarde?'<span class="chip rojo">ATRASADO</span>':'<span class="chip rojo">FALTA REPORTE</span>')}
+        <span style="flex:1"></span>
+        ${!ok?`<a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Hola '+(a.usuarios?.nombre||'')+', falta tu reporte de hoy del job '+a.jobs.folio+' — '+a.jobs.cliente)}">WhatsApp</a>`:''}
+        <button class="btn sm" data-job="${a.job_id}">Abrir</button>
+      </div></div>`;
+  }).join('') : `<div class="empty"><div class="disp">Nada programado hoy</div><p>Ve a Schedule para asignar trabajos.</p></div>`;
+
+  const bloqueRevisar = revisar.length ? revisar.map(p=>`
+    <div class="card rojo">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(p.jobs.folio)}</span><span class="meta">${esc(p.contratistas?.nombre||'sin contratista')}</span></div>
+      <div class="tit">${esc(p.nombre)}</div>
+      <div class="sub">${esc(p.detalle||'')} ${p.cantidad?'· '+esc(p.cantidad):''}</div>
+      <div class="sub">${esc(p.jobs.cliente)}</div>
+      <div class="row" style="margin-top:9px">
+        <span class="chip rojo">POR REVISAR</span><span style="flex:1"></span>
+        <button class="btn ghost sm" data-job="${p.job_id}">Ver job</button>
+        <button class="btn sm" data-apr="${p.id}">Aprobar</button>
+      </div></div>`).join('')
+    : `<div class="empty"><div class="disp">Nada por revisar</div><p>Cuando un contratista marque una partida terminada, cae aquí.</p></div>`;
+
+  const porCon={};
+  P.filter(p=>p.estatus!=='revision').forEach(p=>{
+    const k=p.contratistas?.nombre||'Sin asignar';
+    (porCon[k]||=[]).push(p);
+  });
+  const bloqueCon = Object.keys(porCon).length ? Object.entries(porCon).map(([n,list])=>`
+    <div class="card ${n==='Sin asignar'?'rojo':''}">
+      <div class="tit" style="font-size:17px">${esc(n)}</div>
+      ${list.map(p=>{
+        const [t,c]=ESTAT_PART[p.estatus];
+        return `<div style="border-top:1px solid var(--linea2);padding-top:7px;margin-top:7px" class="row">
+          <span style="flex:1;font-size:13px">${esc(p.jobs.folio)} · ${esc(p.nombre)}</span>
+          <span class="chip ${c}">${t}</span></div>`;
+      }).join('')}
+    </div>`).join('')
+    : `<div class="empty"><div class="disp">Sin partidas abiertas</div><p>Todas las reparaciones están aprobadas.</p></div>`;
+
+  const bloqueEst = E.length ? E.map(e=>`
+    <div class="card ambar">
+      <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
+        <span class="meta">${e.fecha_envio?dias(e.fecha_envio,hoy())+' días':''}</span></div>
+      <div class="tit">${esc(e.cliente)}</div>
+      <div class="sub">${esc(e.descripcion||'')}</div>
+      <div class="row" style="margin-top:6px;justify-content:space-between">
+        <span class="disp" style="font-size:19px">${cf(e.monto)}</span><span class="chip ambar">SIN RESPUESTA</span></div>
+    </div>`).join('') : `<div class="empty"><p>No hay estimados esperando respuesta.</p></div>`;
+
+  const anchoGrande = window.innerWidth>=900;
+  if(anchoGrande){
+    return selectorDep() + `
+      <div class="row" style="gap:10px;margin-bottom:14px">
+        <div class="stat" style="flex:1"><div class="l">VISITAS HOY</div><div class="v">${A.length}</div></div>
+        <div class="stat" style="flex:1"><div class="l">SIN REPORTE</div><div class="v" style="color:var(--rojo)">${faltan.length}</div></div>
+        <div class="stat" style="flex:1"><div class="l">POR REVISAR</div><div class="v" style="color:var(--rojo)">${revisar.length}</div></div>
+        <div class="stat" style="flex:1"><div class="l">ESTIMADOS</div><div class="v">${E.length}</div></div>
+      </div>
+      <div class="cols">
+        <div><div class="eyebrow">Por hacer · ${A.length}</div>${bloqueHacer}</div>
+        <div><div class="eyebrow">Por revisar · ${revisar.length}</div>${bloqueRevisar}</div>
+        <div><div class="eyebrow">Contratistas</div>${bloqueCon}
+             <div class="eyebrow">Estimados enviados</div>${bloqueEst}</div>
+      </div>`;
+  }
+  const cuerpo = TAB==='h'?bloqueHacer : TAB==='r'?bloqueRevisar : TAB==='c'?bloqueCon : bloqueEst;
+  return selectorDep()+`
+    <div class="tabs">
+      <button data-t="h" class="${TAB==='h'?'on':''}">Por hacer<span class="c">${A.length}</span></button>
+      <button data-t="r" class="${TAB==='r'?'on':''}">Revisar<span class="c" style="color:var(--rojo)">${revisar.length}</span></button>
+      <button data-t="c" class="${TAB==='c'?'on':''}">Contratistas<span class="c">${Object.keys(porCon).length}</span></button>
+      <button data-t="e" class="${TAB==='e'?'on':''}">Estimados<span class="c">${E.length}</span></button>
+    </div>${cuerpo}`;
+}
+
+/* ==================== JOBS ==================== */
+async function vJobs(){
+  const {data}=await sb.from('jobs').select('*').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
+  setTimeout(()=>{ engancharDep(); $('#nj').onclick=()=>formJob();
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
+  return selectorDep()+`<button class="btn wide no-print" id="nj">+ Nuevo job</button>
+    <div class="eyebrow">Jobs de ${DEP}</div>`+
+    ((data||[]).map(j=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
+      <div class="row" style="justify-content:space-between"><span class="folio">${esc(j.folio)}</span>
+        <span class="chip">${esc(j.estatus)}</span></div>
+      <div class="tit">${esc(j.cliente)}</div>
+      <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
+      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.management?' · '+esc(j.management):''}</div>
+      <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
+    </div>`).join('') || `<div class="empty"><div class="disp">Sin jobs</div><p>Registra el primero para poder programar visitas.</p></div>`);
+}
+
+async function nuevoFolio(dep){
+  const pre = dep==='cleaning'?'CLN':'CAP';
+  const {count}=await sb.from('jobs').select('*',{count:'exact',head:true}).eq('departamento',dep);
+  return pre+'-'+String(1000+(count||0)+1);
+}
+
+async function formJob(id, pre){
+  let j = pre || {departamento:DEP, tipo:TIPOS[DEP][0], estatus:'activo', ciudad:'San Diego', tipo_propiedad:'casa'};
+  if(id){ const {data}=await sb.from('jobs').select('*').eq('id',id).single(); j=data; }
+  if(!id && !j.folio) j.folio = await nuevoFolio(j.departamento);
+  const c=(k,l,t='text')=>`<label>${l}</label><input id="f_${k}" type="${t}" value="${esc(j[k]||'')}">`;
+  const esRest = j.departamento==='restoration';
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:20px">${id?'Editar job':'Nuevo job'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Departamento</label>
+      <select id="f_departamento">${['restoration','cleaning'].map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <label>${esRest?'Tipo de pérdida':'Tipo de servicio'}</label>
+      <select id="f_tipo">${TIPOS[j.departamento].map(t=>`<option ${j.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
+      ${c('folio','Folio')}
+      ${c('cliente','Cliente')}
+      ${c('telefono','Teléfono','tel')}
+      ${c('direccion','Dirección')}
+      <div class="g2">${c('ciudad','Ciudad')}${c('zip','ZIP')}</div>
+      <div class="eyebrow">Propiedad y management</div>
+      <label>Tipo de propiedad</label>
+      <select id="f_tipo_propiedad">${['casa','condominio','apartamento','comercial','otro'].map(t=>`<option ${j.tipo_propiedad===t?'selected':''}>${t}</option>`).join('')}</select>
+      <div class="g2">${c('unidad','Unidad')}${c('propietario','Dueño / residente')}</div>
+      <div class="g2">${c('management','Management company')}${c('management_tel','Tel. management','tel')}</div>
+      ${esRest?`<div class="eyebrow">Aseguranza</div>
+      <div class="g2">${c('aseguranza','Aseguranza')}${c('claim_number','Claim number')}</div>
+      <div class="g2">${c('adjuster','Adjuster')}${c('adjuster_tel','Tel. adjuster','tel')}</div>
+      ${c('fecha_perdida','Fecha de la pérdida','date')}`:''}
+      <label>Estatus</label>
+      <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>
+      <label>Notas</label><textarea id="f_notas">${esc(j.notas||'')}</textarea>
+      <div style="height:16px"></div>
+      <button class="btn wide" id="sv">Guardar job</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#f_departamento').onchange=e=>{
+    const d=e.target.value;
+    $('#f_tipo').innerHTML=TIPOS[d].map(t=>`<option>${t}</option>`).join('');
+  };
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={};
+    ['folio','cliente','telefono','direccion','ciudad','zip','unidad','propietario','management','management_tel','aseguranza','claim_number','adjuster','adjuster_tel','notas']
+      .forEach(k=>{const el=$('#f_'+k); p[k]=el?(el.value.trim()||null):null;});
+    p.departamento=$('#f_departamento').value; p.tipo=$('#f_tipo').value;
+    p.tipo_propiedad=$('#f_tipo_propiedad').value; p.estatus=$('#f_estatus').value;
+    const fp=$('#f_fecha_perdida'); if(fp) p.fecha_perdida=fp.value||null;
+    if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
+    if(!p.folio||!p.cliente||!p.direccion) return toast('Faltan folio, cliente y dirección.');
+    const q = id ? sb.from('jobs').update(p).eq('id',id) : sb.from('jobs').insert(p).select().single();
+    const {data,error}=await q;
+    if(error) return toast('No se guardó: '+error.message);
+    if(!id && pre && pre.estimado_id){
+      await sb.from('estimados').update({estatus:'aceptado',job_id:data.id}).eq('id',pre.estimado_id);
+      if(pre.partidas) for(const n of pre.partidas)
+        await sb.from('partidas').insert({job_id:data.id,nombre:n,estatus:'pendiente'});
+    }
+    cerrar(); toast('Job guardado'); render();
+  };
+}
+
+/* ==================== DETALLE DEL JOB ==================== */
+async function abrirJob(id){
+  const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
+    sb.from('jobs').select('*').eq('id',id).single(),
+    sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
+    sb.from('reportes').select('*, usuarios(nombre)').eq('job_id',id).order('fecha'),
+    sb.from('notas').select('*').eq('job_id',id).order('created_at',{ascending:false}),
+    sb.from('recordatorios').select('*').eq('job_id',id).order('fecha_venc'),
+    sb.from('contratistas').select('*').eq('activo',true)
+  ]);
+  const R=reps||[], P=part||[], N=nts||[], RC=rec||[];
+  const fechasRep=new Set(R.map(r=>r.fecha));
+
+  const {data:asigs}=await sb.from('asignaciones').select('fecha, usuarios(nombre, telefono)').eq('job_id',id).order('fecha');
+  const A=asigs||[];
+  const faltantes=A.filter(a=>!fechasRep.has(a.fecha)&&a.fecha<=hoy());
+  const tel=(A[0]?.usuarios?.telefono)||'';
+  const nomTec=(A[0]?.usuarios?.nombre)||'el técnico';
+
+  const linea=[];
+  linea.push({f:j.fecha_inicio||j.created_at.slice(0,10),t:'Job abierto',x:false});
+  A.forEach(a=>{
+    if(fechasRep.has(a.fecha)){
+      const r=R.find(x=>x.fecha===a.fecha);
+      linea.push({f:a.fecha,t:'Reporte recibido — '+(r.trabajo_realizado||'').slice(0,60),x:false});
+    } else if(a.fecha<=hoy()) linea.push({f:a.fecha,t:'Sin reporte',x:true});
+  });
+  P.filter(p=>p.estatus==='aprobada'&&p.fecha_fin).forEach(p=>linea.push({f:p.fecha_fin,t:p.nombre+' aprobado',x:false}));
+  linea.sort((a,b)=>a.f.localeCompare(b.f));
+
+  const hoyD=new Date(); const anio=hoyD.getFullYear(), mes=hoyD.getMonth();
+  const primero=new Date(anio,mes,1), ultimo=new Date(anio,mes+1,0);
+  const offset=(primero.getDay()+6)%7;
+  let cal='<div class="cal">'+'<div></div>'.repeat(offset);
+  for(let d=1;d<=ultimo.getDate();d++){
+    const f=`${anio}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const tieneR=fechasRep.has(f), tieneA=A.some(a=>a.fecha===f);
+    let bg='#F3F4F6',co='var(--gris)',bd='1px solid var(--linea)';
+    if(tieneR){bg='var(--azul)';co='#fff';bd='none';}
+    else if(tieneA&&f<=hoy()){bg='var(--rojo)';co='#fff';bd='none';}
+    cal+=`<div style="background:${bg};color:${co};border:${bd}">${d}</div>`;
+  }
+  cal+='</div>';
+
+  const msg = encodeURIComponent(`Hola ${nomTec}, sobre el job ${j.folio} — ${j.cliente}${faltantes.length?`: te faltan ${faltantes.length} reporte(s) por enviar.`:'.'}`);
+  const wa = 'https://wa.me/'+(tel.replace(/\D/g,''))+'?text='+msg;
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp" style="font-size:21px;line-height:1">${esc(j.cliente)}</div>
+    <div style="font-size:12px;color:#C3D6F7">${esc(j.tipo_propiedad||'')}${j.unidad?' · Unit '+esc(j.unidad):''} · ${esc(j.tipo)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <div class="row no-print" style="margin-bottom:14px">
+        <a class="btn" style="flex:1" href="${wa}" target="_blank" rel="noopener">Notificar WhatsApp</a>
+        <button class="btn ghost" style="flex:1" onclick="window.print()">Generar PDF</button>
+      </div>
+
+      <div class="eyebrow">Propiedad y management</div>
+      <div class="card" style="border-left-color:var(--linea)">
+        <div class="g2" style="gap:8px 14px">
+          <div><div class="meta" style="font-size:9px">DIRECCIÓN</div><div class="sub" style="color:var(--tinta)">${esc(j.direccion)}${j.ciudad?', '+esc(j.ciudad):''}</div></div>
+          <div><div class="meta" style="font-size:9px">UNIDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.unidad||'—')}</div></div>
+          <div><div class="meta" style="font-size:9px">MANAGEMENT</div><div class="sub" style="color:var(--tinta)">${esc(j.management||'—')}</div></div>
+          <div><div class="meta" style="font-size:9px">CONTACTO</div><div class="sub" style="color:var(--tinta)">${esc(j.management_tel||'—')}</div></div>
+          <div><div class="meta" style="font-size:9px">DUEÑO / RESIDENTE</div><div class="sub" style="color:var(--tinta)">${esc(j.propietario||'—')}</div></div>
+          <div><div class="meta" style="font-size:9px">ASEGURANZA</div><div class="sub" style="color:var(--tinta)">${esc(j.aseguranza||'—')} ${esc(j.claim_number||'')}</div></div>
+        </div>
+        <div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
+      </div>
+
+      <div class="eyebrow">Historial del trabajo</div>
+      <div class="linea-t">
+        ${linea.map(l=>`<div class="p ${l.x?'x':''}"><i></i>
+          <div class="mono" style="font-size:11px;color:${l.x?'var(--rojo)':'var(--tinta)'}">${fmt(l.f)}</div>
+          <div class="sub" ${l.x?'style="color:var(--rojo-d)"':''}>${esc(l.t)}</div></div>`).join('')}
+      </div>
+
+      <div class="eyebrow">Calendario del trabajo</div>
+      ${cal}
+      <div class="row" style="margin-top:8px;font-size:11px;color:var(--gris)">
+        <span><i style="display:inline-block;width:9px;height:9px;background:var(--azul);border-radius:2px"></i> reporte enviado</span>
+        <span><i style="display:inline-block;width:9px;height:9px;background:var(--rojo);border-radius:2px"></i> faltó</span>
+      </div>
+
+      ${j.departamento==='restoration'?`
+      <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='aprobada').length} de ${P.length} aprobadas</div>
+      <div id="parts">${P.map(p=>{
+        const [t,c]=ESTAT_PART[p.estatus];
+        const col = p.estatus==='aprobada'?'':(p.estatus==='pendiente'||p.estatus==='revision')?'rojo':'ambar';
+        return `<div class="card ${col}">
+          <div class="row" style="justify-content:space-between">
+            <span class="disp" style="font-size:17px">${esc(p.nombre)}</span><span class="chip ${c}">${t}</span></div>
+          <div class="sub">${esc(p.detalle||'')} ${p.cantidad?'· '+esc(p.cantidad):''}</div>
+          <div class="meta" style="margin-top:3px">${esc(p.contratistas?.nombre||'sin contratista asignado')}</div>
+          <div class="row no-print" style="margin-top:8px">
+            <select data-pc="${p.id}" style="flex:1;padding:6px"><option value="">— contratista —</option>
+              ${(cons||[]).map(c2=>`<option value="${c2.id}" ${p.contratista_id===c2.id?'selected':''}>${esc(c2.nombre)}</option>`).join('')}</select>
+            <select data-pe="${p.id}" style="flex:1;padding:6px">
+              ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
+          </div></div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
+      <button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>`:''}
+
+      <div class="eyebrow">Notas y comentarios</div>
+      <div>${N.map(n=>`<div class="card" style="border-left-color:var(--linea)">
+        <div class="sub" style="color:var(--tinta)">${esc(n.texto)}</div>
+        <div class="meta" style="margin-top:4px">${esc(n.autor||'')} · ${new Date(n.created_at).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>`).join('')||'<div class="sub">Sin notas todavía.</div>'}</div>
+      <div class="row no-print"><input id="nt" placeholder="Escribe una nota…" style="flex:1"><button class="btn sm" id="an">Agregar</button></div>
+
+      <div class="eyebrow">Recordatorios</div>
+      <div>${RC.map(r=>{
+        const vencido = r.fecha_venc && r.fecha_venc<hoy() && !r.hecho;
+        return `<div class="card ${vencido?'rojo':''}" style="${r.hecho?'opacity:.5':''}">
+          <div class="row"><input type="checkbox" data-rc="${r.id}" ${r.hecho?'checked':''} style="width:18px;flex:0 0 18px">
+          <div style="flex:1"><div class="sub" style="color:var(--tinta)">${esc(r.texto)}</div>
+          <div class="meta" style="color:${vencido?'var(--rojo)':'var(--azul)'}">${vencido?'vencido · ':'vence '}${fmt(r.fecha_venc)}</div></div></div>
+        </div>`;}).join('')||'<div class="sub">Sin recordatorios.</div>'}</div>
+      <div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>
+
+      <div class="eyebrow">Reportes recibidos · ${R.length}</div>
+      ${R.slice().reverse().map(r=>`<div class="card">
+        <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
+        <span class="meta">${esc(r.usuarios?.nombre||'')}</span></div>
+        <div class="sub" style="color:var(--tinta);margin-top:4px">${esc(r.trabajo_realizado||'')}</div>
+        ${(r.lecturas||[]).length?`<div class="meta" style="margin-top:5px">${(r.lecturas||[]).map(l=>`${esc(l.area)} ${esc(l.mc)}%`).join(' · ')}</div>`:''}
+        <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
+      </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
+
+      <div style="height:20px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#ed').onclick=()=>formJob(id);
+  const an=$('#an'); if(an) an.onclick=async()=>{
+    const t=$('#nt').value.trim(); if(!t) return;
+    await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
+    cerrar(); abrirJob(id);
+  };
+  const ar2=$('#ar2'); if(ar2) ar2.onclick=async()=>{
+    const t=$('#rt').value.trim(); if(!t) return;
+    await sb.from('recordatorios').insert({job_id:id,texto:t,fecha_venc:$('#rf').value||null});
+    cerrar(); abrirJob(id);
+  };
+  document.querySelectorAll('[data-rc]').forEach(c=>c.onchange=async()=>{
+    await sb.from('recordatorios').update({hecho:c.checked}).eq('id',c.dataset.rc);
+  });
+  document.querySelectorAll('[data-pc]').forEach(s=>s.onchange=async()=>{
+    await sb.from('partidas').update({contratista_id:s.value||null,estatus:s.value?'asignada':'pendiente'}).eq('id',s.dataset.pc);
+    cerrar(); abrirJob(id);
+  });
+  document.querySelectorAll('[data-pe]').forEach(s=>s.onchange=async()=>{
+    const up={estatus:s.value}; if(s.value==='aprobada') up.fecha_fin=hoy();
+    await sb.from('partidas').update(up).eq('id',s.dataset.pe);
+    cerrar(); abrirJob(id);
+  });
+  const ap=$('#ap'); if(ap) ap.onclick=async()=>{
+    const n=prompt('¿Qué se tiene que reparar? (ej. Drywall cocina)'); if(!n) return;
+    const d=prompt('Detalle o cantidad (opcional)')||'';
+    await sb.from('partidas').insert({job_id:id,nombre:n,detalle:d,estatus:'pendiente'});
+    cerrar(); abrirJob(id);
+  };
+}
+
+/* ==================== SCHEDULE ==================== */
+async function vSchedule(){
+  const [{data:asig},{data:tecs},{data:jobs}] = await Promise.all([
+    sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').eq('fecha',FSCH),
+    sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
+    sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
+  ]);
+  const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
+  const T=(tecs||[]).filter(t=>t.departamento===DEP||t.departamento==='ambos');
+  setTimeout(()=>{
+    engancharDep();
+    $('#fs').onchange=e=>{FSCH=e.target.value;render();};
+    $('#aa').onclick=()=>formAsig(T,jobs||[]);
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('¿Quitar esta asignación?'))return;
+      await sb.from('asignaciones').delete().eq('id',b.dataset.del); toast('Asignación quitada'); render();
+    });
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+  },0);
+  return selectorDep()+`<label>Fecha</label><input id="fs" type="date" value="${FSCH}">
+    <div style="height:10px"></div><button class="btn wide no-print" id="aa">+ Asignar trabajo a técnico</button>
+    <div class="eyebrow">Programado para ${fmt(FSCH)} · ${T.length} técnicos en ${DEP}</div>`+
+    (A.map(a=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
+      <div class="row" style="justify-content:space-between"><span class="folio">${esc(a.jobs.folio)}</span>
+        <span class="chip">${esc(a.usuarios?.nombre||'')}</span></div>
+      <div class="tit">${esc(a.jobs.cliente)}</div>
+      <div class="sub">${esc(a.jobs.direccion)}</div>
+      ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
+      <div class="row no-print" style="margin-top:9px">
+        <button class="btn ghost sm" data-job="${a.job_id}">Abrir job</button>
+        <button class="btn ghost sm" data-del="${a.id}">Quitar</button></div>
+    </div>`).join('') || `<div class="empty"><div class="disp">Día libre</div><p>Nadie tiene visitas para esta fecha.</p></div>`);
+}
+function formAsig(tecs,jobs){
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:20px">Asignar trabajo</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Job</label><select id="aj">${jobs.map(j=>`<option value="${j.id}">${esc(j.folio)} — ${esc(j.cliente)}</option>`).join('')}</select>
+      <label>Técnico</label><select id="at">${tecs.map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join('')}</select>
+      <div class="g2"><div><label>Fecha</label><input id="af" type="date" value="${FSCH}"></div>
+      <div><label>Hora de llegada</label><input id="ah" type="time"></div></div>
+      <label>Instrucciones para el técnico</label><textarea id="an2" placeholder="Traer 2 deshus, tocar en la puerta de atrás…"></textarea>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Asignar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    if(!jobs.length||!tecs.length) return toast('Necesitas al menos un job y un técnico en este departamento.');
+    const {error}=await sb.from('asignaciones').upsert({job_id:$('#aj').value,tecnico_id:$('#at').value,
+      fecha:$('#af').value,hora:$('#ah').value||null,notas:$('#an2').value.trim()||null},{onConflict:'job_id,tecnico_id,fecha'});
+    if(error) return toast('No se asignó: '+error.message);
+    FSCH=$('#af').value; cerrar(); toast('Trabajo asignado'); render();
+  };
+}
+
+/* ==================== ESTIMADOS ==================== */
+async function vEstimados(){
+  const {data}=await sb.from('estimados').select('*, jobs(folio)').eq('departamento',DEP).order('created_at',{ascending:false});
+  const E=data||[];
+  const env=E.filter(e=>e.estatus==='enviado'), acc=E.filter(e=>e.estatus==='aceptado');
+  setTimeout(()=>{
+    engancharDep();
+    $('#ne').onclick=()=>formEstimado();
+    document.querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>formEstimado(b.dataset.est));
+    document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>aceptarEstimado(b.dataset.acc));
+    document.querySelectorAll('[data-rech]').forEach(b=>b.onclick=async()=>{
+      await sb.from('estimados').update({estatus:'rechazado'}).eq('id',b.dataset.rech); toast('Marcado como rechazado'); render();
+    });
+  },0);
+  return selectorDep()+`
+    <div class="row" style="gap:10px;margin-bottom:14px">
+      <div class="stat" style="flex:1"><div class="l">ESPERANDO RESPUESTA</div>
+        <div class="v">${cf(env.reduce((s,e)=>s+Number(e.monto||0),0))}</div>
+        <div class="meta">${env.length} estimados</div></div>
+      <div class="stat" style="flex:1"><div class="l">ACEPTADOS</div>
+        <div class="v" style="color:var(--azul)">${cf(acc.reduce((s,e)=>s+Number(e.monto||0),0))}</div>
+        <div class="meta">${acc.length} convertidos</div></div>
+    </div>
+    <button class="btn wide no-print" id="ne">+ Nuevo estimado</button>
+    <div class="eyebrow">Estimados de ${DEP}</div>`+
+    (E.map(e=>{
+      const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
+      const chip = e.estatus==='enviado'?`<span class="chip ambar">${e.fecha_envio?dias(e.fecha_envio,hoy())+' DÍAS SIN RESPUESTA':'ENVIADO'}</span>`
+        : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(e.jobs?.folio||'')}</span>`
+        : e.estatus==='rechazado'?'<span class="chip">RECHAZADO</span>':'<span class="chip">BORRADOR</span>';
+      return `<div class="card ${col}">
+        <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
+          <span class="meta">${fmt(e.fecha_envio)}</span></div>
+        <div class="tit">${esc(e.cliente)}</div>
+        <div class="sub">${esc(e.descripcion||'')}</div>
+        <div class="row" style="margin-top:7px;justify-content:space-between">
+          <span class="disp" style="font-size:21px">${cf(e.monto)}</span>${chip}</div>
+        <div class="row no-print" style="margin-top:9px">
+          <button class="btn ghost sm" data-est="${e.id}">Editar</button>
+          <span style="flex:1"></span>
+          ${e.estatus==='enviado'?`<button class="btn ghost sm" data-rech="${e.id}">Rechazado</button>
+            <button class="btn sm" data-acc="${e.id}">Marcar aceptado</button>`:''}
+        </div></div>`;
+    }).join('') || `<div class="empty"><div class="disp">Sin estimados</div><p>Registra el primero para darle seguimiento.</p></div>`);
+}
+
+async function formEstimado(id){
+  let e={departamento:DEP,estatus:'borrador',monto:0};
+  if(id){const {data}=await sb.from('estimados').select('*').eq('id',id).single(); e=data;}
+  if(!id){
+    const {count}=await sb.from('estimados').select('*',{count:'exact',head:true});
+    e.folio='EST-'+String(200+(count||0)+1);
+  }
+  const c=(k,l,t='text')=>`<label>${l}</label><input id="e_${k}" type="${t}" value="${esc(e[k]||'')}">`;
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:20px">${id?'Editar estimado':'Nuevo estimado'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Departamento</label>
+      <select id="e_departamento">${['restoration','cleaning'].map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      ${c('folio','Folio')}${c('cliente','Cliente')}${c('telefono','Teléfono','tel')}${c('direccion','Dirección')}
+      <label>Descripción del trabajo</label><textarea id="e_descripcion" placeholder="Drywall, piso y pintura de cocina y pasillo">${esc(e.descripcion||'')}</textarea>
+      <label>Partidas (una por línea — se copian al job cuando se acepta)</label>
+      <textarea id="e_partidas" placeholder="Drywall&#10;Baseboards&#10;Instalación de piso&#10;Pintura">${esc((e.notas||''))}</textarea>
+      <div class="g2">${c('monto','Monto total','number')}${c('fecha_envio','Fecha de envío','date')}</div>
+      <label>Estatus</label>
+      <select id="e_estatus">${['borrador','enviado','aceptado','rechazado'].map(s=>`<option ${e.estatus===s?'selected':''}>${s}</option>`).join('')}</select>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar estimado</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={departamento:$('#e_departamento').value,estatus:$('#e_estatus').value,
+      folio:$('#e_folio').value.trim(),cliente:$('#e_cliente').value.trim(),
+      telefono:$('#e_telefono').value.trim()||null,direccion:$('#e_direccion').value.trim()||null,
+      descripcion:$('#e_descripcion').value.trim()||null,notas:$('#e_partidas').value.trim()||null,
+      monto:Number($('#e_monto').value)||0,fecha_envio:$('#e_fecha_envio').value||null};
+    if(!p.folio||!p.cliente) return toast('Faltan folio y cliente.');
+    const q=id?sb.from('estimados').update(p).eq('id',id):sb.from('estimados').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Estimado guardado'); render();
+  };
+}
+
+async function aceptarEstimado(id){
+  const {data:e}=await sb.from('estimados').select('*').eq('id',id).single();
+  const folio=await nuevoFolio(e.departamento);
+  const partidas=(e.notas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  cerrar();
+  formJob(null,{departamento:e.departamento,tipo:TIPOS[e.departamento][0],estatus:'activo',
+    folio, cliente:e.cliente, telefono:e.telefono, direccion:e.direccion||'', ciudad:'San Diego',
+    tipo_propiedad:'casa', notas:e.descripcion, estimado_id:e.id, partidas});
+  toast('Revisa los datos y guarda para crear el job');
+}
+
+/* ==================== EQUIPO ==================== */
+async function vEquipo(){
+  const [{data:us},{data:cs}] = await Promise.all([
+    sb.from('usuarios').select('*').order('departamento'),
+    sb.from('contratistas').select('*').order('nombre')
+  ]);
+  setTimeout(()=>{
+    $('#nu').onclick=()=>formUsuario();
+    $('#nc').onclick=()=>formContratista();
+    document.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>formUsuario(b.dataset.u));
+    document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>formContratista(b.dataset.c));
+  },0);
+  const grupo=d=>(us||[]).filter(u=>u.departamento===d);
+  const pinta=u=>`<div class="card ${u.departamento==='cleaning'?'rojo':''}${u.activo?'':' gris'}">
+    <div class="row" style="justify-content:space-between">
+      <div><div class="disp" style="font-size:17px">${esc(u.nombre)}</div>
+      <div class="meta">${esc(u.rol)} · ${esc(u.username)}</div></div>
+      <span class="chip ${u.activo?(u.departamento==='cleaning'?'rojo':'azul'):''}">${u.activo?'ACTIVO':'INACTIVO'}</span></div>
+    <div class="row no-print" style="margin-top:8px"><button class="btn ghost sm" data-u="${u.id}">Editar</button></div></div>`;
+  return `<button class="btn wide no-print" id="nu">+ Agregar personal</button>
+    <div class="eyebrow">Restoration · ${grupo('restoration').length}</div>${grupo('restoration').map(pinta).join('')||'<div class="sub">Nadie asignado.</div>'}
+    <div class="eyebrow">Cleaning services · ${grupo('cleaning').length}</div>${grupo('cleaning').map(pinta).join('')||'<div class="sub">Nadie asignado.</div>'}
+    <div class="eyebrow">Ambos departamentos · ${grupo('ambos').length}</div>${grupo('ambos').map(pinta).join('')||''}
+    <div class="eyebrow">Contratistas</div>
+    ${(cs||[]).map(c=>`<div class="card">
+      <div class="disp" style="font-size:17px">${esc(c.nombre)}</div>
+      <div class="meta">${esc(c.especialidad||'')} ${c.telefono?'· '+esc(c.telefono):''}</div>
+      <div class="row no-print" style="margin-top:8px"><button class="btn ghost sm" data-c="${c.id}">Editar</button></div>
+    </div>`).join('')||'<div class="sub">Sin contratistas registrados.</div>'}
+    <button class="btn ghost wide no-print" id="nc">+ Agregar contratista</button>`;
+}
+async function formUsuario(id){
+  let u={rol:'tecnico',departamento:'restoration',activo:true};
+  if(id){const {data}=await sb.from('usuarios').select('*').eq('id',id).single(); u=data;}
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:20px">${id?'Editar personal':'Nuevo personal'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Nombre</label><input id="u_nombre" value="${esc(u.nombre||'')}">
+      <label>Usuario para entrar</label><input id="u_username" autocapitalize="none" value="${esc(u.username||'')}">
+      <label>Teléfono (para WhatsApp)</label><input id="u_tel" type="tel" placeholder="16195550148" value="${esc(u.telefono||'')}">
+      <label>Rol</label><select id="u_rol">${['admin','oficina','tecnico'].map(r=>`<option ${u.rol===r?'selected':''}>${r}</option>`).join('')}</select>
+      <label>Departamento</label><select id="u_dep">${['restoration','cleaning','ambos'].map(d=>`<option ${u.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <label>Contraseña ${id?'(dejar vacío para no cambiarla)':''}</label><input id="u_pass" type="password">
+      <label><input type="checkbox" id="u_act" ${u.activo?'checked':''} style="width:auto"> Activo</label>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={nombre:$('#u_nombre').value.trim(),username:$('#u_username').value.trim().toLowerCase(),
+      telefono:$('#u_tel').value.trim()||null,rol:$('#u_rol').value,departamento:$('#u_dep').value,activo:$('#u_act').checked};
+    if(!p.nombre||!p.username) return toast('Faltan nombre y usuario.');
+    const pw=$('#u_pass').value;
+    if(pw) p.password_hash=await sha256(pw);
+    if(!id && !pw) return toast('Ponle una contraseña.');
+    const q=id?sb.from('usuarios').update(p).eq('id',id):sb.from('usuarios').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Personal guardado'); render();
+  };
+}
+async function formContratista(id){
+  let c={activo:true};
+  if(id){const {data}=await sb.from('contratistas').select('*').eq('id',id).single(); c=data;}
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:20px">${id?'Editar contratista':'Nuevo contratista'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Nombre</label><input id="c_n" value="${esc(c.nombre||'')}">
+      <label>Especialidad</label><input id="c_e" placeholder="Drywall · pintura" value="${esc(c.especialidad||'')}">
+      <label>Teléfono</label><input id="c_t" type="tel" value="${esc(c.telefono||'')}">
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={nombre:$('#c_n').value.trim(),especialidad:$('#c_e').value.trim()||null,telefono:$('#c_t').value.trim()||null};
+    if(!p.nombre) return toast('Ponle nombre.');
+    const q=id?sb.from('contratistas').update(p).eq('id',id):sb.from('contratistas').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Contratista guardado'); render();
+  };
+}
+
+/* ============================ ARRANQUE ============================ */
+window.addEventListener('resize',()=>{ if(U && U.rol!=='tecnico' && V==='dia') render(); });
+const g=sessionStorage.getItem('jr31');
+if(g){ U=JSON.parse(g); DEP=U.departamento==='ambos'?'restoration':U.departamento; render(); } else login();
+</script>
+</body>
+</html>
