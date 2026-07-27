@@ -21,24 +21,24 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
-body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:15px;line-height:1.5;min-height:100dvh}
+body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:17.5px;line-height:1.6;min-height:100dvh}
 h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-weight:700}
 .mono{font-family:var(--mono)}
-button,input,select,textarea{font-family:inherit;font-size:15px}
+button,input,select,textarea{font-family:inherit;font-size:17px}
 a{color:var(--azul)}
 
 .top{background:var(--azul);color:#fff;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center}
-.top .marca{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:#C3D6F7}
-.top .t{font-family:var(--disp);font-weight:800;font-size:21px;line-height:1.05}
-.top .who{text-align:right;font-size:11px;color:#C3D6F7;line-height:1.3}
-.top .who b{display:block;color:#fff;font-size:12px}
+.top .marca{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:#C3D6F7}
+.top .t{font-family:var(--disp);font-weight:800;font-size:24px;line-height:1.05}
+.top .who{text-align:right;font-size:12.5px;color:#C3D6F7;line-height:1.3}
+.top .who b{display:block;color:#fff;font-size:14px}
 .franja{height:4px;background:var(--rojo)}
 .franja.split{display:flex}.franja.split i{flex:1;display:block;height:100%}
 .franja.split i:first-child{background:var(--azul)}.franja.split i:last-child{background:var(--rojo)}
 
 main{padding:14px;padding-bottom:96px;max-width:1400px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:9px 2px 11px;font-family:var(--disp);font-size:13px;text-transform:uppercase;cursor:pointer;position:relative}
+nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:10px 2px 12px;font-family:var(--disp);font-size:16px;text-transform:uppercase;cursor:pointer;position:relative}
 nav button.on{color:var(--azul);border-top-color:var(--azul)}
 nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rojo)}
 .side{display:none}
@@ -49,9 +49,9 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   #root{flex-direction:row;flex:1;min-width:0}
   .side{display:block;width:210px;flex-shrink:0;background:var(--tinta);position:sticky;top:0;height:100dvh;overflow-y:auto}
   .side .head{padding:16px 14px;border-bottom:1px solid #1F242C}
-  .side .head .m{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--gris)}
-  .side .head .j{font-family:var(--disp);font-weight:800;font-size:22px;color:#fff;letter-spacing:.08em}
-  .side button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#9AA3AF;padding:10px 14px;font-family:var(--disp);font-size:15px;text-transform:uppercase;cursor:pointer}
+  .side .head .m{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--gris)}
+  .side .head .j{font-family:var(--disp);font-weight:800;font-size:25px;color:#fff;letter-spacing:.08em}
+  .side button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#9AA3AF;padding:13px 16px;font-family:var(--disp);font-size:20px;text-transform:uppercase;cursor:pointer}
   .side button.on{background:var(--azul);color:#fff;border-left-color:#5B8DEF}
   .wrap{flex:1;min-width:0}
   nav{display:none}
@@ -59,51 +59,94 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 }
 
-.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--gris);text-transform:uppercase;margin:20px 0 8px}
+.eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;color:var(--gris);text-transform:uppercase;margin:22px 0 9px}
 .eyebrow:first-child{margin-top:2px}
 .card{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--azul);padding:12px;margin-bottom:10px}
 .card.rojo{border-left-color:var(--rojo)} .card.ambar{border-left-color:var(--ambar)} .card.gris{border-left-color:#9AA3AF}
-.folio{font-family:var(--mono);font-size:11px;color:var(--azul)}
-.meta{font-family:var(--mono);font-size:11px;color:var(--gris)}
-.tit{font-family:var(--disp);font-size:20px;line-height:1.1;margin:3px 0}
-.sub{font-size:12px;color:var(--gris)}
+.folio{font-family:var(--mono);font-size:12.5px;color:var(--azul)}
+.meta{font-family:var(--mono);font-size:13.5px;color:var(--gris)}
+.tit{font-family:var(--disp);font-size:25px;line-height:1.1;margin:4px 0}
+.sub{font-size:15px;color:var(--gris)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.chip{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--linea);color:var(--gris);background:#F3F4F6;white-space:nowrap}
+.chip{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--linea);color:var(--gris);background:#F3F4F6;white-space:nowrap}
 .chip.azul{color:var(--azul-d);border-color:var(--azul-b);background:var(--azul-l)}
 .chip.rojo{color:var(--rojo-d);border-color:var(--rojo-b);background:var(--rojo-l)}
 .chip.ambar{color:var(--ambar-d);border-color:var(--ambar-b);background:var(--ambar-l)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--azul);color:#fff;border:0;border-radius:6px;padding:10px 15px;font-family:var(--disp);font-size:15px;font-weight:700;text-transform:uppercase;cursor:pointer;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--azul);color:#fff;border:0;border-radius:6px;padding:11px 16px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;cursor:pointer;text-decoration:none}
 .btn:active{transform:translateY(1px)}
 .btn.ghost{background:#fff;color:var(--tinta);border:1px solid #C9CFD6}
 .btn.rojo{background:var(--rojo)}
 .btn.wide{width:100%;padding:13px}
-.btn.sm{padding:6px 11px;font-size:13px}
-label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gris);margin:13px 0 5px}
-input,select,textarea{width:100%;background:#fff;border:1px solid #C9CFD6;border-radius:6px;color:var(--tinta);padding:10px 11px}
+.btn.sm{padding:7px 12px;font-size:15px}
+label{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:14px 0 6px}
+input,select,textarea{width:100%;background:#fff;border:1px solid #C9CFD6;border-radius:6px;color:var(--tinta);padding:11px 12px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);outline-offset:1px}
 textarea{min-height:80px;resize:vertical}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .num{text-align:center;font-family:var(--mono)}
-.empty{text-align:center;color:var(--gris);padding:36px 16px}
-.empty .disp{font-size:20px;color:var(--tinta);margin-bottom:5px}
+.empty{text-align:center;color:var(--gris);padding:36px 16px;font-size:16px}
+.empty .disp{font-size:25px;color:var(--tinta);margin-bottom:6px}
 .stat{background:#fff;border:1px solid var(--linea);border-radius:8px;padding:11px}
-.stat .l{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--gris)}
-.stat .v{font-family:var(--disp);font-size:24px;line-height:1.1}
-.alerta{border-left:4px solid var(--rojo);background:var(--rojo-l);padding:12px;margin-bottom:14px}
-.alerta .n{font-family:var(--disp);font-weight:800;font-size:34px;line-height:1;color:var(--rojo)}
-.alerta .t{font-size:12px;color:var(--rojo-d)}
-.ok{border-left:4px solid var(--azul);background:var(--azul-l);padding:12px;margin-bottom:14px;font-size:13px;color:var(--azul-d)}
+.stat .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris)}
+.stat .v{font-family:var(--disp);font-size:34px;line-height:1.05}
+footer{padding:26px 14px 34px;text-align:center;border-top:1px solid var(--linea);margin-top:34px}
+footer .n{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
+footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3AF;margin-top:4px}
+.homebtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.homebtn:active{transform:scale(.94)}
+.side .head{cursor:pointer}
+.side .inicio{border-bottom:1px solid #1F242C;margin-bottom:6px}
+.fab{position:fixed;right:18px;bottom:88px;z-index:46;width:60px;height:60px;border-radius:50%;background:var(--azul);color:#fff;border:0;font-size:30px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(27,86,211,.42);display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.93)}
+.fabm{position:fixed;right:18px;bottom:158px;z-index:46;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fabm button{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:12px 16px;font-family:var(--disp);font-size:17px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 14px rgba(11,13,17,.14);white-space:nowrap}
+@media(min-width:900px){.fab{bottom:26px;right:26px}.fabm{bottom:98px;right:26px}}
+.alerta{border-left:4px solid var(--rojo);background:var(--rojo-l);padding:13px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:6px}
+@media(min-width:900px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:13px}
+.kpi .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris);text-transform:uppercase}
+.kpi .v{font-family:var(--disp);font-weight:800;font-size:42px;line-height:1;margin-top:5px}
+.kpi .p{font-size:14.5px;color:var(--gris);margin-top:2px}
+.kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
+.kpi.m{border-left:4px solid var(--ambar)}
+.barra{height:8px;background:var(--linea2);border-radius:4px;overflow:hidden;margin-top:8px}
+.barra i{display:block;height:100%;background:var(--azul)}
+.fila{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--linea);border-left:4px solid var(--linea);padding:11px;margin-bottom:8px;cursor:pointer}
+.fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
+.fila .t{flex:1;min-width:0}
+.fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
+.modos{display:flex;gap:6px;margin-bottom:12px}
+.modos button{flex:1;background:#fff;border:1px solid var(--linea);color:var(--gris);padding:11px;font-family:var(--disp);font-size:18px;text-transform:uppercase;border-radius:6px;cursor:pointer}
+.modos button.on{background:var(--azul);border-color:var(--azul);color:#fff}
+.mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.mes .dn{text-align:center;font-family:var(--mono);font-size:11px;color:var(--gris);padding-bottom:3px}
+.mes .d{min-height:62px;background:#fff;border:1px solid var(--linea);border-radius:6px;padding:5px;cursor:pointer;overflow:hidden}
+.mes .d.hoy{border-color:var(--azul);border-width:2px}
+.mes .d.vacio{background:transparent;border:0;cursor:default}
+.mes .d .n{font-family:var(--mono);font-size:12.5px;color:var(--gris)}
+.mes .d .pt{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
+.mes .d .pt i{width:7px;height:7px;border-radius:50%;background:var(--azul);display:block}
+.mes .d .pt i.r{background:var(--rojo)}
+.sem{display:flex;flex-direction:column;gap:8px}
+.sem .d{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--linea);padding:10px;cursor:pointer}
+.sem .d.hoy{border-left-color:var(--azul)}
+.sem .d .h{display:flex;justify-content:space-between;align-items:baseline}
+.sem .d .h b{font-family:var(--disp);font-size:18px;text-transform:uppercase}
+.alerta .n{font-family:var(--disp);font-weight:800;font-size:40px;line-height:1;color:var(--rojo)}
+.alerta .t{font-size:14px;color:var(--rojo-d)}
+.ok{border-left:4px solid var(--azul);background:var(--azul-l);padding:13px;margin-bottom:14px;font-size:15px;color:var(--azul-d)}
 .tabs{display:flex;background:#fff;border-bottom:1px solid var(--linea);margin:-14px -14px 14px}
-.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;font-family:var(--disp);font-size:13px;text-transform:uppercase;color:var(--gris);cursor:pointer}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 4px;font-family:var(--disp);font-size:16.5px;text-transform:uppercase;color:var(--gris);cursor:pointer}
 .tabs button.on{color:var(--azul);border-bottom-color:var(--azul)}
-.tabs .c{font-family:var(--mono);font-size:14px;display:block}
+.tabs .c{font-family:var(--mono);font-size:16px;display:block}
 .linea-t{border-left:2px solid var(--linea);margin-left:5px;padding-left:16px}
 .linea-t .p{position:relative;margin-bottom:12px}
 .linea-t .p i{position:absolute;left:-21px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--azul)}
 .linea-t .p.x i{background:var(--rojo)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;border-radius:4px}
+.cal div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;border-radius:4px}
 .sheet{position:fixed;inset:0;z-index:60;background:var(--fondo);overflow-y:auto}
 .sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;align-items:flex-start;padding:13px 16px;padding-top:calc(13px + env(safe-area-inset-top));z-index:2}
 .sheet-body{max-width:900px;margin:0 auto;padding:14px 14px 60px}
@@ -157,6 +200,11 @@ const TIPOS = { restoration:['water','fire','mold','otro'], cleaning:['carpet cl
 const ESTAT_PART = {pendiente:['PENDIENTE','rojo'],asignada:['ASIGNADA','ambar'],proceso:['EN PROCESO','ambar'],revision:['POR REVISAR','rojo'],aprobada:['APROBADA','azul']};
 
 let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
+let MODO='mes', MREF=hoy();
+const iso = d => d.toLocaleDateString('en-CA');
+const EDIT = () => U && U.rol==='admin';
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
 /* ============================ LOGIN ============================ */
 function login(msg){
@@ -188,35 +236,43 @@ async function entrar(){
   if(!data) return login('Usuario o contraseña incorrectos.');
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
   DEP = U.departamento==='ambos' ? 'restoration' : U.departamento;
-  V = U.rol==='tecnico' ? 'dia' : 'dia';
+  V = U.rol==='tecnico' ? 'dia' : 'resumen';
   render();
 }
 function salir(){ sessionStorage.removeItem('jr31'); U=null; login(); }
 
 /* ============================ SHELL ============================ */
 function shell(html){
+  const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
   const tabs = U.rol==='tecnico'
-    ? [['dia','Mi día'],['pend','Pendientes'],['hist','Historial']]
-    : [['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']];
+    ? [['dia','Mi día'],['trabajos','Trabajos'],['pend','Pendientes'],['hist','Historial']]
+    : (U.rol==='admin'
+      ? [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
+      : [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
   $('#root').innerHTML = `
     ${esTec?'':`<div class="side">
-      <div class="head"><div class="m">CAPRI RESTORATION</div><div class="j">JR31</div></div>
-      ${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}</button>`).join('')}
-      <button data-v="salir" style="margin-top:20px;color:#6B7280">Salir</button>
+      <div class="head" data-v="${inicio}"><div class="m">CAPRI RESTORATION</div><div class="j">JR31</div></div>
+      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">⌂ Inicio</button></div>
+      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}</button>`).join('')}
+      <button data-v="salir" style="margin-top:22px;color:#6B7280">Salir</button>
     </div>`}
     <div class="wrap">
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
-        <div>
+        ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
+        <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
-          <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':tabs.find(t=>t[0]===V)[1])}</div>
+          <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
         <div class="who"><b>${esc(U.nombre)}</b>${esc(U.rol)}${esTec?` · <a href="#" id="out" style="color:#C3D6F7">salir</a>`:''}</div>
       </div>
       <div class="franja split"><i></i><i></i></div>
-      <main>${html}</main>
+      <main>${html}
+        <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div></footer>
+      </main>
+      ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
     </div>`;
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
@@ -224,6 +280,33 @@ function shell(html){
     V=b.dataset.v; render();
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
+  const fab=$('#fab');
+  if(fab) fab.onclick=()=>{
+    const m=$('#fabm');
+    if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
+    fab.textContent='×'; 
+    m.innerHTML=`<div class="fabm">
+      <button data-q="job">+ Nuevo job</button>
+      <button data-q="est">+ Nuevo estimado</button>
+      <button data-q="asig">+ Asignar trabajo</button>
+      <button data-q="pers">+ Agregar personal</button>
+    </div>`;
+    m.querySelectorAll('[data-q]').forEach(b=>b.onclick=async()=>{
+      m.innerHTML=''; fab.textContent='+';
+      const q=b.dataset.q;
+      if(q==='job')  return formJob();
+      if(q==='est')  return formEstimado();
+      if(q==='pers') return formUsuario();
+      if(q==='asig'){
+        const [{data:t},{data:j}]=await Promise.all([
+          sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
+          sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
+        ]);
+        FSCH=MREF;
+        return formAsig((t||[]).filter(x=>x.departamento===DEP||x.departamento==='ambos'), j||[]);
+      }
+    });
+  };
 }
 
 async function render(){
@@ -231,10 +314,12 @@ async function render(){
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
-      if(V==='dia')  return shell(await vTecDia());
-      if(V==='pend') return shell(await vTecPend());
-      if(V==='hist') return shell(await vTecHist());
+      if(V==='dia')      return shell(await vTecDia());
+      if(V==='trabajos') return shell(await vTecTrabajos());
+      if(V==='pend')     return shell(await vTecPend());
+      if(V==='hist')     return shell(await vTecHist());
     }
+    if(V==='resumen')   return shell(await vResumen());
     if(V==='dia')       return shell(await vControl());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -476,7 +561,7 @@ async function vControl(){
       <div class="row" style="margin-top:9px">
         <span class="chip rojo">POR REVISAR</span><span style="flex:1"></span>
         <button class="btn ghost sm" data-job="${p.job_id}">Ver job</button>
-        <button class="btn sm" data-apr="${p.id}">Aprobar</button>
+        ${EDIT()?`<button class="btn sm" data-apr="${p.id}">Aprobar</button>`:''}
       </div></div>`).join('')
     : `<div class="empty"><div class="disp">Nada por revisar</div><p>Cuando un contratista marque una partida terminada, cae aquí.</p></div>`;
 
@@ -533,12 +618,128 @@ async function vControl(){
     </div>${cuerpo}`;
 }
 
+
+/* ==================== PANEL DE RESUMEN ==================== */
+async function vResumen(){
+  const h=hoy();
+  const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
+    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,created_at'),
+    sb.from('asignaciones').select('*, jobs(folio,cliente,departamento), usuarios(nombre)').eq('fecha',h),
+    sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
+    sb.from('partidas').select('*, jobs(folio,cliente,departamento)'),
+    sb.from('estimados').select('*'),
+    sb.from('recordatorios').select('*, jobs(folio,cliente,departamento)').eq('hecho',false)
+  ]);
+  const J=(jobs||[]).filter(x=>x.departamento===DEP);
+  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus));
+  const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
+  const hechos=new Set((reps||[]).map(r=>r.tecnico_id+'|'+r.job_id));
+  const faltan=A.filter(a=>!hechos.has(a.tecnico_id+'|'+a.job_id));
+  const P=(part||[]).filter(x=>x.jobs?.departamento===DEP);
+  const revisar=P.filter(x=>x.estatus==='revision');
+  const sinAsig=P.filter(x=>x.estatus==='pendiente');
+  const E=(ests||[]).filter(x=>x.departamento===DEP);
+  const env=E.filter(x=>x.estatus==='enviado');
+  const mesAct=h.slice(0,7);
+  const acc=E.filter(x=>x.estatus==='aceptado');
+  const R=(recs||[]).filter(x=>x.jobs?.departamento===DEP);
+  const vencidos=R.filter(x=>x.fecha_venc && x.fecha_venc<h);
+  const aprob=P.filter(x=>x.estatus==='aprobada').length;
+  const pct=P.length?Math.round(aprob*100/P.length):0;
+
+  setTimeout(()=>{
+    engancharDep();
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+    document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
+  },0);
+
+  const alertas=[];
+  faltan.forEach(a=>alertas.push({c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
+  revisar.forEach(x=>alertas.push({c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+  vencidos.forEach(x=>alertas.push({c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
+  sinAsig.forEach(x=>alertas.push({c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+  env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
+     .forEach(x=>alertas.push({c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
+
+  return selectorDep()+`
+    <div class="kpis">
+      <div class="kpi a"><div class="l">Jobs activos</div><div class="v">${activos.length}</div><div class="p">de ${J.length} en total</div></div>
+      <div class="kpi ${faltan.length?'r':'a'}"><div class="l">Reportes de hoy</div>
+        <div class="v" style="color:${faltan.length?'var(--rojo)':'var(--azul)'}">${A.length-faltan.length}/${A.length}</div>
+        <div class="p">${faltan.length?faltan.length+' sin recibir':'todos adentro'}</div></div>
+      <div class="kpi ${revisar.length?'r':''}"><div class="l">Por revisar</div>
+        <div class="v" style="color:${revisar.length?'var(--rojo)':'var(--tinta)'}">${revisar.length}</div>
+        <div class="p">partidas terminadas</div></div>
+      <div class="kpi m"><div class="l">Estimados enviados</div><div class="v">${cf(env.reduce((a,b)=>a+Number(b.monto||0),0))}</div>
+        <div class="p">${env.length} esperando respuesta</div></div>
+    </div>
+
+    ${DEP==='restoration'?`
+    <div class="eyebrow">Avance de reconstrucción</div>
+    <div class="kpi" style="border-left:4px solid var(--azul)">
+      <div class="row" style="justify-content:space-between">
+        <span class="disp" style="font-size:19px">${aprob} de ${P.length} partidas aprobadas</span>
+        <span class="disp" style="font-size:24px;color:var(--azul)">${pct}%</span></div>
+      <div class="barra"><i style="width:${pct}%"></i></div>
+      <div class="row" style="margin-top:9px">
+        <span class="chip azul">${aprob} aprobadas</span>
+        <span class="chip ambar">${P.filter(x=>['asignada','proceso'].includes(x.estatus)).length} en proceso</span>
+        <span class="chip rojo">${sinAsig.length} sin asignar</span>
+      </div></div>`:''}
+
+    <div class="eyebrow">Requiere tu atención · ${alertas.length}</div>
+    ${alertas.length?alertas.slice(0,12).map(a=>`
+      <div class="fila ${a.c}" ${a.job?`data-job="${a.job}"`:''}>
+        <div class="t"><b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
+        <span class="chip ${a.c==='r'?'rojo':'ambar'}">${a.c==='r'?'URGENTE':'PENDIENTE'}</span>
+      </div>`).join('')
+      :`<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`}
+
+    <div class="eyebrow">Visitas de hoy · ${A.length}</div>
+    ${A.length?A.map(a=>`<div class="fila ${hechos.has(a.tecnico_id+'|'+a.job_id)?'a':'r'}" data-job="${a.job_id}">
+      <div class="t"><b>${esc(a.jobs.cliente)}</b><span class="sub">${esc(a.jobs.folio)} · ${esc(a.usuarios?.nombre||'')} ${a.hora?'· '+esc(a.hora):''}</span></div>
+      <span class="chip ${hechos.has(a.tecnico_id+'|'+a.job_id)?'azul':'rojo'}">${hechos.has(a.tecnico_id+'|'+a.job_id)?'REPORTE OK':'PENDIENTE'}</span>
+    </div>`).join('')
+      :`<div class="fila" data-ir="schedule"><div class="t"><b>Nada programado hoy</b><span class="sub">Toca aquí para ir al schedule</span></div></div>`}
+
+    <div class="eyebrow">Accesos rápidos</div>
+    <div class="kpis">
+      <div class="fila a" data-ir="dia"><div class="t"><b>Control del día</b><span class="sub">por hacer y por revisar</span></div></div>
+      <div class="fila a" data-ir="schedule"><div class="t"><b>Calendario</b><span class="sub">mes · semana · día</span></div></div>
+      <div class="fila a" data-ir="jobs"><div class="t"><b>Jobs</b><span class="sub">${activos.length} activos</span></div></div>
+      <div class="fila a" data-ir="estimados"><div class="t"><b>Estimados</b><span class="sub">${env.length} enviados</span></div></div>
+    </div>`;
+}
+
+/* ==================== TÉCNICO · TRABAJOS ACTIVOS ==================== */
+async function vTecTrabajos(){
+  const dep = U.departamento==='ambos'?null:U.departamento;
+  let q = sb.from('jobs').select('*').not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false});
+  if(dep) q = q.eq('departamento',dep);
+  const {data}=await q;
+  const {data:mias}=await sb.from('asignaciones').select('job_id,fecha').eq('tecnico_id',U.id).gte('fecha',hace(30));
+  const mios=new Set((mias||[]).map(x=>x.job_id));
+  const J=data||[];
+  if(!J.length) return `<div class="empty"><div class="disp">Sin trabajos activos</div><p>Aquí ves todos los jobs abiertos de tu área.</p></div>`;
+  return `<div class="eyebrow">Trabajos activos · ${J.length}</div>`+
+    J.map(j=>`<div class="card ${j.departamento==='cleaning'?'rojo':''}">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(j.folio)}</span>
+        ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
+      <div class="tit">${esc(j.cliente)}</div>
+      <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
+      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.management?' · '+esc(j.management):''}</div>
+      ${j.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
+    </div>`).join('');
+}
+
 /* ==================== JOBS ==================== */
 async function vJobs(){
   const {data}=await sb.from('jobs').select('*').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
-  setTimeout(()=>{ engancharDep(); $('#nj').onclick=()=>formJob();
+  setTimeout(()=>{ engancharDep();
+    const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
-  return selectorDep()+`<button class="btn wide no-print" id="nj">+ Nuevo job</button>
+  return selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button>':''}
     <div class="eyebrow">Jobs de ${DEP}</div>`+
     ((data||[]).map(j=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(j.folio)}</span>
@@ -687,7 +888,7 @@ async function abrirJob(id){
           <div><div class="meta" style="font-size:9px">DUEÑO / RESIDENTE</div><div class="sub" style="color:var(--tinta)">${esc(j.propietario||'—')}</div></div>
           <div><div class="meta" style="font-size:9px">ASEGURANZA</div><div class="sub" style="color:var(--tinta)">${esc(j.aseguranza||'—')} ${esc(j.claim_number||'')}</div></div>
         </div>
-        <div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
+        ${EDIT()?'<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>':''}
       </div>
 
       <div class="eyebrow">Historial del trabajo</div>
@@ -714,20 +915,20 @@ async function abrirJob(id){
             <span class="disp" style="font-size:17px">${esc(p.nombre)}</span><span class="chip ${c}">${t}</span></div>
           <div class="sub">${esc(p.detalle||'')} ${p.cantidad?'· '+esc(p.cantidad):''}</div>
           <div class="meta" style="margin-top:3px">${esc(p.contratistas?.nombre||'sin contratista asignado')}</div>
-          <div class="row no-print" style="margin-top:8px">
+          ${EDIT()?`<div class="row no-print" style="margin-top:8px">
             <select data-pc="${p.id}" style="flex:1;padding:6px"><option value="">— contratista —</option>
               ${(cons||[]).map(c2=>`<option value="${c2.id}" ${p.contratista_id===c2.id?'selected':''}>${esc(c2.nombre)}</option>`).join('')}</select>
             <select data-pe="${p.id}" style="flex:1;padding:6px">
               ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
-          </div></div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
-      <button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>`:''}
+          </div>`:''}</div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
+      ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>':''}`:''}
 
       <div class="eyebrow">Notas y comentarios</div>
       <div>${N.map(n=>`<div class="card" style="border-left-color:var(--linea)">
         <div class="sub" style="color:var(--tinta)">${esc(n.texto)}</div>
         <div class="meta" style="margin-top:4px">${esc(n.autor||'')} · ${new Date(n.created_at).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
       </div>`).join('')||'<div class="sub">Sin notas todavía.</div>'}</div>
-      <div class="row no-print"><input id="nt" placeholder="Escribe una nota…" style="flex:1"><button class="btn sm" id="an">Agregar</button></div>
+      ${EDIT()?'<div class="row no-print"><input id="nt" placeholder="Escribe una nota…" style="flex:1"><button class="btn sm" id="an">Agregar</button></div>':''}
 
       <div class="eyebrow">Recordatorios</div>
       <div>${RC.map(r=>{
@@ -737,7 +938,7 @@ async function abrirJob(id){
           <div style="flex:1"><div class="sub" style="color:var(--tinta)">${esc(r.texto)}</div>
           <div class="meta" style="color:${vencido?'var(--rojo)':'var(--azul)'}">${vencido?'vencido · ':'vence '}${fmt(r.fecha_venc)}</div></div></div>
         </div>`;}).join('')||'<div class="sub">Sin recordatorios.</div>'}</div>
-      <div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>
+      ${EDIT()?'<div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>':''}
 
       <div class="eyebrow">Reportes recibidos · ${R.length}</div>
       ${R.slice().reverse().map(r=>`<div class="card">
@@ -753,7 +954,7 @@ async function abrirJob(id){
     </div></div>`;
 
   $('#c1').onclick=$('#c2').onclick=cerrar;
-  $('#ed').onclick=()=>formJob(id);
+  const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -786,36 +987,132 @@ async function abrirJob(id){
 
 /* ==================== SCHEDULE ==================== */
 async function vSchedule(){
-  const [{data:asig},{data:tecs},{data:jobs}] = await Promise.all([
-    sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').eq('fecha',FSCH),
+  const ref=new Date(MREF+'T12:00:00');
+  let d1,d2,titulo;
+  if(MODO==='dia'){ d1=d2=MREF; titulo=fmt(MREF); }
+  else if(MODO==='semana'){
+    const dow=(ref.getDay()+6)%7;
+    const ini=new Date(ref); ini.setDate(ref.getDate()-dow);
+    const fin=new Date(ini);  fin.setDate(ini.getDate()+6);
+    d1=iso(ini); d2=iso(fin);
+    titulo=ini.getDate()+' – '+fin.getDate()+' '+MESES[fin.getMonth()];
+  } else {
+    const ini=new Date(ref.getFullYear(),ref.getMonth(),1);
+    const fin=new Date(ref.getFullYear(),ref.getMonth()+1,0);
+    d1=iso(ini); d2=iso(fin);
+    titulo=MESES[ref.getMonth()]+' '+ref.getFullYear();
+  }
+  const [{data:asig},{data:reps},{data:tecs},{data:jobs}] = await Promise.all([
+    sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').gte('fecha',d1).lte('fecha',d2).order('fecha'),
+    sb.from('reportes').select('job_id,tecnico_id,fecha').gte('fecha',d1).lte('fecha',d2),
     sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
     sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
   ]);
   const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
   const T=(tecs||[]).filter(t=>t.departamento===DEP||t.departamento==='ambos');
+  const hechos=new Set((reps||[]).map(r=>r.tecnico_id+'|'+r.job_id+'|'+r.fecha));
+  const porDia={}; A.forEach(a=>(porDia[a.fecha]||=[]).push(a));
+
   setTimeout(()=>{
     engancharDep();
-    $('#fs').onchange=e=>{FSCH=e.target.value;render();};
-    $('#aa').onclick=()=>formAsig(T,jobs||[]);
-    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    document.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{MODO=b.dataset.modo;render();});
+    document.querySelectorAll('[data-mueve]').forEach(b=>b.onclick=()=>{
+      const n=+b.dataset.mueve, r=new Date(MREF+'T12:00:00');
+      if(MODO==='dia') r.setDate(r.getDate()+n);
+      else if(MODO==='semana') r.setDate(r.getDate()+7*n);
+      else r.setMonth(r.getMonth()+n);
+      MREF=iso(r); render();
+    });
+    const hy=$('#irhoy'); if(hy) hy.onclick=()=>{MREF=hoy();render();};
+    document.querySelectorAll('[data-ird]').forEach(b=>b.onclick=()=>{MREF=b.dataset.ird;MODO='dia';render();});
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=e=>{e.stopPropagation();abrirJob(b.dataset.job);});
+    const aa=$('#aa'); if(aa) aa.onclick=()=>{FSCH=MREF;formAsig(T,jobs||[]);};
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async e=>{
+      e.stopPropagation();
       if(!confirm('¿Quitar esta asignación?'))return;
       await sb.from('asignaciones').delete().eq('id',b.dataset.del); toast('Asignación quitada'); render();
     });
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
   },0);
-  return selectorDep()+`<label>Fecha</label><input id="fs" type="date" value="${FSCH}">
-    <div style="height:10px"></div><button class="btn wide no-print" id="aa">+ Asignar trabajo a técnico</button>
-    <div class="eyebrow">Programado para ${fmt(FSCH)} · ${T.length} técnicos en ${DEP}</div>`+
-    (A.map(a=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
-      <div class="row" style="justify-content:space-between"><span class="folio">${esc(a.jobs.folio)}</span>
-        <span class="chip">${esc(a.usuarios?.nombre||'')}</span></div>
-      <div class="tit">${esc(a.jobs.cliente)}</div>
-      <div class="sub">${esc(a.jobs.direccion)}</div>
-      ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
-      <div class="row no-print" style="margin-top:9px">
-        <button class="btn ghost sm" data-job="${a.job_id}">Abrir job</button>
-        <button class="btn ghost sm" data-del="${a.id}">Quitar</button></div>
-    </div>`).join('') || `<div class="empty"><div class="disp">Día libre</div><p>Nadie tiene visitas para esta fecha.</p></div>`);
+
+  let cuerpo='';
+
+  if(MODO==='mes'){
+    const ini=new Date(ref.getFullYear(),ref.getMonth(),1);
+    const ult=new Date(ref.getFullYear(),ref.getMonth()+1,0).getDate();
+    const off=(ini.getDay()+6)%7;
+    cuerpo='<div class="mes">'+DSEM.map(d=>`<div class="dn">${d}</div>`).join('')
+      +'<div class="d vacio"></div>'.repeat(off);
+    for(let n=1;n<=ult;n++){
+      const f=`${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
+      const lista=porDia[f]||[];
+      const pts=lista.map(a=>{
+        const ok=hechos.has(a.tecnico_id+'|'+a.job_id+'|'+a.fecha);
+        return `<i class="${(!ok&&f<=hoy())?'r':''}"></i>`;
+      }).join('');
+      cuerpo+=`<div class="d ${f===hoy()?'hoy':''}" data-ird="${f}">
+        <div class="n" ${f===hoy()?'style="color:var(--azul);font-weight:600"':''}>${n}</div>
+        <div class="pt">${pts}</div></div>`;
+    }
+    cuerpo+='</div><div class="row" style="margin-top:10px;font-size:13px;color:var(--gris)">'
+      +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--azul)"></i> visita con reporte</span>'
+      +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rojo)"></i> falta reporte</span></div>';
+  }
+
+  else if(MODO==='semana'){
+    const dow=(ref.getDay()+6)%7;
+    const ini=new Date(ref); ini.setDate(ref.getDate()-dow);
+    cuerpo='<div class="sem">';
+    for(let k=0;k<7;k++){
+      const dd=new Date(ini); dd.setDate(ini.getDate()+k);
+      const f=iso(dd); const lista=porDia[f]||[];
+      const falt=lista.filter(a=>!hechos.has(a.tecnico_id+'|'+a.job_id+'|'+a.fecha)&&f<=hoy()).length;
+      cuerpo+=`<div class="d ${f===hoy()?'hoy':''}" data-ird="${f}">
+        <div class="h"><b>${DSEM[k]} ${dd.getDate()}</b>
+          ${lista.length?`<span class="chip ${falt?'rojo':'azul'}">${lista.length} visita${lista.length>1?'s':''}${falt?' · '+falt+' sin reporte':''}</span>`:'<span class="chip">libre</span>'}</div>
+        ${lista.map(a=>`<div class="sub" style="margin-top:5px;color:var(--tinta)">
+          ${a.hora?'<b class="mono">'+esc(a.hora)+'</b> · ':''}${esc(a.jobs.cliente)} <span class="meta">${esc(a.usuarios?.nombre||'')}</span></div>`).join('')}
+      </div>`;
+    }
+    cuerpo+='</div>';
+  }
+
+  else {
+    const lista=porDia[MREF]||[];
+    cuerpo = lista.length ? lista.map(a=>{
+      const ok=hechos.has(a.tecnico_id+'|'+a.job_id+'|'+a.fecha);
+      return `<div class="card ${DEP==='cleaning'?'rojo':''}">
+        <div class="row" style="justify-content:space-between">
+          <span class="folio">${esc(a.jobs.folio)}</span><span class="chip">${esc(a.usuarios?.nombre||'')}</span></div>
+        <div class="tit">${esc(a.jobs.cliente)}</div>
+        <div class="sub">${esc(a.jobs.direccion)}${a.jobs.unidad?' · Unit '+esc(a.jobs.unidad):''}</div>
+        ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
+        ${a.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(a.notas)}</div>`:''}
+        <div class="row" style="margin-top:10px">
+          ${ok?'<span class="chip azul">REPORTE RECIBIDO</span>':'<span class="chip rojo">FALTA REPORTE</span>'}
+          <span style="flex:1"></span>
+          <button class="btn ghost sm" data-job="${a.job_id}">Abrir job</button>
+          ${EDIT()?`<button class="btn ghost sm" data-del="${a.id}">Quitar</button>`:''}
+        </div></div>`;
+    }).join('') : `<div class="empty"><div class="disp">Día libre</div><p>Nadie tiene visitas para esta fecha.</p></div>`;
+  }
+
+  return selectorDep()+`
+    <div class="modos no-print">
+      <button data-modo="mes" class="${MODO==='mes'?'on':''}">Mes</button>
+      <button data-modo="semana" class="${MODO==='semana'?'on':''}">Semana</button>
+      <button data-modo="dia" class="${MODO==='dia'?'on':''}">Día</button>
+    </div>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <button class="btn ghost sm" data-mueve="-1">‹</button>
+      <div style="text-align:center">
+        <div class="disp" style="font-size:21px">${esc(titulo)}</div>
+        <button class="btn ghost sm no-print" id="irhoy" style="margin-top:3px">Hoy</button>
+      </div>
+      <button class="btn ghost sm" data-mueve="1">›</button>
+    </div>
+    ${EDIT()?`<button class="btn wide no-print" id="aa" style="margin-bottom:14px">+ Asignar trabajo a técnico</button>`:''}
+    ${MODO!=='mes'?`<div class="eyebrow">${A.length} visita${A.length===1?'':'s'} · ${T.length} técnicos en ${DEP}</div>`:''}
+    ${cuerpo}`;
 }
 function formAsig(tecs,jobs){
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
@@ -847,7 +1144,7 @@ async function vEstimados(){
   const env=E.filter(e=>e.estatus==='enviado'), acc=E.filter(e=>e.estatus==='aceptado');
   setTimeout(()=>{
     engancharDep();
-    $('#ne').onclick=()=>formEstimado();
+    const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
     document.querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>formEstimado(b.dataset.est));
     document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>aceptarEstimado(b.dataset.acc));
     document.querySelectorAll('[data-rech]').forEach(b=>b.onclick=async()=>{
@@ -863,7 +1160,7 @@ async function vEstimados(){
         <div class="v" style="color:var(--azul)">${cf(acc.reduce((s,e)=>s+Number(e.monto||0),0))}</div>
         <div class="meta">${acc.length} convertidos</div></div>
     </div>
-    <button class="btn wide no-print" id="ne">+ Nuevo estimado</button>
+    ${EDIT()?'<button class="btn wide no-print" id="ne">+ Nuevo estimado</button>':''}
     <div class="eyebrow">Estimados de ${DEP}</div>`+
     (E.map(e=>{
       const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
@@ -877,12 +1174,12 @@ async function vEstimados(){
         <div class="sub">${esc(e.descripcion||'')}</div>
         <div class="row" style="margin-top:7px;justify-content:space-between">
           <span class="disp" style="font-size:21px">${cf(e.monto)}</span>${chip}</div>
-        <div class="row no-print" style="margin-top:9px">
+        ${EDIT()?`<div class="row no-print" style="margin-top:9px">
           <button class="btn ghost sm" data-est="${e.id}">Editar</button>
           <span style="flex:1"></span>
           ${e.estatus==='enviado'?`<button class="btn ghost sm" data-rech="${e.id}">Rechazado</button>
             <button class="btn sm" data-acc="${e.id}">Marcar aceptado</button>`:''}
-        </div></div>`;
+        </div>`:''}</div>`;
     }).join('') || `<div class="empty"><div class="disp">Sin estimados</div><p>Registra el primero para darle seguimiento.</p></div>`);
 }
 
@@ -942,8 +1239,8 @@ async function vEquipo(){
     sb.from('contratistas').select('*').order('nombre')
   ]);
   setTimeout(()=>{
-    $('#nu').onclick=()=>formUsuario();
-    $('#nc').onclick=()=>formContratista();
+    const nu=$('#nu'); if(nu) nu.onclick=()=>formUsuario();
+    const nc=$('#nc'); if(nc) nc.onclick=()=>formContratista();
     document.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>formUsuario(b.dataset.u));
     document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>formContratista(b.dataset.c));
   },0);
