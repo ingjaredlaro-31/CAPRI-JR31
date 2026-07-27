@@ -43,8 +43,10 @@ nav button.on{color:var(--azul);border-top-color:var(--azul)}
 nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rojo)}
 .side{display:none}
 
+#root{width:100%;display:flex;flex-direction:column;min-height:100dvh}
 @media(min-width:900px){
   body{display:flex;min-height:100dvh}
+  #root{flex-direction:row;flex:1;min-width:0}
   .side{display:block;width:210px;flex-shrink:0;background:var(--tinta);position:sticky;top:0;height:100dvh;overflow-y:auto}
   .side .head{padding:16px 14px;border-bottom:1px solid #1F242C}
   .side .head .m{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--gris)}
@@ -106,9 +108,11 @@ textarea{min-height:80px;resize:vertical}
 .sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;align-items:flex-start;padding:13px 16px;padding-top:calc(13px + env(safe-area-inset-top));z-index:2}
 .sheet-body{max-width:900px;margin:0 auto;padding:14px 14px 60px}
 .x{background:none;border:0;color:#C3D6F7;font-size:24px;cursor:pointer;line-height:1}
-.login{max-width:380px;margin:0 auto;padding:40px 20px}
-.login .box{background:#fff;border:1px solid var(--linea);border-radius:10px;overflow:hidden}
-.login .cab{background:var(--tinta);padding:22px 16px;text-align:center}
+.login-page{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 18px;min-height:100dvh;background:var(--fondo)}
+.login{width:100%;max-width:420px}
+.login .box{background:#fff;border:1px solid var(--linea);border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(11,13,17,.07)}
+.login .cab{background:var(--tinta);padding:30px 20px;text-align:center}
+.login .pie{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#9AA3AF;margin-top:16px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:99;background:var(--tinta);color:#fff;padding:11px 18px;border-radius:6px;font-size:14px;z-index:200}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .thumbs img{width:62px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--linea)}
@@ -156,22 +160,24 @@ let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
 
 /* ============================ LOGIN ============================ */
 function login(msg){
-  $('#root').innerHTML = `<div class="wrap"><div class="login"><div class="box">
+  $('#root').innerHTML = `<div class="login-page"><div class="login"><div class="box">
     <div class="cab">
       <div class="mono" style="font-size:9px;letter-spacing:.2em;color:#9AA3AF">${esc(EMPRESA.toUpperCase())}</div>
-      <div class="disp" style="font-weight:800;font-size:26px;color:#fff;line-height:1;margin-top:5px">Administrador<br>Central</div>
-      <div class="mono" style="font-size:12px;letter-spacing:.4em;color:#5B8DEF;margin-top:7px">JR31</div>
+      <div class="disp" style="font-weight:800;font-size:30px;color:#fff;line-height:.98;margin-top:8px">Administrador<br>Central</div>
+      <div class="mono" style="font-size:12px;letter-spacing:.45em;color:#5B8DEF;margin-top:10px">JR31</div>
     </div>
     <div class="franja split"><i></i><i></i></div>
-    <div style="padding:20px">
-      <label>Usuario</label><input id="u" autocapitalize="none">
-      <label>Contraseña</label><input id="p" type="password">
-      <div style="height:18px"></div>
+    <div style="padding:26px 26px 30px">
+      <label style="margin-top:0">Usuario</label><input id="u" autocapitalize="none" autocomplete="username">
+      <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
+      <div style="height:22px"></div>
       <button class="btn wide" id="go">Entrar</button>
-      <p style="color:var(--rojo);font-size:13px;text-align:center;min-height:18px">${esc(msg||'')}</p>
-    </div></div></div></div>`;
+      <p style="color:var(--rojo);font-size:13px;text-align:center;min-height:18px;margin:12px 0 0">${esc(msg||'')}</p>
+    </div></div>
+    <div class="pie">SAN DIEGO · CALIFORNIA</div>
+    </div></div>`;
   $('#go').onclick = entrar;
-  $('#p').onkeydown = e => e.key==='Enter' && entrar();
+  $('#p').onkeydown = e => { if(e.key==='Enter') entrar(); };
 }
 async function entrar(){
   const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
