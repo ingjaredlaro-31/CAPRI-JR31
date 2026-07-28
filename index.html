@@ -1461,6 +1461,9 @@ function formAsig(tecs,jobs){
 }
 
 /* ==================== ESTIMADOS ==================== */
+const sumaRen = r => (r||[]).reduce((a,x)=>a+(Number(x.cant||1)*Number(x.precio||0)),0);
+const soloNum = t => (t||'').replace(/[^0-9]/g,'');
+
 async function vEstimados(){
   const {data}=await sb.from('estimados').select('*, jobs(folio)').eq('departamento',DEP).order('created_at',{ascending:false});
   const E=data||[];
@@ -1468,11 +1471,7 @@ async function vEstimados(){
   setTimeout(()=>{
     engancharDep();
     const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
-    document.querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>formEstimado(b.dataset.est));
-    document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>aceptarEstimado(b.dataset.acc));
-    document.querySelectorAll('[data-rech]').forEach(b=>b.onclick=async()=>{
-      await sb.from('estimados').update({estatus:'rechazado'}).eq('id',b.dataset.rech); toast('Marcado como rechazado'); render();
-    });
+    document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEstimado(b.dataset.ver));
   },0);
   return selectorDep()+`
     <div class="row" style="gap:10px;margin-bottom:14px">
@@ -1484,74 +1483,235 @@ async function vEstimados(){
         <div class="meta">${acc.length} convertidos</div></div>
     </div>
     ${EDIT()?'<button class="btn wide no-print" id="ne">+ Nuevo estimado</button>':''}
-    <div class="eyebrow">Estimados de ${DEP}</div>`+
+    <div class="eyebrow">Estimados de ${DEP} · toca uno para verlo</div>`+
     (E.map(e=>{
       const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
       const chip = e.estatus==='enviado'?`<span class="chip ambar">${e.fecha_envio?dias(e.fecha_envio,hoy())+' DÍAS SIN RESPUESTA':'ENVIADO'}</span>`
         : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(e.jobs?.folio||'')}</span>`
         : e.estatus==='rechazado'?'<span class="chip">RECHAZADO</span>':'<span class="chip">BORRADOR</span>';
-      return `<div class="card ${col}">
+      const nr=(e.renglones||[]).length, na=(e.archivos||[]).length;
+      return `<div class="card ${col}" data-ver="${e.id}" style="cursor:pointer">
         <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
           <span class="meta">${fmt(e.fecha_envio)}</span></div>
         <div class="tit">${esc(e.cliente)}</div>
         <div class="sub">${esc(e.descripcion||'')}</div>
         <div class="row" style="margin-top:7px;justify-content:space-between">
-          <span class="disp" style="font-size:21px">${cf(e.monto)}</span>${chip}</div>
-        ${EDIT()?`<div class="row no-print" style="margin-top:9px">
-          <button class="btn ghost sm" data-est="${e.id}">Editar</button>
-          <span style="flex:1"></span>
-          ${e.estatus==='enviado'?`<button class="btn ghost sm" data-rech="${e.id}">Rechazado</button>
-            <button class="btn sm" data-acc="${e.id}">Marcar aceptado</button>`:''}
-        </div>`:''}</div>`;
+          <span class="disp" style="font-size:24px">${cf(e.monto)}</span>${chip}</div>
+        <div class="meta" style="margin-top:5px">${nr} partida${nr===1?'':'s'}${na?' · '+na+' archivo'+(na===1?'':'s'):''}</div>
+      </div>`;
     }).join('') || `<div class="empty"><div class="disp">Sin estimados</div><p>Registra el primero para darle seguimiento.</p></div>`);
 }
 
+async function abrirEstimado(id){
+  const {data:e}=await sb.from('estimados').select('*, jobs(folio,cliente)').eq('id',id).single();
+  const R=e.renglones||[], A=e.archivos||[];
+  const sub=sumaRen(R), imp=Number(e.impuesto||0);
+  const tot=Number(e.monto||0) || (sub+imp);
+  const esImg=u=>/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(u);
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(e.folio)} · ${esc(e.departamento)}</div>
+    <div class="disp" style="font-size:23px;line-height:1">${esc(e.cliente)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(e.estatus)}${e.fecha_envio?' · enviado '+fmt(e.fecha_envio):''}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <div class="kpi a" style="margin-bottom:6px">
+        <div class="l">TOTAL DEL ESTIMADO</div>
+        <div class="v" style="color:var(--azul)">${cf(tot)}</div>
+        <div class="p">${esc(e.descripcion||'sin descripción')}</div>
+      </div>
+
+      ${e.direccion?`<div class="sub" style="margin-bottom:6px">${esc(e.direccion)}</div>`:''}
+      ${e.telefono?`<div class="row no-print" style="margin-bottom:8px">
+        <a class="btn ghost sm" href="tel:${soloNum(e.telefono)}">Llamar</a>
+        <a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/${soloNum(e.telefono)}">WhatsApp</a></div>`:''}
+
+      <div class="eyebrow">Partidas del estimado · ${R.length}</div>
+      ${R.length?R.map(x=>`<div class="card" style="border-left-color:var(--azul)">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="disp" style="font-size:18px">${esc(x.concepto||'')}</div>
+            <div class="meta">${esc(x.cant||1)} ${esc(x.unidad||'')} × ${cf(x.precio)}</div>
+          </div>
+          <span class="disp" style="font-size:20px">${cf(Number(x.cant||1)*Number(x.precio||0))}</span>
+        </div></div>`).join('')
+        +`<div class="card" style="border-left-color:var(--linea)">
+          <div class="row" style="justify-content:space-between"><span class="sub">Subtotal</span><span class="mono">${cf(sub)}</span></div>
+          ${imp?`<div class="row" style="justify-content:space-between"><span class="sub">Impuesto</span><span class="mono">${cf(imp)}</span></div>`:''}
+          <div class="row" style="justify-content:space-between;border-top:1px solid var(--linea);margin-top:7px;padding-top:7px">
+            <span class="disp" style="font-size:18px">Total</span>
+            <span class="disp" style="font-size:22px;color:var(--azul)">${cf(tot)}</span></div>
+        </div>`
+        :'<div class="sub">Sin partidas capturadas. El monto total está arriba.</div>'}
+
+      <div class="eyebrow">Archivos del estimado · ${A.length}</div>
+      ${A.length?A.map(u=>esImg(u)
+        ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="display:block;margin-bottom:8px">
+             <img src="${esc(u)}" style="width:100%;border:1px solid var(--linea);border-radius:8px"></a>`
+        : `<a class="fila a" href="${esc(u)}" target="_blank" rel="noopener" style="text-decoration:none">
+             <div class="t"><b>Abrir documento</b><span class="sub">${esc(u.split('/').pop().slice(0,44))}</span></div>
+             <span class="chip azul">ABRIR</span></a>`).join('')
+        :'<div class="sub">Sin archivos adjuntos.</div>'}
+
+      ${e.notas?`<div class="eyebrow">Notas</div><p class="sub" style="color:var(--tinta)">${esc(e.notas)}</p>`:''}
+      ${e.jobs?.folio?`<div class="ok" style="margin-top:14px">Ya convertido en el job <b>${esc(e.jobs.folio)}</b> — ${esc(e.jobs.cliente)}</div>`:''}
+
+      <div style="height:16px"></div>
+      ${EDIT()?`<div class="row no-print">
+        <button class="btn ghost" style="flex:1" id="ed2">Editar</button>
+        <button class="btn ghost" style="flex:1" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+      ${e.estatus==='enviado'?`<div class="row no-print" style="margin-top:10px">
+        <button class="btn ghost" style="flex:1" id="rch">Rechazado</button>
+        <button class="btn" style="flex:1" id="acc">Marcar aceptado</button></div>`:''}
+      ${e.estatus==='borrador'?`<button class="btn wide no-print" id="env" style="margin-top:10px">Marcar como enviado</button>`:''}`:''}
+      <div style="height:12px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  const ed2=$('#ed2'); if(ed2) ed2.onclick=()=>formEstimado(id);
+  const rch=$('#rch'); if(rch) rch.onclick=async()=>{
+    await sb.from('estimados').update({estatus:'rechazado'}).eq('id',id);
+    cerrar(); toast('Marcado como rechazado'); render();
+  };
+  const env=$('#env'); if(env) env.onclick=async()=>{
+    await sb.from('estimados').update({estatus:'enviado',fecha_envio:hoy()}).eq('id',id);
+    cerrar(); toast('Marcado como enviado'); render();
+  };
+  const acc=$('#acc'); if(acc) acc.onclick=()=>aceptarEstimado(id);
+}
+
+let EFOT=[];
 async function formEstimado(id){
-  let e={departamento:DEP,estatus:'borrador',monto:0};
+  let e={departamento:DEP,estatus:'borrador',monto:0,renglones:[],archivos:[]};
   if(id){const {data}=await sb.from('estimados').select('*').eq('id',id).single(); e=data;}
   if(!id){
     const {count}=await sb.from('estimados').select('*',{count:'exact',head:true});
     e.folio='EST-'+String(200+(count||0)+1);
   }
+  EFOT=(e.archivos||[]).slice();
   const c=(k,l,t='text')=>`<label>${l}</label><input id="e_${k}" type="${t}" value="${esc(e[k]||'')}">`;
+
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
-    <div class="disp" style="font-size:20px">${id?'Editar estimado':'Nuevo estimado'}</div><button class="x" id="c1">✕</button></div>
+    <div class="disp" style="font-size:21px">${id?'Editar estimado':'Nuevo estimado'}</div><button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
       <label>Departamento</label>
       <select id="e_departamento">${['restoration','cleaning'].map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       ${c('folio','Folio')}${c('cliente','Cliente')}${c('telefono','Teléfono','tel')}${c('direccion','Dirección')}
-      <label>Descripción del trabajo</label><textarea id="e_descripcion" placeholder="Drywall, piso y pintura de cocina y pasillo">${esc(e.descripcion||'')}</textarea>
-      <label>Partidas (una por línea — se copian al job cuando se acepta)</label>
-      <textarea id="e_partidas" placeholder="Drywall&#10;Baseboards&#10;Instalación de piso&#10;Pintura">${esc((e.notas||''))}</textarea>
-      <div class="g2">${c('monto','Monto total','number')}${c('fecha_envio','Fecha de envío','date')}</div>
-      <label>Estatus</label>
-      <select id="e_estatus">${['borrador','enviado','aceptado','rechazado'].map(s=>`<option ${e.estatus===s?'selected':''}>${s}</option>`).join('')}</select>
+      <label>De qué es el estimado</label>
+      <textarea id="e_descripcion" placeholder="Drywall, piso y pintura de cocina y pasillo">${esc(e.descripcion||'')}</textarea>
+
+      <div class="eyebrow">Partidas · concepto, cantidad y precio</div>
+      <div class="lect meta" style="grid-template-columns:2fr .6fr .7fr .9fr auto;letter-spacing:.08em;font-size:11px">
+        <span>CONCEPTO</span><span>CANT</span><span>UNIDAD</span><span>PRECIO</span><span></span></div>
+      <div id="ren"></div>
+      <button class="btn ghost sm no-print" id="addr">+ Agregar partida</button>
+      <div class="card" style="border-left-color:var(--azul);margin-top:10px">
+        <div class="row" style="justify-content:space-between"><span class="sub">Subtotal de partidas</span>
+          <span class="disp" style="font-size:21px" id="sub">$0</span></div>
+      </div>
+
+      <div class="g2">
+        <div><label>Impuesto</label><input class="num" id="e_impuesto" type="number" step="0.01" value="${e.impuesto||0}"></div>
+        <div><label>Total (0 = lo calcula)</label><input class="num" id="e_monto" type="number" step="0.01" value="${e.monto||0}"></div>
+      </div>
+
+      <div class="eyebrow">Archivos del estimado (PDF o fotos)</div>
+      <input id="e_arch" type="file" accept="application/pdf,image/*" multiple>
+      <div id="e_lista" style="margin-top:8px"></div>
+
+      <div class="g2">
+        <div><label>Fecha de envío</label><input id="e_fecha_envio" type="date" value="${esc(e.fecha_envio||'')}"></div>
+        <div><label>Estatus</label>
+          <select id="e_estatus">${['borrador','enviado','aceptado','rechazado'].map(x=>`<option ${e.estatus===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      </div>
+      <label>Notas internas</label><textarea id="e_notas">${esc(e.notas||'')}</textarea>
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar estimado</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
+
+  const ren=$('#ren');
+  const recalc=()=>{
+    const t=[...ren.children].reduce((a,d)=>{
+      const i=[...d.querySelectorAll('input')].map(x=>x.value);
+      return a+(Number(i[1]||1)*Number(i[3]||0));
+    },0);
+    $('#sub').textContent=cf(t);
+  };
+  const fila=(x={})=>{
+    const d=document.createElement('div'); d.className='lect';
+    d.style.gridTemplateColumns='2fr .6fr .7fr .9fr auto';
+    d.innerHTML=`<input placeholder="Drywall cocina" value="${esc(x.concepto||'')}">
+      <input class="num" inputmode="decimal" placeholder="1" value="${esc(x.cant||1)}">
+      <input placeholder="sqft" value="${esc(x.unidad||'')}">
+      <input class="num" inputmode="decimal" placeholder="0.00" value="${esc(x.precio||'')}">
+      <button type="button">✕</button>`;
+    d.querySelector('button').onclick=()=>{d.remove();recalc();};
+    d.querySelectorAll('input').forEach(i=>i.oninput=recalc);
+    ren.appendChild(d);
+  };
+  (e.renglones||[]).forEach(fila);
+  if(!(e.renglones||[]).length) fila();
+  recalc();
+  $('#addr').onclick=()=>{fila();recalc();};
+
+  const pintarArch=()=>{
+    $('#e_lista').innerHTML=EFOT.map((u,i)=>
+      `<div class="fila a"><div class="t"><span class="sub" style="color:var(--tinta)">${esc(u.split('/').pop().slice(0,40))}</span></div>
+       <button class="btn ghost sm" data-qa="${i}">Quitar</button></div>`).join('');
+    document.querySelectorAll('[data-qa]').forEach(b=>b.onclick=()=>{
+      EFOT.splice(+b.dataset.qa,1); pintarArch();
+    });
+  };
+  pintarArch();
+  $('#e_arch').onchange=async ev=>{
+    const fs=[...ev.target.files]; if(!fs.length) return; toast('Subiendo archivos…');
+    for(const f of fs){
+      const ext=(f.name.split('.').pop()||'dat').toLowerCase();
+      const n=`est/${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
+      const {error}=await sb.storage.from('capri').upload(n,f,{contentType:f.type||'application/octet-stream'});
+      if(error){toast('No se pudo subir: '+error.message);continue;}
+      EFOT.push(sb.storage.from('capri').getPublicUrl(n).data.publicUrl);
+    }
+    pintarArch(); toast('Archivos listos');
+  };
+
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#sv').onclick=async()=>{
+    const renglones=[...ren.children].map(d=>{
+      const i=[...d.querySelectorAll('input')].map(x=>x.value.trim());
+      return {concepto:i[0],cant:i[1]||1,unidad:i[2],precio:i[3]||0};
+    }).filter(x=>x.concepto);
+    const sub=sumaRen(renglones), imp=Number($('#e_impuesto').value)||0;
+    let monto=Number($('#e_monto').value)||0;
+    if(!monto) monto=sub+imp;
     const p={departamento:$('#e_departamento').value,estatus:$('#e_estatus').value,
       folio:$('#e_folio').value.trim(),cliente:$('#e_cliente').value.trim(),
       telefono:$('#e_telefono').value.trim()||null,direccion:$('#e_direccion').value.trim()||null,
-      descripcion:$('#e_descripcion').value.trim()||null,notas:$('#e_partidas').value.trim()||null,
-      monto:Number($('#e_monto').value)||0,fecha_envio:$('#e_fecha_envio').value||null};
+      descripcion:$('#e_descripcion').value.trim()||null,notas:$('#e_notas').value.trim()||null,
+      renglones, archivos:EFOT, impuesto:imp, monto,
+      fecha_envio:$('#e_fecha_envio').value||null};
     if(!p.folio||!p.cliente) return toast('Faltan folio y cliente.');
-    const q=id?sb.from('estimados').update(p).eq('id',id):sb.from('estimados').insert(p);
-    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
-    cerrar(); toast('Estimado guardado'); render();
+    if(p.estatus==='enviado' && !p.fecha_envio) p.fecha_envio=hoy();
+    const q=id?sb.from('estimados').update(p).eq('id',id):sb.from('estimados').insert(p).select().single();
+    const {data,error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Estimado guardado');
+    abrirEstimado(id||data.id);
   };
 }
 
 async function aceptarEstimado(id){
   const {data:e}=await sb.from('estimados').select('*').eq('id',id).single();
   const folio=await nuevoFolio(e.departamento);
-  const partidas=(e.notas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  let partidas=(e.renglones||[]).map(x=>x.concepto).filter(Boolean);
   cerrar();
-  formJob(null,{departamento:e.departamento,tipo:TIPOS[e.departamento][0],estatus:'activo',
+  formJob(null,{departamento:e.departamento,tipo:TIPOS[e.departamento][0],estatus:'activo',origen:'management',
     folio, cliente:e.cliente, telefono:e.telefono, direccion:e.direccion||'', ciudad:'San Diego',
-    tipo_propiedad:'casa', notas:e.descripcion, estimado_id:e.id, partidas});
+    tipo_propiedad:'apartamento', notas:e.descripcion, estimado_id:e.id, partidas});
   toast('Revisa los datos y guarda para crear el job');
 }
 
