@@ -1032,7 +1032,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v7 · solo seguimiento</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v8 · reporte diario</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1459,7 +1459,8 @@ async function reporteGuiado(jobId, fecha, tipoForzado){
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
-    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
+    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('situaciones_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r = prev || {};
   const editandoInicial = prev && prev.tipo_reporte==='inicial';
@@ -3395,7 +3396,7 @@ async function vSchedule(){
   const [{data:asig},{data:reps},{data:tecs},{data:jobs}] = await Promise.all([
     sb.from('asignaciones').select('*, jobs(*, propiedades(nombre)), usuarios(nombre,telefono)').gte('fecha',d1).lte('fecha',d2).order('fecha'),
     sb.from('reportes').select('job_id,tecnico_id,fecha').gte('fecha',d1).lte('fecha',d2),
-    sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
+    sb.from('usuarios').select('id,nombre,departamento,telefono').eq('rol','tecnico').eq('activo',true),
     sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
   ]);
   const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
@@ -3485,6 +3486,13 @@ async function vSchedule(){
           ${ok?'<span class="chip azul">REPORTE RECIBIDO</span>'
             :`<span class="chip rojo">NO REPORTADO POR ${esc((a.usuarios?.nombre||'EL TÉCNICO').split('·')[0].trim().toUpperCase())}</span>`}
           <span style="flex:1"></span>
+          <a class="btn ghost sm" target="_blank" rel="noopener"
+            href="https://wa.me/${(a.usuarios?.telefono||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(
+              'Trabajo asignado para el '+fmt(a.fecha)+(a.hora?' a las '+a.hora:'')+'\n\n'
+              +(a.jobs.propiedades?.nombre||a.jobs.cliente)+(a.jobs.unidad?' · Unit '+a.jobs.unidad:'')+'\n'
+              +a.jobs.folio+' · '+a.jobs.tipo+'\n'+(a.jobs.direccion||'')+'\n\n'
+              +(a.notas?'Instrucciones: '+a.notas+'\n\n':'')
+              +'No olvides dejar tu reporte del día en la app.')}">Avisar</a>
           ${!ok?`<a class="btn ghost sm" target="_blank" rel="noopener"
             href="https://wa.me/?text=${encodeURIComponent('Hola '+(a.usuarios?.nombre||'')+', falta tu reporte del '+fmt(a.fecha)+' del job '+a.jobs.folio+' — '+(a.jobs.propiedades?.nombre||a.jobs.cliente))}">Recordar</a>`:''}
           <button class="btn ghost sm" data-job="${a.job_id}">Abrir job</button>
@@ -3517,7 +3525,7 @@ function formAsig(tecs,jobs){
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
       <label>Job</label><select id="aj">${jobs.map(j=>`<option value="${j.id}">${esc(j.folio)} — ${esc(j.cliente)}</option>`).join('')}</select>
-      <label>Técnico</label><select id="at">${tecs.map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join('')}</select>
+      <label>Técnico</label><select id="at">${tecs.map(t=>`<option value="${t.id}">${esc(t.nombre)}${t.telefono?'':' (sin teléfono)'}</option>`).join('')}</select>
       <div class="g2"><div><label>Fecha</label><input id="af" type="date" value="${FSCH}"></div>
       <div><label>Hora de llegada</label><input id="ah" type="time"></div></div>
       <label>Instrucciones para el técnico</label><textarea id="an2" placeholder="Traer 2 deshus, tocar en la puerta de atrás…"></textarea>
@@ -3530,7 +3538,18 @@ function formAsig(tecs,jobs){
     const {error}=await sb.from('asignaciones').upsert({job_id:$('#aj').value,tecnico_id:$('#at').value,
       fecha:$('#af').value,hora:$('#ah').value||null,notas:$('#an2').value.trim()||null},{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se asignó: '+error.message);
-    FSCH=$('#af').value; cerrar(); toast('Trabajo asignado'); render();
+    const t=tecs.find(x=>x.id===$('#at').value);
+    const jb=jobs.find(x=>x.id===$('#aj').value);
+    const tel=(t&&t.telefono||'').replace(/[^0-9]/g,'');
+    FSCH=$('#af').value;
+    if(tel && confirm('¿Avisarle por WhatsApp a '+(t.nombre||'el técnico')+'?')){
+      const msg='Trabajo asignado para el '+fmt($('#af').value)+($('#ah').value?' a las '+$('#ah').value:'')+'\n\n'
+        +(jb?jb.cliente:'')+'\n'+(jb?jb.folio:'')+'\n\n'
+        +($('#an2').value.trim()?'Instrucciones: '+$('#an2').value.trim()+'\n\n':'')
+        +'No olvides dejar tu reporte del día en la app.';
+      window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
+    }
+    cerrar(); toast('Trabajo asignado'); render();
   };
 }
 
