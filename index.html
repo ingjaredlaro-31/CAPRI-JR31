@@ -304,6 +304,7 @@ async function avisarReporte(job, esNuevo, servicios, fecha, tipoRep){
     titulo: eti+prop,
     texto: `${U.nombre} · ${job.folio}${job.unidad?' · Unit '+job.unidad:''} · ${fmt(fecha)}`
            + (servicios&&servicios.length?' · '+servicios.join(', '):''),
+    reporte_id:null,
     job_id: job.id,
     de_usuario: U.nombre,
     para_rol:'admin'
@@ -341,7 +342,7 @@ async function vNotificaciones(){
 }
 
 /* ==================== TÉCNICO · INICIO ==================== */
-let TTAB='activos';
+let TTAB='activos', TIPO_REP=null;
 
 async function vTecInicio(){
   const h=hoy();
@@ -498,7 +499,10 @@ async function vTecReporte(){
   const {data:acts}=await q;
 
   setTimeout(()=>{
-    document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rg,b.dataset.f||hoy()));
+    document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{
+      TIPO_REP = TIPO_REP===b.dataset.tp ? null : b.dataset.tp; render(); });
+    document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>
+      reporteGuiado(b.dataset.rg, b.dataset.f||hoy(), TIPO_REP));
   },0);
 
   const boton=(j,f,hecho)=>{
@@ -513,7 +517,18 @@ async function vTecReporte(){
     </div>`;
   };
 
-  let out=`<div class="eyebrow">Reporte de hoy · ${fmt(h)}</div>`;
+  let out=`
+    <div class="eyebrow" style="margin-top:2px">¿Qué reporte vas a hacer?</div>
+    <div class="si-no" style="flex-direction:column;margin-bottom:6px">
+      <button data-tp="inicial" class="${TIPO_REP==='inicial'?'on':''}" style="padding:16px">Reporte inicial · primera visita</button>
+      <button data-tp="seguimiento" class="${TIPO_REP==='seguimiento'?'on':''}" style="padding:16px">Reporte de seguimiento · estatus</button>
+    </div>
+    <div class="sub" style="margin-bottom:6px">${TIPO_REP==='inicial'
+      ? 'Se levanta todo: unidad ocupada, water extraction, áreas, material removido y containment.'
+      : TIPO_REP==='seguimiento'
+      ? 'Nomás dices cómo está el trabajo: si sigue mojado, si está en reparación, si no había nadie, etc.'
+      : 'Escoge arriba y luego el trabajo. Si no escoges, la app lo detecta sola.'}</div>
+    <div class="eyebrow">Reporte de hoy · ${fmt(h)}</div>`;
   out += a.length ? a.map(x=>boton(x.jobs,h,hechos.has(x.job_id))).join('')
     : `<div class="empty"><div class="disp">Sin visitas hoy</div><p>Puedes reportar sobre cualquier trabajo activo de abajo.</p></div>`;
 
@@ -841,7 +856,8 @@ async function formReporte(jobId,fecha){
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
-    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
+    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('situaciones_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r=prev||{}; FOT=r.fotos||[];
   const esRest = j.departamento==='restoration';
@@ -1063,9 +1079,9 @@ async function formReporte(jobId,fecha){
 /* ==================== REPORTE GUIADO PASO A PASO ==================== */
 let G = null;
 
-async function reporteGuiado(jobId, fecha){
+async function reporteGuiado(jobId, fecha, tipoForzado){
   const {count:previos}=await sb.from('reportes').select('*',{count:'exact',head:true}).eq('job_id',jobId);
-  const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
+  const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat},{data:qcat}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
@@ -1073,10 +1089,11 @@ async function reporteGuiado(jobId, fecha){
     sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r = prev || {};
-  const tipoAuto = r.tipo_reporte || ((previos||0)===0 || (previos===1 && prev) ? 'inicial' : 'seguimiento');
+  const tipoAuto = tipoForzado || r.tipo_reporte || ((previos||0)===0 || (previos===1 && prev) ? 'inicial' : 'seguimiento');
   G = {
     job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
+    qcat:(qcat||[]).map(x=>x.nombre),
     d:{
       hora_entrada:r.hora_entrada||new Date().toTimeString().slice(0,5),
       hora_salida:r.hora_salida||'',
@@ -1089,6 +1106,7 @@ async function reporteGuiado(jobId, fecha){
       packs_equipo:r.packs_equipo||0, equipo_desc:r.equipo_desc||'',
       deshu_inst:r.deshu_inst||0, air_inst:r.air_inst||0, scrub_inst:r.scrub_inst||0,
       deshu_ret:r.deshu_ret||0, air_ret:r.air_ret||0, scrub_ret:r.scrub_ret||0,
+      situacion:(r.situacion||[]).slice(),
       lecturas:(r.lecturas||[]).slice(), fotos:(r.fotos||[]).slice(),
       siguiente_trabajo:r.siguiente_trabajo||'', notas:r.notas||''
     }
@@ -1096,6 +1114,7 @@ async function reporteGuiado(jobId, fecha){
   G.acat=[...new Set(G.acat.concat(G.d.areas))];
   G.mcat=[...new Set(G.mcat.concat(G.d.material_removido))];
   G.scat=[...new Set(G.scat.concat(G.d.servicios))];
+  G.qcat=[...new Set(G.qcat.concat(G.d.situacion))];
   pasosGuiado();
   pintaGuiado();
 }
@@ -1110,17 +1129,24 @@ function pasosGuiado(){
     G.pasos.push({t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'});
     G.pasos.push({t:'¿Se hizo water extraction?', s:'¿Sacaste agua hoy?', tipo:'sino', k:'agua_extraida'});
   }
-  G.pasos.push({t:ini?'¿Hiciste deep clean o wipe down?':'¿Hiciste wipe down hoy?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'});
-  G.pasos.push({t:ini?'¿Hiciste demo?':'¿Hiciste demo hoy?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'});
-  G.pasos.push({t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'});
-  G.pasos.push({t:ini?'¿Qué servicio se hizo?':'¿Qué se hizo hoy?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
-  G.pasos.push({t:ini?'¿En qué áreas trabajaste?':'¿En qué áreas trabajaste hoy?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'});
-  G.pasos.push({t:ini?'¿Qué material removiste?':'¿Removiste material hoy?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'});
-  if(ini) G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
-  G.pasos.push({t:ini?'Equipo instalado':'Equipo en sitio', s:'Cuántos packs y descripción', tipo:'equipo'});
+  if(ini){
+    G.pasos.push({t:'¿Hiciste deep clean o wipe down?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'});
+    G.pasos.push({t:'¿Hiciste demo?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'});
+    G.pasos.push({t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'});
+    G.pasos.push({t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
+    G.pasos.push({t:'¿En qué áreas trabajaste?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'});
+    G.pasos.push({t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'});
+    G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
+    G.pasos.push({t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'});
+  } else {
+    G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Marca la situación en que lo encontraste', tipo:'chips', k:'situacion', cat:'qcat', tabla:'situaciones_catalogo', req:true});
+    G.pasos.push({t:'Explica con tus palabras', s:'Qué viste y qué se hizo hoy', tipo:'explica'});
+    G.pasos.push({t:'¿Se hizo algún trabajo hoy?', s:'Déjalo vacío si solo fuiste a revisar', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
+  }
   if(esRest){
-    G.pasos.push({t:'Conteo de equipo', s:'Lo que entró y lo que salió hoy', tipo:'conteo'});
-    G.pasos.push({t:'Lecturas de humedad', s:'Opcional — agrega las que tomaste', tipo:'lecturas'});
+    if(ini) G.pasos.push({t:'Conteo de equipo', s:'Lo que entró y lo que salió hoy', tipo:'conteo'});
+    else G.pasos.push({t:'¿Moviste equipo hoy?', s:'Instalado y retirado — déjalo en cero si no', tipo:'conteo'});
+    G.pasos.push({t:'Lecturas de humedad', s:ini?'Opcional — agrega las que tomaste':'Si tomaste moisture check, anótalo aquí', tipo:'lecturas'});
   }
   G.pasos.push({t:'Fotos del trabajo', s:'Toma o sube las fotos de hoy', tipo:'fotos'});
   G.pasos.push({t:'¿Qué sigue?', s:'Next work to do y notas extra', tipo:'cierre'});
@@ -1184,14 +1210,29 @@ function pintaGuiado(){
     <input id="gft" type="file" accept="image/*" multiple capture="environment">
     <div class="thumbs" id="gth"></div>
     <div class="sub" style="margin-top:8px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} lista${d.fotos.length===1?'':'s'}</div>`;
+  else if(p.tipo==='explica') cuerpo=`
+    <textarea id="g1" style="min-height:150px;font-size:17px" placeholder="Ej. La unidad sigue mojada en la cocina, el drywall marcó 22%. Dejé los air movers trabajando. El manager dice que todavía no aprueban el estimado.">${esc(d.notas)}</textarea>`;
   else if(p.tipo==='cierre') cuerpo=`
     <label>Next work to do</label><input id="g1" placeholder="Moisture check Monday" value="${esc(d.siguiente_trabajo)}">
     <label>Extra notes</label><textarea id="g2" placeholder="Drywall removal 1x1, pending…">${esc(d.notas)}</textarea>`;
   else if(p.tipo==='resumen'){
     const SN=v=>v?'SÍ':'NO';
     const f=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${esc(v||'—')}</td></tr>`;
-    cuerpo=`<table class="frm">
-      ${f('TIPO DE REPORTE',G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO')}
+    if(G.tipo==='seguimiento'){
+      cuerpo=`<table class="frm">
+        ${f('TIPO DE REPORTE','SEGUIMIENTO')}
+        ${f('HORA',d.hora_entrada+(d.hora_salida?' → '+d.hora_salida:''))}
+        ${f('AFTER HOURS',SN(d.after_hours))}
+        ${f('SITUACIÓN',d.situacion.join(' · '))}
+        ${f('TRABAJO DE HOY',d.servicios.join(' · '))}
+        ${f('EQUIPO',(d.deshu_inst+d.air_inst+d.scrub_inst)+' instalado · '+(d.deshu_ret+d.air_ret+d.scrub_ret)+' retirado')}
+        ${f('LECTURAS',d.lecturas.length)}
+        ${f('FOTOS',d.fotos.length)}
+        ${f('NEXT',d.siguiente_trabajo)}
+      </table>
+      ${d.notas?`<div class="eyebrow">Explicación</div><p class="sub" style="color:var(--tinta)">${esc(d.notas)}</p>`:''}`;
+    } else cuerpo=`<table class="frm">
+      ${f('TIPO DE REPORTE','INICIAL')}
       ${f('HORA',d.hora_entrada+(d.hora_salida?' → '+d.hora_salida:''))}
       ${f('AFTER HOURS',SN(d.after_hours))}
       ${f('OCCUPIED',d.ocupada==='ocupada'?'SÍ':'NO')}
@@ -1291,7 +1332,8 @@ function guardaPaso(){
   if(p.tipo==='horas'){ d.hora_entrada=v('g1')||d.hora_entrada; d.hora_salida=v('g2')||''; }
   if(p.tipo==='contain'){ d.sqft_plastico=v('g1'); d.zipper=v('g2')||'no zipper'; }
   if(p.tipo==='equipo'){ d.packs_equipo=Number(v('g1'))||0; d.equipo_desc=v('g2')||''; }
-  if(p.tipo==='cierre'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||''; }
+  if(p.tipo==='explica'){ d.notas=v('g1')||''; }
+  if(p.tipo==='cierre'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||d.notas||''; }
   if(p.tipo==='conteo'){
     d.deshu_inst=+v('gdi')||0; d.air_inst=+v('gai')||0; d.scrub_inst=+v('gsi')||0;
     d.deshu_ret=+v('gdr')||0;  d.air_ret=+v('gar')||0;  d.scrub_ret=+v('gsr')||0;
@@ -1307,7 +1349,7 @@ function guardaPaso(){
 
 async function enviarGuiado(){
   const d=G.d, jobId=G.job.id, fecha=G.fecha;
-  const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:G.tipo,
+  const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:G.tipo, situacion:d.situacion,
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -1317,12 +1359,13 @@ async function enviarGuiado(){
     deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
     deshu_ret:d.deshu_ret, air_ret:d.air_ret, scrub_ret:d.scrub_ret,
     lecturas:d.lecturas, fotos:d.fotos,
-    trabajo_realizado:d.servicios.join(' · '),
+    trabajo_realizado:(G.tipo==='seguimiento' && !d.servicios.length) ? d.situacion.join(' · ') : d.servicios.join(' · '),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null};
   const yaHabia=G.prev;
   const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
-  try{ await avisarReporte(G.job, !yaHabia, d.servicios, fecha, G.tipo); }catch(e){}
+  try{ await avisarReporte(G.job, !yaHabia,
+    (G.tipo==='seguimiento' && !d.servicios.length) ? d.situacion : d.servicios, fecha, G.tipo); }catch(e){}
   if(d.material_removido.length){
     const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
     const tengo=(ya||[]).map(x=>x.nombre);
@@ -1383,6 +1426,7 @@ function verReporteCampo(r, j){
         ${fila('DO YOU DO A DEEP CLEAN OR WIPE DOWN?', SN(r.wipe_down))}
         ${fila('DO YOU MAKE DEMO?', SN(r.demo))}
         ${fila('DO YOU REMOVE PADD OR BASEBOARDS?', SN(r.removio_pad_base))}
+        ${(r.situacion||[]).length?fila('STATUS', (r.situacion||[]).join('  ·  ')):''}
         ${fila('SERVICE/WORK', serv.join('  ·  '))}
         ${fila('HOW MANY AREAS ?', areas.length ? areas.length+(areas.length===1?' AREA':' AREAS') : '—')}
         ${fila('AREAS', areas.join(', '))}
@@ -2665,6 +2709,7 @@ async function abrirJob(id){
         <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
         <div class="row" style="margin-top:6px;gap:5px">
           <span class="chip ${r.tipo_reporte==='inicial'?'rojo':''}">${r.tipo_reporte==='inicial'?'INICIAL':'SEGUIMIENTO'}</span>
+          ${(r.situacion||[]).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}
           ${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}
           ${r.after_hours?'<span class="chip ambar">AFTER HOURS</span>':''}
           ${r.ocupada==='ocupada'?'<span class="chip rojo">OCUPADA</span>':''}
