@@ -615,7 +615,7 @@ async function nuevoTrabajoTecnico(){
 }
 
 /* ==================== TÉCNICO · INICIO ==================== */
-let TTAB='activos', TIPO_REP=null;
+let TTAB='activos';
 
 async function vTecInicio(){
   const h=hoy();
@@ -808,9 +808,10 @@ async function vTecReporte(){
       .in('job_id',ids).order('fecha',{ascending:false}).limit(400);
     R=data||[];
   }
-  const hoyPorJob={}, ultimoPorJob={};
+  const hoyPorJob={}, ultimoPorJob={}, tieneIni={};
   R.forEach(r=>{
     if(r.fecha===h) hoyPorJob[r.job_id]=r;
+    if(r.tipo_reporte==='inicial') tieneIni[r.job_id]=r;
     if(!ultimoPorJob[r.job_id] || r.fecha>ultimoPorJob[r.job_id].fecha) ultimoPorJob[r.job_id]=r;
   });
 
@@ -829,13 +830,14 @@ async function vTecReporte(){
   const tarjeta=j=>{
     const rHoy=hoyPorJob[j.id], ult=ultimoPorJob[j.id];
     const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
-    const primera=!ult;
+    const primera=!tieneIni[j.id];
     const dd = ult ? dias(ult.fecha,h) : null;
     const desde = ult ? (ult.fecha===h?'hoy':(dd===1?'ayer':'hace '+dd+' días')) : 'nunca';
     return `<div class="card ${rHoy?'':'rojo'}">
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(j.folio)}</span>
         <div class="row" style="gap:5px">
+          ${primera?'<span class="chip rojo">SIN INICIAL</span>':''}
           ${asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':''}
           ${rHoy?'<span class="chip azul">REPORTADO</span>':'<span class="chip rojo">FALTA HOY</span>'}
         </div></div>
@@ -847,7 +849,7 @@ async function vTecReporte(){
       <div class="row" style="margin-top:11px">
         <button class="btn ghost sm" data-vj="${j.id}">Ver trabajo</button>
         <span style="flex:1"></span>
-        <button class="btn" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir':(primera?'Reporte inicial':'Reportar hoy')}</button>
+        <button class="btn ${primera?'rojo':''}" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir':(primera?'Levantar inicial':'Reporte de hoy')}</button>
       </div></div>`;
   };
 
@@ -1437,7 +1439,8 @@ async function levantamientoInicial(){
 }
 
 async function reporteGuiado(jobId, fecha, tipoForzado){
-  const {count:previos}=await sb.from('reportes').select('*',{count:'exact',head:true}).eq('job_id',jobId);
+  const {data:iniPrevio}=await sb.from('reportes').select('id,fecha,tecnico_id, usuarios(nombre)')
+    .eq('job_id',jobId).eq('tipo_reporte','inicial').maybeSingle();
   const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat},{data:qcat}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
@@ -1446,9 +1449,13 @@ async function reporteGuiado(jobId, fecha, tipoForzado){
     sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r = prev || {};
-  const tipoAuto = tipoForzado || r.tipo_reporte || ((previos||0)===0 || (previos===1 && prev) ? 'inicial' : 'seguimiento');
+  const editandoInicial = prev && prev.tipo_reporte==='inicial';
+  const tipoAuto = editandoInicial ? 'inicial' : (iniPrevio ? 'seguimiento' : 'inicial');
+  const infoIni = iniPrevio && !editandoInicial
+    ? `El inicial ya lo levantó ${iniPrevio.usuarios?.nombre||'otro técnico'} el ${fmt(iniPrevio.fecha)}. Este va como seguimiento.`
+    : (tipoAuto==='inicial' ? 'Este trabajo todavía no tiene reporte inicial. Levanta toda la información.' : '');
   G = {
-    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto,
+    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
     qcat:(qcat||[]).map(x=>x.nombre),
     d:{
@@ -1509,8 +1516,7 @@ function pasosGuiado(){
     G.pasos.push({t:'Revisa y envía', s:'Esto le llega a oficina', tipo:'resumen'});
     return;
   }
-  G.pasos=[{t:'¿Qué tipo de reporte es?', s:'El inicial es la primera visita al trabajo', tipo:'tipo'}];
-  G.pasos.push({t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'});
+  G.pasos=[{t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'}];
   G.pasos.push({t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'});
   if(ini){
     G.pasos.push({t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'});
@@ -1676,6 +1682,9 @@ function pintaGuiado(){
     <button class="x" id="gx">✕</button></div>
     <div class="barra" style="border-radius:0;height:5px"><i style="width:${pct}%"></i></div>
     <div class="sheet-body">
+      ${(G.paso===0 && G.info && G.modo!=='intake')?`<div class="${G.tipo==='inicial'?'alerta':'ok'}" style="margin-bottom:14px">
+        <div class="disp" style="font-size:19px;color:${G.tipo==='inicial'?'var(--rojo)':'var(--azul-d)'}">${G.tipo==='inicial'?'Reporte inicial':'Reporte de seguimiento'}</div>
+        <div class="sub" style="color:${G.tipo==='inicial'?'var(--rojo-d)':'var(--azul-d)'}">${esc(G.info)}</div></div>`:''}
       <div class="disp" style="font-size:27px;line-height:1.05;margin-top:6px">${esc(p.t)}</div>
       <div class="sub" style="margin-bottom:10px">${esc(p.s)}</div>
       ${cuerpo}
@@ -1688,12 +1697,15 @@ function pintaGuiado(){
       <button class="btn ghost wide" id="gform">Usar formulario completo</button>
     </div></div>`;
 
+  const SH=$('#sheet');
+  const qs=sel=>SH.querySelectorAll(sel);
+  const q1=sel=>SH.querySelector(sel);
   $('#gx').onclick=cerrar;
-  const gf=$('#gform');
+  const gf=q1('#gform');
   if(G.modo==='intake'){ gf.style.display='none'; }
   else gf.onclick=()=>{ const j=G.job.id, f=G.fecha; cerrar(); formReporte(j,f); };
-  const prev=$('#gprev'); if(prev) prev.onclick=()=>{guardaPaso();G.paso--;pintaGuiado();};
-  $('#gnext').onclick=async()=>{
+  const prev=q1('#gprev'); if(prev) prev.onclick=()=>{guardaPaso();G.paso--;pintaGuiado();};
+  q1('#gnext').onclick=async()=>{
     guardaPaso();
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
@@ -1707,29 +1719,29 @@ function pintaGuiado(){
   };
 
   if(p.tipo==='ubicacion'){
-    $('#g_mg').onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
-    const pr=$('#g_pr');
+    q1('#g_mg').onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
+    const pr=q1('#g_pr');
     if(pr){
       const av=()=>{ const x=G.PR.find(y=>y.id===pr.value);
-        $('#g_av').innerHTML = x?'Dirección: <b>'+esc([x.direccion,x.ciudad,x.zip].filter(Boolean).join(', '))+'</b>':''; };
+        q1('#g_av').innerHTML = x?'Dirección: <b>'+esc([x.direccion,x.ciudad,x.zip].filter(Boolean).join(', '))+'</b>':''; };
       pr.onchange=()=>{ G.d.prop_id=pr.value; av(); }; av();
     }
   }
-  if(p.tipo==='servicio') document.querySelectorAll('[data-sv]').forEach(b=>b.onclick=()=>{
+  if(p.tipo==='servicio') qs('[data-sv]').forEach(b=>b.onclick=()=>{
     G.d.tipo=b.dataset.sv; pintaGuiado(); });
-  if(p.tipo==='tipo') document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{
+  if(p.tipo==='tipo') qs('[data-t]').forEach(b=>b.onclick=()=>{
     G.tipo=b.dataset.t; pasosGuiado(); pintaGuiado(); });
-  if(p.tipo==='sino') document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{
+  if(p.tipo==='sino') qs('[data-b]').forEach(b=>b.onclick=()=>{
     G.d[p.k]=b.dataset.b==='1'; pintaGuiado(); });
-  if(p.tipo==='ocup') document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{
+  if(p.tipo==='ocup') qs('[data-o]').forEach(b=>b.onclick=()=>{
     G.d.ocupada=b.dataset.o; pintaGuiado(); });
   if(p.tipo==='chips'){
-    document.querySelectorAll('#gc [data-c]').forEach(b=>b.onclick=()=>{
+    qs('#gc [data-c]').forEach(b=>b.onclick=()=>{
       const v=b.dataset.c, arr=G.d[p.k], i=arr.indexOf(v);
       if(i>=0) arr.splice(i,1); else arr.push(v);
       pintaGuiado();
     });
-    $('#gc [data-add]').onclick=async()=>{
+    q1('#gc [data-add]').onclick=async()=>{
       const nn=prompt('Escribe el nombre nuevo:'); if(!nn||!nn.trim()) return;
       const v=nn.trim();
       if(!G[p.cat].includes(v)){ G[p.cat].push(v); await sb.from(p.tabla).insert({nombre:v}); }
@@ -1738,19 +1750,19 @@ function pintaGuiado(){
     };
   }
   if(p.tipo==='lecturas'){
-    const lec=$('#glec');
+    const lec=q1('#glec');
     const fila=(l={})=>{const dd=document.createElement('div');dd.className='lect';
       dd.innerHTML=`<input placeholder="Kitchen" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
         <input class="num" inputmode="decimal" placeholder="18" value="${esc(l.mc||'')}">
         <input class="num" inputmode="decimal" placeholder="72" value="${esc(l.temp||'')}"><button type="button">✕</button>`;
       dd.querySelector('button').onclick=()=>dd.remove(); lec.appendChild(dd);};
     (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
-    $('#gaddl').onclick=()=>fila();
+    q1('#gaddl').onclick=()=>fila();
   }
   if(p.tipo==='fotos'){
-    const pinta=()=>$('#gth').innerHTML=G.d.fotos.map(u=>`<img src="${esc(u)}">`).join('');
+    const pinta=()=>q1('#gth').innerHTML=G.d.fotos.map(u=>`<img src="${esc(u)}">`).join('');
     pinta();
-    $('#gft').onchange=async e=>{
+    q1('#gft').onchange=async e=>{
       const fs=[...e.target.files]; if(!fs.length) return; toast('Subiendo fotos…');
       for(const f of fs){
         const nm=`rep/${G.job.id}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
@@ -1765,7 +1777,8 @@ function pintaGuiado(){
 
 function guardaPaso(){
   const p=G.pasos[G.paso], d=G.d;
-  const v=id=>{const el=document.getElementById(id); return el?el.value:null;};
+  const SH=$('#sheet');
+  const v=id=>{const el=SH.querySelector('#'+id); return el?el.value:null;};
   if(p.tipo==='horas'){ d.hora_entrada=v('g1')||d.hora_entrada; d.hora_salida=v('g2')||''; }
   if(p.tipo==='contain'){ d.sqft_plastico=v('g1'); d.zipper=v('g2')||'no zipper'; }
   if(p.tipo==='equipo'){ d.packs_equipo=Number(v('g1'))||0; d.equipo_desc=v('g2')||''; }
@@ -1784,7 +1797,7 @@ function guardaPaso(){
     d.deshu_ret=+v('gdr')||0;  d.air_ret=+v('gar')||0;  d.scrub_ret=+v('gsr')||0;
   }
   if(p.tipo==='lecturas'){
-    const lec=document.getElementById('glec');
+    const lec=SH.querySelector('#glec');
     if(lec) d.lecturas=[...lec.children].map(x=>{
       const i=[...x.querySelectorAll('input')].map(y=>y.value.trim());
       return {area:i[0],material:i[1],mc:i[2],temp:i[3]};
