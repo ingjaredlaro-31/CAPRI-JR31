@@ -101,6 +101,10 @@ footer .n{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--gri
 footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3AF;margin-top:4px}
 .homebtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .homebtn:active{transform:scale(.94)}
+.campana{position:relative;font-size:18px}
+.campana .badge{position:absolute;top:-4px;right:-4px;background:var(--rojo);color:#fff;
+  font-family:var(--mono);font-size:11px;min-width:20px;height:20px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--azul)}
 .side .head{cursor:pointer}
 .side .inicio{border-bottom:1px solid #1F242C;margin-bottom:6px}
 .fab{position:fixed;right:18px;bottom:88px;z-index:46;width:60px;height:60px;border-radius:50%;background:var(--azul);color:#fff;border:0;font-size:30px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(27,86,211,.42);display:flex;align-items:center;justify-content:center}
@@ -282,6 +286,58 @@ const iso = d => d.toLocaleDateString('en-CA');
 const EDIT = () => U && U.rol==='admin';
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
+
+/* ==================== NOTIFICACIONES ==================== */
+let NOTIF=0;
+
+async function contarNotif(){
+  if(!U || U.rol==='tecnico'){ NOTIF=0; return 0; }
+  const {count}=await sb.from('notificaciones').select('*',{count:'exact',head:true}).eq('leida',false);
+  NOTIF=count||0; return NOTIF;
+}
+
+async function avisarReporte(job, esNuevo, servicios, fecha){
+  const prop = job.propiedades?.nombre || job.managements?.nombre || job.cliente;
+  await sb.from('notificaciones').insert({
+    tipo:'reporte',
+    titulo: (esNuevo?'Nuevo reporte · ':'Reporte corregido · ')+prop,
+    texto: `${U.nombre} · ${job.folio}${job.unidad?' · Unit '+job.unidad:''} · ${fmt(fecha)}`
+           + (servicios&&servicios.length?' · '+servicios.join(', '):''),
+    job_id: job.id,
+    de_usuario: U.nombre,
+    para_rol:'admin'
+  });
+}
+
+async function vNotificaciones(){
+  const {data}=await sb.from('notificaciones')
+    .select('*, jobs(folio,cliente, propiedades(nombre))')
+    .order('created_at',{ascending:false}).limit(60);
+  const N=data||[];
+  const sinLeer=N.filter(x=>!x.leida);
+  setTimeout(()=>{
+    const t=$('#todas'); if(t) t.onclick=async()=>{
+      await sb.from('notificaciones').update({leida:true}).eq('leida',false);
+      toast('Todas marcadas como leídas'); render();
+    };
+    document.querySelectorAll('[data-n]').forEach(b=>b.onclick=async()=>{
+      const n=N.find(x=>x.id===b.dataset.n);
+      if(n && !n.leida) await sb.from('notificaciones').update({leida:true}).eq('id',n.id);
+      if(n && n.job_id) abrirJob(n.job_id); else render();
+    });
+  },0);
+  if(!N.length) return `<div class="empty"><div class="disp">Sin notificaciones</div><p>Cuando un técnico mande su reporte te llega el aviso aquí.</p></div>`;
+  return `${sinLeer.length?`<button class="btn ghost wide no-print" id="todas" style="margin-bottom:12px">Marcar todas como leídas (${sinLeer.length})</button>`:''}
+    <div class="eyebrow">Avisos · ${sinLeer.length} sin leer</div>
+    ${N.map(n=>{
+      const t=new Date(n.created_at);
+      const cuando=t.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div class="fila ${n.leida?'':'a'}" data-n="${n.id}" style="${n.leida?'opacity:.62':''}">
+        <div class="t"><b>${esc(n.titulo)}</b><span class="sub">${esc(n.texto||'')}</span>
+        <span class="meta">${esc(cuando)}</span></div>
+        ${n.leida?'':'<span class="chip azul">NUEVO</span>'}
+      </div>`;}).join('')}`;
+}
 
 /* ==================== TÉCNICO · INICIO ==================== */
 let TTAB='activos';
@@ -608,6 +664,7 @@ function shell(html){
     <div class="wrap">
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
+        ${!esTec?`<button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>`:''}
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
@@ -661,6 +718,7 @@ async function render(){
   if(!U) return login();
   if(RELOJ){ clearInterval(RELOJ); RELOJ=null; }
   if(MAPA){ try{MAPA.remove();}catch(e){} MAPA=null; }
+  await contarNotif();
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
@@ -670,6 +728,7 @@ async function render(){
       if(V==='mapa')     return shell(await vMapa());
       if(V==='hist')     return shell(await vTecHist());
     }
+    if(V==='notif')     return shell(await vNotificaciones());
     if(V==='resumen')   return shell(await vResumen());
     if(V==='mgmt')      return shell(await vManagements());
     if(V==='mapa')      return shell(await vMapa());
@@ -981,6 +1040,7 @@ async function formReporte(jobId,fecha){
     }
     const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se guardó: '+error.message);
+    try{ await avisarReporte(j, !prev, SERV, fecha); }catch(e){}
 
     if(MATS.length){
       const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
@@ -1243,8 +1303,10 @@ async function enviarGuiado(){
     lecturas:d.lecturas, fotos:d.fotos,
     trabajo_realizado:d.servicios.join(' · '),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null};
+  const yaHabia=G.prev;
   const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
+  try{ await avisarReporte(G.job, !yaHabia, d.servicios, fecha); }catch(e){}
   if(d.material_removido.length){
     const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
     const tengo=(ya||[]).map(x=>x.nombre);
@@ -1867,6 +1929,8 @@ async function vResumen(){
   },0);
 
   const alertas=[];
+  const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(6);
+  (nsl||[]).forEach(x=>alertas.push({c:'a',t:x.titulo,s:x.texto||'',job:x.job_id}));
   faltan.forEach(a=>alertas.push({c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
   revisar.forEach(x=>alertas.push({c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
   vencidos.forEach(x=>alertas.push({c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
@@ -1918,7 +1982,7 @@ async function vResumen(){
     ${alertas.length?alertas.slice(0,12).map(a=>`
       <div class="fila ${a.c}" ${a.job?`data-job="${a.job}"`:''}>
         <div class="t"><b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
-        <span class="chip ${a.c==='r'?'rojo':'ambar'}">${a.c==='r'?'URGENTE':'PENDIENTE'}</span>
+        <span class="chip ${a.c==='r'?'rojo':a.c==='a'?'azul':'ambar'}">${a.c==='r'?'URGENTE':a.c==='a'?'NUEVO':'PENDIENTE'}</span>
       </div>`).join('')
       :`<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`}
 
