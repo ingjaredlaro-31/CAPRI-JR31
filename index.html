@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -117,6 +119,23 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
+.hero{background:var(--tinta);color:#fff;border-radius:12px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero .franja2{position:absolute;left:0;right:0;bottom:0;height:4px;display:flex}
+.hero .franja2 i{flex:1}
+.hero .franja2 i:first-child{background:var(--azul)}
+.hero .franja2 i:last-child{background:var(--rojo)}
+.hero .salu{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:#9AA3AF;text-transform:uppercase}
+.hero .nom{font-family:var(--disp);font-weight:800;font-size:30px;line-height:1.02;margin-top:2px}
+.hero .reloj{font-family:var(--mono);font-size:40px;font-weight:600;line-height:1;letter-spacing:-.01em}
+.hero .fch{font-size:14px;color:#C3D6F7;text-transform:capitalize}
+.hero .grid{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-top:14px}
+.clima{background:rgba(255,255,255,.09);border-radius:10px;padding:11px 14px;min-width:168px}
+.clima .t{font-family:var(--disp);font-size:32px;line-height:1}
+.clima .d{font-size:13px;color:#C3D6F7}
+.clima .l{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#9AA3AF;text-transform:uppercase}
+.lluvia{background:var(--azul);border-radius:8px;padding:11px 13px;margin-top:12px;font-size:14px}
+.mapa{height:330px;border-radius:12px;border:1px solid var(--linea);overflow:hidden;margin-bottom:6px}
+.leaflet-container{font-family:var(--body)}
 .frm{width:100%;border-collapse:collapse;margin-top:4px}
 .frm td{border-bottom:1px solid var(--linea);padding:10px 4px;vertical-align:top}
 .frm td.k{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--gris);text-transform:uppercase;width:52%}
@@ -336,6 +355,8 @@ function shell(html){
 
 async function render(){
   if(!U) return login();
+  if(RELOJ){ clearInterval(RELOJ); RELOJ=null; }
+  if(MAPA){ try{MAPA.remove();}catch(e){} MAPA=null; }
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
@@ -862,11 +883,135 @@ async function vControl(){
 }
 
 
+/* ==================== CLIMA · RELOJ · MAPA ==================== */
+const SD = {lat:32.7157, lng:-117.1611};
+let RELOJ=null, MAPA=null;
+let CLIMA=null, CLIMA_HORA=0;
+
+const WMO = {
+  0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',
+  45:'Neblina',48:'Neblina con escarcha',51:'Llovizna ligera',53:'Llovizna',55:'Llovizna fuerte',
+  56:'Llovizna helada',57:'Llovizna helada fuerte',61:'Lluvia ligera',63:'Lluvia',65:'Lluvia fuerte',
+  66:'Lluvia helada',67:'Lluvia helada fuerte',71:'Nieve ligera',73:'Nieve',75:'Nieve fuerte',
+  80:'Chubascos ligeros',81:'Chubascos',82:'Chubascos fuertes',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta fuerte'
+};
+
+async function traerClima(){
+  if(CLIMA && Date.now()-CLIMA_HORA < 15*60*1000) return CLIMA;
+  try{
+    const u='https://api.open-meteo.com/v1/forecast?latitude='+SD.lat+'&longitude='+SD.lng
+      +'&current=temperature_2m,weather_code,precipitation'
+      +'&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum'
+      +'&temperature_unit=fahrenheit&timezone=America/Los_Angeles&forecast_days=3';
+    const res=await fetch(u);
+    if(!res.ok) return null;
+    CLIMA=await res.json(); CLIMA_HORA=Date.now();
+    return CLIMA;
+  }catch(e){ return null; }
+}
+
+function arrancarReloj(){
+  if(RELOJ) clearInterval(RELOJ);
+  const pinta=()=>{
+    const el=document.getElementById('reloj'); if(!el){clearInterval(RELOJ);RELOJ=null;return;}
+    el.textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  };
+  pinta(); RELOJ=setInterval(pinta,1000*20);
+}
+
+function saludo(){
+  const h=new Date().getHours();
+  if(h<12) return 'Buenos días';
+  if(h<19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function heroHTML(cl, activos, hoyN){
+  const f=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  let bloqueClima='<div class="clima"><div class="l">San Diego</div><div class="d">clima no disponible</div></div>';
+  let alerta='';
+  if(cl && cl.current){
+    const t=Math.round(cl.current.temperature_2m);
+    const desc=WMO[cl.current.weather_code]||'—';
+    const pmax=cl.daily?.precipitation_probability_max?.[0] ?? 0;
+    const mx=Math.round(cl.daily?.temperature_2m_max?.[0] ?? t);
+    const mn=Math.round(cl.daily?.temperature_2m_min?.[0] ?? t);
+    bloqueClima=`<div class="clima">
+      <div class="l">San Diego</div>
+      <div class="t">${t}°F</div>
+      <div class="d">${esc(desc)} · máx ${mx}° mín ${mn}°</div>
+      <div class="d">Lluvia hoy: ${pmax}%</div>
+    </div>`;
+    const p1=cl.daily?.precipitation_probability_max?.[1] ?? 0;
+    if(pmax>=40 || p1>=50){
+      const cual = pmax>=40 ? `hoy (${pmax}%)` : `mañana (${p1}%)`;
+      alerta=`<div class="lluvia"><b>Se espera lluvia ${cual}.</b> Prepara equipo extra — normalmente sube la carga de flood service.</div>`;
+    }
+  }
+  return `<div class="hero">
+    <div class="grid">
+      <div>
+        <div class="salu">${saludo()}</div>
+        <div class="nom">${esc((U.nombre||'').split('·')[0].trim())}</div>
+        <div class="reloj" id="reloj">--:--</div>
+        <div class="fch">${esc(f)}</div>
+      </div>
+      ${bloqueClima}
+    </div>
+    ${alerta}
+    <div class="grid" style="margin-top:14px">
+      <div><div class="salu">Trabajos activos</div><div class="nom" style="font-size:26px">${activos}</div></div>
+      <div><div class="salu">Visitas hoy</div><div class="nom" style="font-size:26px">${hoyN}</div></div>
+      <div><div class="salu">Departamento</div><div class="nom" style="font-size:26px">${esc(DEP)}</div></div>
+    </div>
+    <div class="franja2"><i></i><i></i></div>
+  </div>`;
+}
+
+async function geocodificar(txt){
+  try{
+    const u='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(txt);
+    const r=await fetch(u,{headers:{'Accept':'application/json'}});
+    const d=await r.json();
+    if(d && d[0]) return {lat:+d[0].lat, lng:+d[0].lon};
+  }catch(e){}
+  return null;
+}
+
+async function pintarMapa(jobs){
+  const el=document.getElementById('mapa');
+  if(!el || typeof L==='undefined') return;
+  if(MAPA){ MAPA.remove(); MAPA=null; }
+  MAPA=L.map(el,{scrollWheelZoom:false}).setView([SD.lat,SD.lng],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(MAPA);
+
+  const puntos=[];
+  for(const j of jobs){
+    let lat=j.lat, lng=j.lng;
+    if((!lat||!lng) && j.propiedades && j.propiedades.lat){ lat=j.propiedades.lat; lng=j.propiedades.lng; }
+    if(!lat||!lng){
+      const dir=[j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', ');
+      if(!j.direccion) continue;
+      const g=await geocodificar(dir);
+      if(!g) continue;
+      lat=g.lat; lng=g.lng;
+      await sb.from('jobs').update({lat,lng}).eq('id',j.id);
+      await new Promise(r=>setTimeout(r,1100));
+    }
+    const col = j.estatus==='terminado' ? '#6B7280' : (j.departamento==='cleaning' ? '#D42129' : '#1B56D3');
+    const m=L.circleMarker([lat,lng],{radius:9,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(MAPA);
+    m.bindPopup(`<b>${esc(j.folio)}</b><br>${esc(j.cliente)}<br>${esc(j.direccion||'')}${j.unidad?' · Unit '+esc(j.unidad):''}<br><i>${esc(j.estatus)}</i>`);
+    puntos.push([lat,lng]);
+  }
+  if(puntos.length) MAPA.fitBounds(puntos,{padding:[40,40],maxZoom:13});
+}
+
 /* ==================== PANEL DE RESUMEN ==================== */
 async function vResumen(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
-    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,created_at,origen,docs'),
+    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,origen,docs,lat,lng, propiedades(lat,lng)'),
     sb.from('asignaciones').select('*, jobs(folio,cliente,departamento), usuarios(nombre)').eq('fecha',h),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
     sb.from('partidas').select('*, jobs(folio,cliente,departamento)'),
@@ -910,7 +1055,15 @@ async function vResumen(){
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
      .forEach(x=>alertas.push({c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
 
-  return selectorDep()+`
+  const cl = await traerClima();
+  const conDir = activos.filter(x=>x.direccion);
+  setTimeout(()=>{ arrancarReloj(); pintarMapa(conDir.slice(0,25)); },0);
+
+  return selectorDep()+ heroHTML(cl, activos.length, A.length) + `
+    <div class="eyebrow">Mapa de trabajos activos · ${conDir.length}</div>
+    <div class="mapa" id="mapa"></div>
+    <div class="sub" style="margin-bottom:6px">Toca un punto para ver el job. Azul restoration, rojo cleaning.</div>
+
     <div class="kpis">
       <div class="kpi a"><div class="l">Jobs activos</div><div class="v">${activos.length}</div><div class="p">de ${J.length} en total</div></div>
       <div class="kpi ${faltan.length?'r':'a'}"><div class="l">Reportes de hoy</div>
@@ -1122,6 +1275,11 @@ async function formPropiedad(id, mgId){
       ciudad:$('#p_c').value.trim()||null,zip:$('#p_z').value.trim()||null,
       unidades:$('#p_u').value.trim()||null,notas:$('#p_x').value.trim()||null};
     if(!p.nombre) return toast('Ponle nombre a la propiedad.');
+    if(p.direccion){
+      toast('Buscando ubicación…');
+      const g=await geocodificar([p.direccion,p.ciudad||'San Diego','CA'].filter(Boolean).join(', '));
+      if(g){ p.lat=g.lat; p.lng=g.lng; }
+    }
     const q=id?sb.from('propiedades').update(p).eq('id',id):sb.from('propiedades').insert(p);
     const {error}=await q; if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Propiedad guardada'); abrirManagement(mgId);
