@@ -42,7 +42,7 @@ a{color:var(--azul)}
 
 main{padding:14px;padding-bottom:96px;max-width:1400px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:10px 2px 12px;font-family:var(--disp);font-size:16px;text-transform:uppercase;cursor:pointer;position:relative}
+nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:10px 1px 12px;font-family:var(--disp);font-size:14.5px;text-transform:uppercase;cursor:pointer;position:relative;letter-spacing:.01em}
 nav button.on{color:var(--azul);border-top-color:var(--azul)}
 nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rojo)}
 .side{display:none}
@@ -281,6 +281,201 @@ const EDIT = () => U && U.rol==='admin';
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
+/* ==================== TÉCNICO · INICIO ==================== */
+let TTAB='activos';
+
+async function vTecInicio(){
+  const h=hoy();
+  const dep = U.departamento==='ambos' ? null : U.departamento;
+  const [a, r] = await Promise.all([asigDe(U.id,h,h), repsDe(U.id,h,h)]);
+  const faltantes = await contarPendientes();
+  const hechos=new Set(r.map(x=>x.job_id));
+  const faltanHoy=a.filter(x=>!hechos.has(x.job_id)).length;
+  const tarde=new Date().getHours()>=HORA_CORTE;
+
+  let q=sb.from('jobs').select('id,estatus,departamento').not('estatus','in','("terminado","facturado")');
+  const {data:acts}=await q;
+  const mios=(acts||[]).filter(x=>!dep||x.departamento===dep);
+  const enRec=mios.filter(x=>x.estatus==='reconstruccion').length;
+  const cl=await traerClima();
+
+  setTimeout(()=>{
+    arrancarReloj(); engancharRep();
+    const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
+    document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
+  },0);
+
+  let out = heroHTML(cl, mios.length, a.length, dep||'ambos');
+
+  if(faltanHoy) out += `<div class="alerta"><div class="n">${faltanHoy}</div>
+    <div class="t">${faltanHoy===1?'reporte de hoy sin enviar':'reportes de hoy sin enviar'}${tarde?' · ya pasó la hora de corte':''}</div></div>`;
+  else if(a.length) out += `<div class="ok">Todos tus reportes de hoy están enviados. Buen trabajo.</div>`;
+
+  out += `<div class="kpis" style="margin-bottom:12px">
+    <div class="fila a" data-ir="reporte"><div class="t"><b>Hacer mi reporte</b><span class="sub">preguntas paso a paso</span></div></div>
+    <div class="fila a" id="miruta" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
+    <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
+    <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
+  </div>`;
+
+  out += `<div class="eyebrow">Trabajos de hoy · ${fmt(h)}</div>`;
+  out += a.length ? a.map(x=>tarjetaTec(x,hechos.has(x.job_id),tarde)).join('')
+    : `<div class="empty"><div class="disp">Sin trabajos hoy</div><p>Cuando oficina te asigne un job aparece aquí con su ruta.</p></div>`;
+
+  if(faltantes.length){
+    out += `<div class="eyebrow">Reportes que debes · ${faltantes.length}</div>`;
+    out += faltantes.slice(0,6).map(x=>tarjetaTec(x,false,true)).join('');
+  }
+  return out;
+}
+
+/* ==================== TÉCNICO · TRABAJOS ==================== */
+async function vTecTrabajos(){
+  const miDep = U.departamento==='ambos' ? 'restoration' : U.departamento;
+  const {data}=await sb.from('jobs')
+    .select('*, propiedades(nombre), managements(nombre)')
+    .not('estatus','in','("terminado","facturado")')
+    .order('created_at',{ascending:false}).limit(120);
+  const {data:mias}=await sb.from('asignaciones').select('job_id').eq('tecnico_id',U.id).gte('fecha',hace(60));
+  const mios=new Set((mias||[]).map(x=>x.job_id));
+  const J=data||[];
+
+  const activos = J.filter(x=>x.departamento===miDep && x.estatus!=='reconstruccion');
+  const reparando = J.filter(x=>x.departamento===miDep && x.estatus==='reconstruccion');
+  const cleaning = J.filter(x=>x.departamento==='cleaning');
+
+  const lista = TTAB==='activos'?activos : TTAB==='reparando'?reparando : cleaning;
+
+  setTimeout(()=>{
+    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TTAB=b.dataset.t;render();});
+    document.querySelectorAll('[data-vj]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj));
+  },0);
+
+  const tarjeta=j=>{
+    const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+    return `<div class="card ${j.departamento==='cleaning'?'rojo':''}" data-vj="${j.id}" style="cursor:pointer">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(j.folio)}</span>
+        ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
+      <div class="tit">${esc(prop)}</div>
+      <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.direccion||'')}</div>
+      <div class="row" style="margin-top:7px">
+        <span class="chip">${esc(j.tipo)}</span>
+        <span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>
+        ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
+      </div></div>`;
+  };
+
+  return `<div class="tabs">
+      <button data-t="activos" class="${TTAB==='activos'?'on':''}">Activos<span class="c">${activos.length}</span></button>
+      <button data-t="reparando" class="${TTAB==='reparando'?'on':''}">Reparación<span class="c">${reparando.length}</span></button>
+      <button data-t="cleaning" class="${TTAB==='cleaning'?'on':''}">Cleaning<span class="c" style="color:var(--rojo)">${cleaning.length}</span></button>
+    </div>
+    ${TTAB==='cleaning'?'<div class="sub" style="margin-bottom:10px">Trabajos del departamento de cleaning, solo para que sepas cuáles hay.</div>':''}
+    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">Nada por aquí</div><p>No hay trabajos en esta lista.</p></div>`}`;
+}
+
+async function verJobTecnico(id){
+  const [{data:j},{data:part},{data:reps}] = await Promise.all([
+    sb.from('jobs').select('*, propiedades(nombre,direccion,notas), managements(nombre)').eq('id',id).single(),
+    sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
+    sb.from('reportes').select('*, usuarios(nombre)').eq('job_id',id).order('fecha',{ascending:false}).limit(8)
+  ]);
+  const P=part||[], R=reps||[];
+  const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+  const dir=[j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', ');
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)} · ${esc(j.estatus)}</div>
+    <div class="disp" style="font-size:22px;line-height:1">${esc(prop)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${j.unidad?'Unit '+esc(j.unidad):''} · ${esc(j.tipo)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="row" style="margin-bottom:12px">
+        <a class="btn" style="flex:1" target="_blank" rel="noopener"
+          href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Cómo llegar</a>
+        <button class="btn ghost" style="flex:1" id="rep">Hacer reporte</button>
+      </div>
+      <div class="card" style="border-left-color:var(--linea)">
+        <div class="sub" style="color:var(--tinta)">${esc(j.direccion||'')}${j.ciudad?', '+esc(j.ciudad):''}</div>
+        <div class="row" style="margin-top:8px">
+          <span class="chip ${j.ocupada==='ocupada'?'rojo':'azul'}">UNIDAD ${esc((j.ocupada||'vacia').toUpperCase())}</span>
+          ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
+        </div>
+        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
+        ${j.notas?`<div class="sub" style="margin-top:7px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
+      </div>
+      ${(j.areas||[]).length?`<div class="eyebrow">Áreas</div>
+      <div class="chips">${(j.areas||[]).map(x=>`<button type="button" class="on" style="cursor:default">${esc(x)}</button>`).join('')}</div>`:''}
+      ${P.length?`<div class="eyebrow">Reparaciones · ${P.filter(x=>x.estatus==='aprobada').length} de ${P.length} listas</div>
+      ${P.map(x=>{const [t,c]=ESTAT_PART[x.estatus];
+        return `<div class="fila ${x.estatus==='aprobada'?'a':'r'}">
+          <div class="t"><b>${esc(x.nombre)}</b><span class="sub">${esc(x.contratistas?.nombre||'sin contratista')}</span></div>
+          <span class="chip ${c}">${t}</span></div>`;}).join('')}`:''}
+      ${R.length?`<div class="eyebrow">Últimos reportes</div>
+      ${R.map(x=>`<div class="card">
+        <div class="row" style="justify-content:space-between"><span class="chip">${fmt(x.fecha)}</span>
+        <span class="meta">${esc(x.usuarios?.nombre||'')}</span></div>
+        <div class="row" style="margin-top:6px;gap:5px">${(x.servicios||[]).map(y=>`<span class="chip azul">${esc(y)}</span>`).join('')}</div>
+        ${x.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(x.siguiente_trabajo)}</div>`:''}
+      </div>`).join('')}`:''}
+      <div style="height:18px"></div>
+      <button class="btn ghost wide" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#rep').onclick=()=>{cerrar();reporteGuiado(id,hoy());};
+}
+
+/* ==================== TÉCNICO · ÁREA DE REPORTE ==================== */
+async function vTecReporte(){
+  const h=hoy();
+  const [a,r] = await Promise.all([asigDe(U.id,h,h), repsDe(U.id,h,h)]);
+  const hechos=new Set(r.map(x=>x.job_id));
+  const faltantes=await contarPendientes();
+  const dep=U.departamento==='ambos'?null:U.departamento;
+  let q=sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus, propiedades(nombre)')
+    .not('estatus','in','("terminado","facturado")').limit(60);
+  if(dep) q=q.eq('departamento',dep);
+  const {data:acts}=await q;
+
+  setTimeout(()=>{
+    document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rg,b.dataset.f||hoy()));
+  },0);
+
+  const boton=(j,f,hecho)=>{
+    const prop=j.propiedades?.nombre||j.cliente;
+    return `<div class="card ${hecho?'':'rojo'}">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(j.folio)}</span>
+        ${hecho?'<span class="chip azul">YA ENVIADO</span>':'<span class="chip rojo">FALTA</span>'}</div>
+      <div class="tit">${esc(prop)}</div>
+      <div class="sub">${j.unidad?'Unit '+esc(j.unidad):''}</div>
+      <button class="btn wide" data-rg="${j.id}" data-f="${f}" style="margin-top:10px">${hecho?'Corregir reporte':'Hacer reporte'}</button>
+    </div>`;
+  };
+
+  let out=`<div class="eyebrow">Reporte de hoy · ${fmt(h)}</div>`;
+  out += a.length ? a.map(x=>boton(x.jobs,h,hechos.has(x.job_id))).join('')
+    : `<div class="empty"><div class="disp">Sin visitas hoy</div><p>Puedes reportar sobre cualquier trabajo activo de abajo.</p></div>`;
+
+  if(faltantes.length){
+    out+=`<div class="eyebrow">Días que debes reporte · ${faltantes.length}</div>`;
+    out+=faltantes.slice(0,8).map(x=>`<div class="card rojo">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(x.jobs?.folio||'')}</span><span class="chip rojo">${fmt(x.fecha)}</span></div>
+      <div class="tit">${esc(x.jobs?.cliente||'')}</div>
+      <button class="btn wide" data-rg="${x.job_id}" data-f="${x.fecha}" style="margin-top:10px">Hacer reporte de ese día</button>
+    </div>`).join('');
+  }
+
+  out+=`<div class="eyebrow">Otros trabajos activos</div>`;
+  out+=(acts||[]).filter(x=>!a.some(y=>y.job_id===x.id)).map(j=>`<div class="fila a">
+    <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}</b><span class="sub">${esc(j.folio)}${j.unidad?' · Unit '+esc(j.unidad):''}</span></div>
+    <button class="btn sm" data-rg="${j.id}" data-f="${h}">Reportar</button>
+  </div>`).join('')||'<div class="sub">No hay más trabajos activos.</div>';
+  return out;
+}
+
 /* ==================== PORTADA · PUERTAS DE ACCESO ==================== */
 let PUERTA = null;
 
@@ -394,7 +589,7 @@ function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
 function shell(html){
   const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
   const tabs = U.rol==='tecnico'
-    ? [['dia','Mi día'],['trabajos','Trabajos'],['pend','Pendientes'],['hist','Historial']]
+    ? [['dia','Inicio'],['trabajos','Trabajos'],['reporte','Reporte'],['mapa','Mapa'],['hist','Historial']]
     : (U.rol==='admin'
       ? [['resumen','Resumen'],['dia','Control'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
       : [['resumen','Resumen'],['dia','Control'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
@@ -465,9 +660,10 @@ async function render(){
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
-      if(V==='dia')      return shell(await vTecDia());
+      if(V==='dia')      return shell(await vTecInicio());
       if(V==='trabajos') return shell(await vTecTrabajos());
-      if(V==='pend')     return shell(await vTecPend());
+      if(V==='reporte')  return shell(await vTecReporte());
+      if(V==='mapa')     return shell(await vMapa());
       if(V==='hist')     return shell(await vTecHist());
     }
     if(V==='resumen')   return shell(await vResumen());
@@ -1294,7 +1490,7 @@ function saludo(){
   return 'Buenas noches';
 }
 
-function heroHTML(cl, activos, hoyN){
+function heroHTML(cl, activos, hoyN, etiqueta){
   const f=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   let bloqueClima='<div class="clima"><div class="l">San Diego</div><div class="d">clima no disponible</div></div>';
   let alerta='';
@@ -1330,7 +1526,7 @@ function heroHTML(cl, activos, hoyN){
     <div class="grid" style="margin-top:14px">
       <div><div class="salu">Trabajos activos</div><div class="nom" style="font-size:26px">${activos}</div></div>
       <div><div class="salu">Visitas hoy</div><div class="nom" style="font-size:26px">${hoyN}</div></div>
-      <div><div class="salu">Departamento</div><div class="nom" style="font-size:26px">${esc(DEP)}</div></div>
+      <div><div class="salu">Departamento</div><div class="nom" style="font-size:26px">${esc(etiqueta||DEP)}</div></div>
     </div>
     <div class="franja2"><i></i><i></i></div>
   </div>`;
@@ -1545,27 +1741,32 @@ async function dibujarMapaRuta(items, conRuta){
 async function vMapa(){
   const h=hoy();
   let items=[], titulo='';
+  const esTec = U.rol==='tecnico';
+  const miDep = esTec ? (U.departamento==='ambos'?'restoration':U.departamento) : DEP;
   if(MODO_MAPA==='hoy'){
-    const {data}=await sb.from('asignaciones')
+    let q=sb.from('asignaciones')
       .select('hora, jobs(*, propiedades(nombre,lat,lng), managements(nombre)), usuarios(nombre)')
       .eq('fecha',h).order('hora');
-    items=(data||[]).filter(a=>a.jobs?.departamento===DEP)
+    if(esTec) q=q.eq('tecnico_id',U.id);
+    const {data}=await q;
+    items=(data||[]).filter(a=>esTec ? !!a.jobs : a.jobs?.departamento===DEP)
       .map(a=>({job:a.jobs,hora:a.hora,tecnico:a.usuarios?.nombre}));
-    titulo='Ruta de hoy · '+fmt(h);
+    titulo=(esTec?'Mi ruta de hoy · ':'Ruta de hoy · ')+fmt(h);
   } else {
     const {data}=await sb.from('jobs')
       .select('*, propiedades(nombre,lat,lng), managements(nombre)')
-      .eq('departamento',DEP).not('estatus','in','("terminado","facturado")').limit(40);
+      .eq('departamento',miDep).not('estatus','in','("terminado","facturado")').limit(40);
     items=(data||[]).map(j=>({job:j}));
     titulo='Todos los trabajos activos';
   }
   const conRuta = MODO_MAPA==='hoy';
 
   setTimeout(()=>{
-    engancharDep();
+    if(U.rol!=='tecnico') engancharDep();
     document.querySelectorAll('[data-mm]').forEach(b=>b.onclick=()=>{MODO_MAPA=b.dataset.mm;render();});
     const op=$('#opt'); if(op) op.onclick=()=>{OPTIMIZAR=!OPTIMIZAR;render();};
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>
+      U.rol==='tecnico' ? verJobTecnico(b.dataset.job) : abrirJob(b.dataset.job));
     dibujarMapaRuta(items, conRuta);
   },0);
 
@@ -1580,10 +1781,10 @@ async function vMapa(){
       <span class="chip ${j.departamento==='cleaning'?'rojo':'azul'}">${esc(j.estatus)}</span>
     </div>`;}).join('');
 
-  return selectorDep()+`
+  return (U.rol==='tecnico'?'':selectorDep())+`
     <div class="modos no-print">
-      <button data-mm="hoy" class="${MODO_MAPA==='hoy'?'on':''}">Ruta de hoy</button>
-      <button data-mm="activos" class="${MODO_MAPA==='activos'?'on':''}">Todos los activos</button>
+      <button data-mm="hoy" class="${MODO_MAPA==='hoy'?'on':''}">${U.rol==='tecnico'?'Mi ruta':'Ruta de hoy'}</button>
+      <button data-mm="activos" class="${MODO_MAPA==='activos'?'on':''}">Todos</button>
     </div>
     <div class="eyebrow">${esc(titulo)} · ${items.length} paradas</div>
     <div class="mapa" id="mapa"></div>
