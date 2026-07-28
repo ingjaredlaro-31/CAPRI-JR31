@@ -24,7 +24,7 @@
   --mono:'JetBrains Mono',ui-monospace,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
 body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:17.5px;line-height:1.6;min-height:100dvh}
 h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-weight:700}
 .mono{font-family:var(--mono)}
@@ -57,8 +57,10 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .side .head .j{font-family:var(--disp);font-weight:800;font-size:25px;color:#fff;letter-spacing:.08em}
   .side button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#9AA3AF;padding:13px 16px;font-family:var(--disp);font-size:20px;text-transform:uppercase;cursor:pointer}
   .side button.on{background:var(--azul);color:#fff;border-left-color:#5B8DEF}
-  .wrap{flex:1;min-width:0}
+  .wrap{flex:1;min-width:0;max-width:100%}
   nav{display:none}
+  body.tec nav{display:flex;max-width:760px;left:50%;transform:translateX(-50%);border:1px solid var(--linea);border-bottom:0;border-radius:12px 12px 0 0}
+  body.tec main{padding-bottom:104px;max-width:820px}
   main{padding:18px 22px 40px}
   .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 }
@@ -614,11 +616,13 @@ function shell(html){
       </div>
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
-        <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div></footer>
+        <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
+        <div class="s" style="margin-top:6px;opacity:.7">v6 · ${new Date().toLocaleDateString('es-MX')}</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
     </div>`;
+  document.body.classList.toggle('tec', esTec);
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
     if(b.dataset.v==='salir') return salir();
     V=b.dataset.v; render();
