@@ -341,6 +341,118 @@ async function vNotificaciones(){
       </div>`;}).join('')}`;
 }
 
+/* ==================== TÉCNICO CREA TRABAJO CON REPORTE INICIAL ==================== */
+async function nuevoTrabajoTecnico(){
+  const dep = U.departamento==='ambos' ? 'restoration' : U.departamento;
+  const [{data:mgs},{data:props}] = await Promise.all([
+    sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('propiedades').select('*').order('nombre')
+  ]);
+  const MG=mgs||[], PR=props||[];
+  const folio = await nuevoFolio(dep);
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${dep==='cleaning'?'style="background:var(--rojo)"':''}>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">NUEVO TRABAJO · ${esc(folio)}</div>
+    <div class="disp" style="font-size:22px;line-height:1">Reporte inicial</div>
+    <div style="font-size:13px;color:#C3D6F7">Primero dime dónde estás</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <label>Management company</label>
+      <select id="n_mg"><option value="">— sin management / particular —</option>
+        ${MG.map(m=>`<option value="${m.id}">${esc(m.nombre)}</option>`).join('')}</select>
+
+      <label>Propiedad</label>
+      <select id="n_pr"><option value="">— escoge el management primero —</option></select>
+      <div id="n_avdir" class="sub" style="margin-top:4px"></div>
+
+      <label>Número de unidad</label>
+      <input id="n_un" placeholder="204" style="font-family:var(--mono);font-size:22px">
+
+      <div id="n_manual" style="display:none">
+        <label>Nombre del lugar / cliente</label><input id="n_cli" placeholder="Hernández Residence">
+        <label>Dirección</label><input id="n_dir" placeholder="3421 Newton Ave">
+        <label>Ciudad</label><input id="n_ciu" value="San Diego">
+      </div>
+
+      <label>Tipo de servicio</label>
+      <div class="si-no" id="n_tipo">
+        ${TIPOS[dep].filter(x=>x!=='otro').map((t,i)=>`<button data-t="${t}" class="${i===0?'on':''}">${t}</button>`).join('')}
+      </div>
+
+      <label>Nota rápida (opcional)</label>
+      <textarea id="n_nt" placeholder="Reporte de flood en cocina, el manager llamó a las 8am"></textarea>
+
+      <div style="height:18px"></div>
+      <button class="btn wide" id="n_ok">Crear trabajo y empezar reporte</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+
+  let TIPO_SEL = TIPOS[dep][0];
+  document.querySelectorAll('#n_tipo [data-t]').forEach(b=>b.onclick=()=>{
+    TIPO_SEL=b.dataset.t;
+    document.querySelectorAll('#n_tipo [data-t]').forEach(x=>x.className = x.dataset.t===TIPO_SEL?'on':'');
+  });
+
+  const pintaProps=()=>{
+    const mg=$('#n_mg').value;
+    const lista=PR.filter(x=>x.management_id===mg);
+    $('#n_pr').innerHTML = mg
+      ? '<option value="">— escoge la propiedad —</option>'+lista.map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join('')
+      : '<option value="">— sin management —</option>';
+    $('#n_manual').style.display = mg ? 'none' : '';
+    $('#n_avdir').textContent='';
+  };
+  $('#n_mg').onchange=pintaProps;
+  $('#n_pr').onchange=()=>{
+    const pr=PR.find(x=>x.id===$('#n_pr').value);
+    $('#n_avdir').innerHTML = pr ? 'Dirección: <b>'+esc([pr.direccion,pr.ciudad,pr.zip].filter(Boolean).join(', '))+'</b>' : '';
+  };
+  pintaProps();
+
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#n_ok').onclick=async()=>{
+    const mgId=$('#n_mg').value||null;
+    const prId=$('#n_pr').value||null;
+    const pr=PR.find(x=>x.id===prId);
+    const unidad=$('#n_un').value.trim()||null;
+    let cliente, direccion, ciudad, zip;
+    if(mgId){
+      if(!prId) return toast('Escoge la propiedad.');
+      cliente = pr.nombre + (unidad?' · Unit '+unidad:'');
+      direccion = pr.direccion||''; ciudad = pr.ciudad||'San Diego'; zip = pr.zip||null;
+    } else {
+      cliente = $('#n_cli').value.trim();
+      direccion = $('#n_dir').value.trim();
+      ciudad = $('#n_ciu').value.trim()||'San Diego'; zip=null;
+      if(!cliente || !direccion) return toast('Pon el nombre del lugar y la dirección.');
+    }
+    const p={folio, departamento:dep, tipo:TIPO_SEL, estatus:'activo',
+      origen: mgId?'management':'particular',
+      management_id:mgId, propiedad_id:prId,
+      cliente, direccion, ciudad, zip, unidad,
+      tipo_propiedad: mgId?'apartamento':'casa',
+      fecha_inicio:hoy(), notas:$('#n_nt').value.trim()||null,
+      lat: pr?pr.lat:null, lng: pr?pr.lng:null};
+    const {data,error}=await sb.from('jobs').insert(p).select().single();
+    if(error) return toast('No se creó: '+error.message);
+
+    await sb.from('asignaciones').upsert({job_id:data.id,tecnico_id:U.id,fecha:hoy(),
+      hora:new Date().toTimeString().slice(0,5)},{onConflict:'job_id,tecnico_id,fecha'});
+
+    const prop = pr?pr.nombre:cliente;
+    await sb.from('notificaciones').insert({
+      tipo:'job',
+      titulo:'Trabajo nuevo · '+prop,
+      texto:`${U.nombre} abrió ${folio}${unidad?' · Unit '+unidad:''} · ${TIPO_SEL}`,
+      job_id:data.id, de_usuario:U.nombre, para_rol:'admin'});
+
+    cerrar(); toast('Trabajo creado · ahora el reporte');
+    reporteGuiado(data.id, hoy(), 'inicial');
+  };
+}
+
 /* ==================== TÉCNICO · INICIO ==================== */
 let TTAB='activos', TIPO_REP=null;
 
@@ -362,6 +474,7 @@ async function vTecInicio(){
   setTimeout(()=>{
     arrancarReloj(); engancharRep();
     const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
+    const n2=$('#ntrab2'); if(n2) n2.onclick=nuevoTrabajoTecnico;
     document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
   },0);
 
@@ -372,7 +485,8 @@ async function vTecInicio(){
   else if(a.length) out += `<div class="ok">Todos tus reportes de hoy están enviados. Buen trabajo.</div>`;
 
   out += `<div class="kpis" style="margin-bottom:12px">
-    <div class="fila a" data-ir="reporte"><div class="t"><b>Hacer mi reporte</b><span class="sub">preguntas paso a paso</span></div></div>
+    <div class="fila a" data-ir="reporte"><div class="t"><b>Hacer mi reporte</b><span class="sub">inicial o de seguimiento</span></div></div>
+    <div class="fila r" id="ntrab2" style="cursor:pointer"><div class="t"><b>Trabajo nuevo</b><span class="sub">abrir job y reporte inicial</span></div></div>
     <div class="fila a" id="miruta" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
     <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
     <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
@@ -499,6 +613,7 @@ async function vTecReporte(){
   const {data:acts}=await q;
 
   setTimeout(()=>{
+    const nt=$('#ntrab'); if(nt) nt.onclick=nuevoTrabajoTecnico;
     document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{
       TIPO_REP = TIPO_REP===b.dataset.tp ? null : b.dataset.tp; render(); });
     document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>
@@ -518,6 +633,7 @@ async function vTecReporte(){
   };
 
   let out=`
+    <button class="btn wide no-print" id="ntrab" style="margin-bottom:14px">+ Trabajo nuevo · reporte inicial</button>
     <div class="eyebrow" style="margin-top:2px">¿Qué reporte vas a hacer?</div>
     <div class="si-no" style="flex-direction:column;margin-bottom:6px">
       <button data-tp="inicial" class="${TIPO_REP==='inicial'?'on':''}" style="padding:16px">Reporte inicial · primera visita</button>
@@ -530,7 +646,8 @@ async function vTecReporte(){
       : 'Escoge arriba y luego el trabajo. Si no escoges, la app lo detecta sola.'}</div>
     <div class="eyebrow">Reporte de hoy · ${fmt(h)}</div>`;
   out += a.length ? a.map(x=>boton(x.jobs,h,hechos.has(x.job_id))).join('')
-    : `<div class="empty"><div class="disp">Sin visitas hoy</div><p>Puedes reportar sobre cualquier trabajo activo de abajo.</p></div>`;
+    : `<div class="empty"><div class="disp">Sin visitas asignadas hoy</div>
+       <p>Si llegaste a un trabajo nuevo, usa el botón azul de arriba para abrirlo y hacer tu reporte inicial.</p></div>`;
 
   if(faltantes.length){
     out+=`<div class="eyebrow">Días que debes reporte · ${faltantes.length}</div>`;
