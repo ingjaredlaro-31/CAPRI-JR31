@@ -737,6 +737,8 @@ async function verJobTecnico(id){
     sb.from('asignaciones').select('fecha, usuarios(nombre)').eq('job_id',id)
   ]);
   const P=part||[], R=reps||[], AS=asg||[];
+  const sinIni = !R.some(x=>x.tipo_reporte==='inicial');
+  const repHoy = R.some(x=>x.fecha===hoy());
   const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
   const dir=[j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', ');
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
@@ -746,11 +748,16 @@ async function verJobTecnico(id){
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
-      <div class="row" style="margin-bottom:12px">
-        <a class="btn" style="flex:1" target="_blank" rel="noopener"
+      <div class="row" style="margin-bottom:10px">
+        <a class="btn ghost" style="flex:1" target="_blank" rel="noopener"
           href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Cómo llegar</a>
-        <button class="btn ghost" style="flex:1" id="rep">Hacer reporte</button>
       </div>
+      <button class="btn wide ${sinIni?'rojo':''}" id="rep" style="margin-bottom:6px">
+        ${repHoy ? 'Corregir mi reporte de hoy' : (sinIni ? 'Levantar reporte inicial' : 'Crear reporte de seguimiento de hoy')}</button>
+      <div class="sub" style="margin-bottom:14px">${repHoy
+        ? 'Ya reportaste hoy. Puedes corregirlo o tocar otro día en el calendario.'
+        : (sinIni ? 'Este trabajo no tiene reporte inicial todavía.'
+                  : 'Reporta cómo está el trabajo hoy para que se pueda seguir mañana.')}</div>
       <div class="card" style="border-left-color:var(--linea)">
         <div class="sub" style="color:var(--tinta)">${esc(j.direccion||'')}${j.ciudad?', '+esc(j.ciudad):''}</div>
         <div class="row" style="margin-top:8px">
@@ -769,8 +776,8 @@ async function verJobTecnico(id){
       <div class="eyebrow">Historial del trabajo</div>
       ${bloqueLinea(j,R,P,[],AS)}
 
-      <div class="eyebrow">Calendario</div>
-      ${bloqueCalendario(j,R,P,AS)}
+      <div class="eyebrow">Calendario · toca un día para reportar</div>
+      ${bloqueCalendario(j,R,P,AS,true)}
       ${P.length?`<div class="eyebrow">Reparaciones · ${P.filter(x=>x.estatus==='aprobada').length} de ${P.length} listas</div>
       ${P.map(x=>{const [t,c]=ESTAT_PART[x.estatus];
         return `<div class="fila ${x.estatus==='aprobada'?'a':'r'}">
@@ -788,6 +795,9 @@ async function verJobTecnico(id){
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#rep').onclick=()=>{cerrar();reporteGuiado(id,hoy());};
+  $('#sheet').querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{
+    const f=b.dataset.cal; cerrar(); reporteGuiado(id,f);
+  });
 }
 
 /* ==================== TÉCNICO · REPORTE DIARIO ==================== */
@@ -2225,7 +2235,7 @@ function bloqueLinea(j,R,P,N,A){
     </div>`).join('')}</div>`;
 }
 
-function bloqueCalendario(j,R,P,A){
+function bloqueCalendario(j,R,P,A,click){
   const f=fechasClave(j,R,P,A);
   const ini=new Date((f.apertura||hoy())+'T12:00:00');
   const fin=new Date((f.cierre||hoy())+'T12:00:00');
@@ -2253,7 +2263,10 @@ function bloqueCalendario(j,R,P,A){
       if(inicialF.includes(fe)){ bg='var(--rojo)'; co='#fff'; bd='none'; tit='inicial'; }
       if(!fechasR.has(fe) && asigF.has(fe) && fe<=hoy()){ bg='var(--rojo-l)'; co='var(--rojo-d)'; bd='1px solid var(--rojo-b)'; tit='faltó'; }
       if(fe===f.cierre){ bd='3px solid var(--tinta)'; tit='cierre'; }
-      cel+=`<div class="d" title="${tit}" style="min-height:38px;background:${bg};color:${co};border:${bd};display:flex;align-items:center;justify-content:center;padding:0">${n}</div>`;
+      const tocable = click && fe<=hoy();
+      cel+=`<div class="d" title="${tit||(tocable?'toca para reportar este día':'')}"
+        ${tocable?`data-cal="${fe}"`:''}
+        style="min-height:38px;background:${bg};color:${co};border:${bd};display:flex;align-items:center;justify-content:center;padding:0;${tocable?'cursor:pointer':''}">${n}</div>`;
     }
     cel+='</div>';
     return `<div style="margin-bottom:14px">
@@ -2266,6 +2279,7 @@ function bloqueCalendario(j,R,P,A){
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--azul)"></i> reporte diario</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#5CA96B"></i> reparación terminada</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--rojo-l);border:1px solid var(--rojo-b)"></i> faltó reporte</span>
+    ${click?'<span style="width:100%;margin-top:4px">Toca cualquier día para hacer o corregir el reporte de esa fecha.</span>':''}
   </div>`;
 }
 
@@ -3193,7 +3207,7 @@ async function abrirJob(id){
       ${bloqueLinea(j,R,P.concat(SV),N,A)}
 
       <div class="eyebrow">Calendario del trabajo</div>
-      ${bloqueCalendario(j,R,P.concat(SV),A)}
+      ${bloqueCalendario(j,R,P.concat(SV),A,true)}
 
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas afectadas · ${(j.areas||[]).length}</div>
       <div class="chips">${(j.areas||[]).map(a=>`<button type="button" class="on" style="cursor:default">${esc(a)}</button>`).join('')}</div>`:''}
@@ -3333,6 +3347,10 @@ async function abrirJob(id){
   });
   document.querySelectorAll('[data-vr],[data-vr2]').forEach(b=>b.onclick=()=>{
     const rr=R.find(x=>x.id===(b.dataset.vr||b.dataset.vr2)); if(rr) verReporteCampo(rr,j);
+  });
+  $('#sheet').querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{
+    const rr=R.find(x=>x.fecha===b.dataset.cal);
+    if(rr) verReporteCampo(rr,j); else toast('No hubo reporte ese día.');
   });
   const asv=$('#asv'); if(asv) asv.onclick=async()=>{
     const lista=SERVICIOS.map((x,i)=>(i+1)+'. '+x).join('\n');
