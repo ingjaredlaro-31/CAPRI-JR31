@@ -170,6 +170,10 @@ main > *{position:relative;z-index:1}
 .frm td.v{font-family:var(--disp);font-size:19px;font-weight:700;text-align:right;text-transform:uppercase}
 .frm tr.blk td{display:block;text-align:left;width:auto;border:0;padding-bottom:2px}
 .frm tr.blk td.v{font-family:var(--body);font-size:16px;font-weight:400;text-transform:none;border-bottom:1px solid var(--linea);padding-bottom:10px}
+.texto{font-size:15.5px;line-height:1.65;color:var(--tinta);white-space:pre-wrap}
+.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.vermas{background:none;border:0;color:var(--azul);font-family:var(--mono);font-size:12.5px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:6px 0}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin:5px 0 4px}
 .chips button{background:#fff;border:1px solid var(--linea);color:var(--gris);padding:9px 14px;border-radius:22px;font-size:15px;cursor:pointer;font-family:var(--body)}
 .chips button.on{background:var(--azul-l);border-color:var(--azul);color:var(--azul-d);font-weight:500}
@@ -775,8 +779,12 @@ async function verJobTecnico(id){
           ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
         </div>
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
-        ${j.notas?`<div class="sub" style="margin-top:7px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
       </div>
+      ${j.notas?`<div class="eyebrow">Alcance del trabajo</div>
+      <div class="card" style="border-left-color:var(--azul)">
+        <div class="texto clamp" id="nota_j">${esc(j.notas)}</div>
+        ${j.notas.length>320?'<button class="vermas" id="vermas">Ver todo el texto ▾</button>':''}
+      </div>`:''}
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas</div>
       <div class="chips">${(j.areas||[]).map(x=>`<button type="button" class="on" style="cursor:default">${esc(x)}</button>`).join('')}</div>`:''}
 
@@ -805,6 +813,11 @@ async function verJobTecnico(id){
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#rep').onclick=()=>{cerrar();reporteGuiado(id,hoy());};
+  const vm=$('#vermas');
+  if(vm) vm.onclick=()=>{
+    const n=$('#nota_j'); const ab=n.classList.toggle('clamp');
+    vm.textContent = ab ? 'Ver todo el texto ▾' : 'Ver menos ▴';
+  };
   $('#sheet').querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{
     const f=b.dataset.cal; cerrar(); reporteGuiado(id,f);
   });
@@ -1038,7 +1051,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v10 · acuse de recibo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v11 · mapa y textos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2470,12 +2483,19 @@ async function vMapa(){
   const miDep = esTec ? (U.departamento==='ambos'?'restoration':U.departamento) : DEP;
   if(MODO_MAPA==='hoy'){
     let q=sb.from('asignaciones')
-      .select('hora, jobs(*, propiedades(nombre,lat,lng), managements(nombre)), usuarios(nombre)')
+      .select('hora, job_id, jobs(*, propiedades(nombre,lat,lng), managements(nombre)), usuarios(nombre)')
       .eq('fecha',h).order('hora');
     if(esTec) q=q.eq('tecnico_id',U.id);
     const {data}=await q;
     items=(data||[]).filter(a=>esTec ? !!a.jobs : a.jobs?.departamento===DEP)
       .map(a=>({job:a.jobs,hora:a.hora,tecnico:a.usuarios?.nombre}));
+    if(esTec){
+      const ya=new Set(items.map(x=>x.job.id));
+      const {data:mios}=await sb.from('jobs')
+        .select('*, propiedades(nombre,lat,lng), managements(nombre)')
+        .eq('tecnico_id',U.id).not('estatus','in','("terminado","facturado")');
+      (mios||[]).forEach(j=>{ if(!ya.has(j.id)) items.push({job:j}); });
+    }
     titulo=(esTec?'Mi ruta de hoy · ':'Ruta de hoy · ')+fmt(h);
   } else {
     const {data}=await sb.from('jobs')
@@ -2519,7 +2539,7 @@ async function vMapa(){
       <a class="btn" style="flex:1" id="glink" target="_blank" rel="noopener" href="#">Abrir en Google Maps</a>
     </div>`:`<div class="row no-print" style="margin-bottom:12px">
       <a class="btn wide" id="glink" target="_blank" rel="noopener" href="#">Abrir en Google Maps</a></div>`}
-    ${lista || `<div class="empty"><div class="disp">Sin paradas</div><p>${MODO_MAPA==='hoy'?'No hay visitas programadas para hoy.':'No hay trabajos activos.'}</p></div>`}`;
+    ${lista || `<div class="empty"><div class="disp">Sin paradas</div><p>${MODO_MAPA==='hoy'?(U.rol==='tecnico'?'No traes trabajos asignados. Cambia a Todos para ver los activos de tu área.':'No hay visitas programadas para hoy.'):'No hay trabajos activos.'}</p></div>`}`;
 }
 
 async function rutaDelTecnico(){
@@ -2680,7 +2700,7 @@ async function vTecTrabajos(){
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
       <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):(j.origen==='aseguranza'?' · aseguranza':'')}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
-      ${j.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
+      ${j.notas?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.notas)}</div>`:''}
     </div>`).join('');
 }
 
@@ -2887,6 +2907,7 @@ async function vJobs(){
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
       <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):''}</div>
       <div class="row" style="margin-top:7px">${j.unidad?`<span class="chip">UNIT ${esc(j.unidad)}</span>`:''}<span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}</div>
+      ${j.notas?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.notas)}</div>`:''}
       <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
     </div>`).join('') || `<div class="empty"><div class="disp">Sin jobs</div><p>Registra el primero para poder programar visitas.</p></div>`);
 }
