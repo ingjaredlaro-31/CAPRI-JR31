@@ -797,7 +797,7 @@ async function verJobTecnico(id){
       <div class="eyebrow">Historial del trabajo</div>
       ${bloqueLinea(j,R,P,[],AS)}
 
-      <div class="eyebrow">Calendario · toca un día para reportar</div>
+      <div class="eyebrow">Calendario · comenzó ${fmt(inicioJob(j))} · toca un día para reportar</div>
       ${bloqueCalendario(j,R,P,AS,true)}
       ${P.length?`<div class="eyebrow">Reparaciones · ${P.filter(x=>x.estatus==='aprobada').length} de ${P.length} listas</div>
       ${P.map(x=>{const [t,c]=ESTAT_PART[x.estatus];
@@ -1090,7 +1090,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v14 · fechas visibles</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v15 · fecha de arranque</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2325,7 +2325,7 @@ function bloqueCalendario(j,R,P,A,click){
     for(let n=1;n<=ult;n++){
       const fe=`${y}-${String(mo+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
       let bg='#fff', co='var(--gris)', bd='1px solid var(--linea)', tit='';
-      if(fe===f.apertura){ bg='var(--tinta)'; co='#fff'; bd='none'; tit='apertura'; }
+      if(fe===f.apertura){ bg='var(--tinta)'; co='#fff'; bd='2px solid var(--ambar)'; tit='día que comenzó el trabajo'; }
       if(repF.has(fe)){ bg='#5CA96B'; co='#fff'; bd='none'; tit='reparación'; }
       if(fechasR.has(fe)){ bg='var(--azul)'; co='#fff'; bd='none'; tit='reporte'; }
       if(inicialF.includes(fe)){ bg='var(--rojo)'; co='#fff'; bd='none'; tit='inicial'; }
@@ -2342,7 +2342,7 @@ function bloqueCalendario(j,R,P,A,click){
   }).join('');
 
   return html+`<div class="row" style="font-size:13px;color:var(--gris);gap:12px;flex-wrap:wrap">
-    <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--tinta)"></i> apertura</span>
+    <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--tinta);border:2px solid var(--ambar)"></i> comenzó el trabajo</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--rojo)"></i> reporte inicial</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--azul)"></i> reporte diario</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#5CA96B"></i> reparación terminada</span>
@@ -3045,12 +3045,11 @@ async function formJob(id, pre){
         <div class="g2">${c('adjuster','Adjuster')}${c('adjuster_tel','Tel. adjuster','tel')}</div>
       </div>
 
-      <div class="g2">
-        <div><label>Fecha de inicio del trabajo</label>
-          <input id="f_fecha_inicio" type="date" value="${esc((j.fecha_inicio||hoy()).slice(0,10))}"></div>
-        ${c('fecha_perdida','Fecha de la pérdida','date')}
-      </div>
-      <div class="sub" style="margin-top:4px">Desde esta fecha se piden los reportes diarios y arranca el calendario del trabajo.</div>
+      <div class="eyebrow">Fecha de arranque</div>
+      <label>¿Qué día comenzó el trabajo?</label>
+      <input id="f_fecha_inicio" type="date" value="${esc((j.fecha_inicio||hoy()).slice(0,10))}"
+        style="font-family:var(--mono);font-size:19px">
+      <div class="sub" style="margin-top:6px">Ese día se marca en el calendario como el arranque. A partir de ahí se piden los reportes diarios de seguimiento.</div>
       <div class="eyebrow">Técnico encargado</div>
       <label>¿Quién lleva este trabajo?</label>
       <select id="f_tecnico_id"><option value="">— sin asignar —</option>
@@ -3158,8 +3157,8 @@ async function formJob(id, pre){
     p.tipo_propiedad=$('#f_tipo_propiedad').value;
     p.tecnico_id=$('#f_tecnico_id').value||null;
     p.estatus = id ? $('#f_estatus').value : 'activo';
-    p.fecha_perdida=$('#f_fecha_perdida').value||null;
     p.fecha_inicio=$('#f_fecha_inicio').value||hoy();
+    p.fecha_perdida=p.fecha_inicio;
     p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
     p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
     if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
@@ -3337,7 +3336,7 @@ async function abrirJob(id){
         </div>`:'';
       })()}
 
-      <div class="eyebrow">Calendario del trabajo</div>
+      <div class="eyebrow">Calendario del trabajo · comenzó ${fmt(inicioJob(j))}</div>
       ${bloqueCalendario(j,R,P.concat(SV),A,true)}
 
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas afectadas · ${(j.areas||[]).length}</div>
@@ -3581,7 +3580,7 @@ async function vSchedule(){
     sb.from('asignaciones').select('*, jobs(*, propiedades(nombre)), usuarios(nombre,telefono)').gte('fecha',d1).lte('fecha',d2).order('fecha'),
     sb.from('reportes').select('job_id,tecnico_id,fecha').gte('fecha',d1).lte('fecha',d2),
     sb.from('usuarios').select('id,nombre,departamento,telefono').eq('rol','tecnico').eq('activo',true),
-    sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
+    sb.from('jobs').select('id,folio,cliente,departamento,fecha_inicio').eq('departamento',DEP).neq('estatus','facturado')
   ]);
   const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
   const T=(tecs||[]).filter(t=>t.departamento===DEP||t.departamento==='ambos');
@@ -3617,6 +3616,8 @@ async function vSchedule(){
     const off=(ini.getDay()+6)%7;
     cuerpo='<div class="mes">'+DSEM.map(d=>`<div class="dn">${d}</div>`).join('')
       +'<div class="d vacio"></div>'.repeat(off);
+    const arranques={};
+    (jobs||[]).forEach(x=>{ const fi=(x.fecha_inicio||'').slice(0,10); if(fi) (arranques[fi] ||= []).push(x); });
     for(let n=1;n<=ult;n++){
       const f=`${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
       const lista=porDia[f]||[];
@@ -3624,13 +3625,16 @@ async function vSchedule(){
         const ok=hechos.has(a.tecnico_id+'|'+a.job_id+'|'+a.fecha);
         return `<i class="${(!ok&&f<=hoy())?'r':''}"></i>`;
       }).join('');
-      cuerpo+=`<div class="d ${f===hoy()?'hoy':''}" data-ird="${f}">
+      const arr=(arranques[f]||[]).length;
+      cuerpo+=`<div class="d ${f===hoy()?'hoy':''}" data-ird="${f}" title="${arr?arr+' trabajo(s) comenzaron este día':''}">
         <div class="n" ${f===hoy()?'style="color:var(--azul);font-weight:600"':''}>${n}</div>
+        ${arr?`<div class="mono" style="font-size:9px;background:var(--tinta);color:#fff;border-radius:3px;padding:0 3px;display:inline-block">${arr} nuevo${arr>1?'s':''}</div>`:''}
         <div class="pt">${pts}</div></div>`;
     }
     cuerpo+='</div><div class="row" style="margin-top:10px;font-size:13px;color:var(--gris)">'
       +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--azul)"></i> visita con reporte</span>'
-      +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rojo)"></i> falta reporte</span></div>';
+      +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rojo)"></i> falta reporte</span>'
+      +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--tinta)"></i> trabajo nuevo ese día</span></div>';
   }
 
   else if(MODO==='semana'){
