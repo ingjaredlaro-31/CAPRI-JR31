@@ -452,8 +452,10 @@ async function abrirLevantamiento(id){
 let NOTIF=0;
 
 async function contarNotif(){
-  if(!U || U.rol==='tecnico'){ NOTIF=0; return 0; }
-  const {count}=await sb.from('notificaciones').select('*',{count:'exact',head:true}).eq('leida',false);
+  if(!U){ NOTIF=0; return 0; }
+  let q=sb.from('notificaciones').select('*',{count:'exact',head:true}).eq('leida',false);
+  q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
+  const {count}=await q;
   NOTIF=count||0; return NOTIF;
 }
 
@@ -473,14 +475,17 @@ async function avisarReporte(job, esNuevo, servicios, fecha, tipoRep){
 }
 
 async function vNotificaciones(){
-  const {data}=await sb.from('notificaciones')
+  let qn=sb.from('notificaciones')
     .select('*, jobs(folio,cliente, propiedades(nombre))')
     .order('created_at',{ascending:false}).limit(60);
+  qn = U.rol==='tecnico' ? qn.eq('para_usuario',U.id) : qn.neq('para_rol','tecnico');
+  const {data}=await qn;
   const N=data||[];
   const sinLeer=N.filter(x=>!x.leida);
   setTimeout(()=>{
     const t=$('#todas'); if(t) t.onclick=async()=>{
-      await sb.from('notificaciones').update({leida:true}).eq('leida',false);
+      const ids=sinLeer.map(x=>x.id);
+      if(ids.length) await sb.from('notificaciones').update({leida:true}).in('id',ids);
       toast('Todas marcadas como leídas'); render();
     };
     document.querySelectorAll('[data-n]').forEach(b=>b.onclick=async()=>{
@@ -1023,7 +1028,7 @@ function shell(html){
     <div class="wrap">
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
-        ${!esTec?`<button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>`:''}
+        <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
@@ -1033,7 +1038,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v9 · técnico encargado</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v10 · acuse de recibo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1088,6 +1093,7 @@ async function render(){
       if(V==='hist')     return shell(await vTecHist());
     }
     if(V==='notif')     return shell(await vNotificaciones());
+    if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
     if(V==='resumen')   return shell(await vResumen());
     if(V==='mgmt')      return shell(await vManagements());
@@ -1197,7 +1203,7 @@ const ZIPPERS=['no zipper','1 zipper','2 zippers','3 zippers'];
 async function formReporte(jobId,fecha){
   const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
-    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre'),
@@ -1452,7 +1458,8 @@ async function levantamientoInicial(){
   pasosGuiado(); pintaGuiado();
 }
 
-async function reporteGuiado(jobId, fecha, tipoForzado){
+async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
+  const TID = tecOverride || U.id;
   const {data:iniPrevio}=await sb.from('reportes').select('id,fecha,tecnico_id, usuarios(nombre)')
     .eq('job_id',jobId).eq('tipo_reporte','inicial').maybeSingle();
   const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat},{data:qcat}] = await Promise.all([
@@ -1471,7 +1478,7 @@ async function reporteGuiado(jobId, fecha, tipoForzado){
       ? `El inicial se levantó el ${fmt(iniPrevio.fecha)}${iniPrevio.usuarios?.nombre?' por '+iniPrevio.usuarios.nombre:''}. Aquí reportas cómo va hoy.`
       : 'El trabajo ya lo registró oficina. Aquí solo reportas cómo va hoy.');
   G = {
-    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni,
+    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni, tid:TID,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
     qcat:(qcat||[]).map(x=>x.nombre),
     d:{
@@ -1548,8 +1555,7 @@ function pasosGuiado(){
     G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
     G.pasos.push({t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'});
   } else {
-    G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Marca la situación en que lo encontraste', tipo:'chips', k:'situacion', cat:'qcat', tabla:'situaciones_catalogo', req:true});
-    G.pasos.push({t:'Explica con tus palabras', s:'Qué viste y qué se hizo hoy · obligatorio', tipo:'explica', reqTexto:true});
+    G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Explica qué encontraste y qué se hizo · obligatorio', tipo:'explica', reqTexto:true});
     G.pasos.push({t:'¿Se hizo algún trabajo hoy?', s:'Déjalo vacío si solo fuiste a revisar', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
   }
   if(esRest){
@@ -1824,7 +1830,7 @@ function guardaPaso(){
 
 async function enviarGuiado(){
   const d=G.d, jobId=G.job.id, fecha=G.fecha;
-  const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:G.tipo, situacion:d.situacion,
+  const p={job_id:jobId, tecnico_id:G.tid||U.id, fecha, tipo_reporte:G.tipo, situacion:d.situacion,
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -3336,7 +3342,13 @@ async function abrirJob(id){
         ${r.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(r.siguiente_trabajo)}</div>`:''}
         ${r.notas?`<div class="sub" style="margin-top:6px;color:var(--tinta)">${esc(r.notas)}</div>`:''}
         <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
-        <div class="row no-print" style="margin-top:9px"><button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button></div>
+        <div class="row no-print" style="margin-top:9px">
+          <button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button>
+          ${EDIT()?`<button class="btn ghost sm" data-er="${r.id}">Editar</button>
+          <button class="btn ghost sm" data-ar="${r.id}">Acusar recibo</button>
+          <span style="flex:1"></span>
+          <button class="btn ghost sm" data-br="${r.id}" style="color:var(--rojo)">Borrar</button>`:''}
+        </div>
       </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
 
       <div style="height:20px"></div>
@@ -3380,6 +3392,33 @@ async function abrirJob(id){
   $('#sheet').querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{
     const rr=R.find(x=>x.fecha===b.dataset.cal);
     if(rr) verReporteCampo(rr,j); else toast('No hubo reporte ese día.');
+  });
+  document.querySelectorAll('[data-er]').forEach(b=>b.onclick=()=>{
+    const rr=R.find(x=>x.id===b.dataset.er); if(!rr) return;
+    cerrar(); reporteGuiado(j.id, rr.fecha, rr.tipo_reporte, rr.tecnico_id);
+  });
+  document.querySelectorAll('[data-br]').forEach(b=>b.onclick=async()=>{
+    const rr=R.find(x=>x.id===b.dataset.br); if(!rr) return;
+    if(!confirm('¿Borrar el reporte del '+fmt(rr.fecha)+'? Esto no se puede deshacer.')) return;
+    const {error}=await sb.from('reportes').delete().eq('id',rr.id);
+    if(error) return toast('No se borró: '+error.message);
+    cerrar(); toast('Reporte borrado'); abrirJob(j.id);
+  });
+  document.querySelectorAll('[data-ar]').forEach(b=>b.onclick=async()=>{
+    const rr=R.find(x=>x.id===b.dataset.ar); if(!rr) return;
+    const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+    await sb.from('notificaciones').insert({
+      tipo:'acuse',
+      titulo:'Reporte recibido · '+prop,
+      texto:'Oficina revisó tu reporte del '+fmt(rr.fecha)+' · '+j.folio+(j.unidad?' · Unit '+j.unidad:''),
+      job_id:j.id, de_usuario:U.nombre, para_rol:'tecnico', para_usuario:rr.tecnico_id});
+    toast('Acuse enviado al técnico');
+    const {data:t}=await sb.from('usuarios').select('nombre,telefono').eq('id',rr.tecnico_id).maybeSingle();
+    const tel=(t&&t.telefono||'').replace(/[^0-9]/g,'');
+    if(tel && confirm('¿También avisarle por WhatsApp?')){
+      window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(
+        'Recibí tu reporte del '+fmt(rr.fecha)+' de '+prop+(j.unidad?' Unit '+j.unidad:'')+'. Gracias.'),'_blank');
+    }
   });
   const asv=$('#asv'); if(asv) asv.onclick=async()=>{
     const lista=SERVICIOS.map((x,i)=>(i+1)+'. '+x).join('\n');
