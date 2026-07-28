@@ -740,7 +740,6 @@ async function verJobTecnico(id){
     sb.from('asignaciones').select('fecha, usuarios(nombre)').eq('job_id',id)
   ]);
   const P=part||[], R=reps||[], AS=asg||[];
-  const sinIni = !R.some(x=>x.tipo_reporte==='inicial');
   const repHoy = R.some(x=>x.fecha===hoy());
   const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
   const dir=[j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', ');
@@ -759,12 +758,11 @@ async function verJobTecnico(id){
         <a class="btn ghost" style="flex:1" target="_blank" rel="noopener"
           href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Cómo llegar</a>
       </div>
-      <button class="btn wide ${sinIni?'rojo':''}" id="rep" style="margin-bottom:6px">
-        ${repHoy ? 'Corregir mi reporte de hoy' : (sinIni ? 'Levantar reporte inicial' : 'Crear reporte de seguimiento de hoy')}</button>
+      <button class="btn wide" id="rep" style="margin-bottom:6px">
+        ${repHoy ? 'Corregir mi reporte de hoy' : 'Crear reporte de seguimiento de hoy'}</button>
       <div class="sub" style="margin-bottom:14px">${repHoy
         ? 'Ya reportaste hoy. Puedes corregirlo o tocar otro día en el calendario.'
-        : (sinIni ? 'Este trabajo no tiene reporte inicial todavía.'
-                  : 'Reporta cómo está el trabajo hoy para que se pueda seguir mañana.')}</div>
+        : 'Reporta cómo está el trabajo hoy para que se pueda seguir mañana.'}</div>
       <div class="card" style="border-left-color:var(--linea)">
         <div class="sub" style="color:var(--tinta)">${esc(j.direccion||'')}${j.ciudad?', '+esc(j.ciudad):''}</div>
         <div class="row" style="margin-top:8px">
@@ -847,14 +845,12 @@ async function vTecReporte(){
   const tarjeta=j=>{
     const rHoy=hoyPorJob[j.id], ult=ultimoPorJob[j.id];
     const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
-    const primera=!tieneIni[j.id];
     const dd = ult ? dias(ult.fecha,h) : null;
     const desde = ult ? (ult.fecha===h?'hoy':(dd===1?'ayer':'hace '+dd+' días')) : 'nunca';
     return `<div class="card ${rHoy?'':'rojo'}">
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(j.folio)}</span>
         <div class="row" style="gap:5px">
-          ${primera?'<span class="chip rojo">SIN INICIAL</span>':''}
           ${asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':''}
           ${rHoy?'<span class="chip azul">REPORTADO</span>':'<span class="chip rojo">FALTA HOY</span>'}
         </div></div>
@@ -866,7 +862,7 @@ async function vTecReporte(){
       <div class="row" style="margin-top:11px">
         <button class="btn ghost sm" data-vj="${j.id}">Ver trabajo</button>
         <span style="flex:1"></span>
-        <button class="btn ${primera?'rojo':''}" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir':(primera?'Levantar inicial':'Reporte de hoy')}</button>
+        <button class="btn" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir mi reporte':'Reporte de seguimiento'}</button>
       </div></div>`;
   };
 
@@ -1467,10 +1463,11 @@ async function reporteGuiado(jobId, fecha, tipoForzado){
   ]);
   const r = prev || {};
   const editandoInicial = prev && prev.tipo_reporte==='inicial';
-  const tipoAuto = editandoInicial ? 'inicial' : (iniPrevio ? 'seguimiento' : 'inicial');
-  const infoIni = iniPrevio && !editandoInicial
-    ? `El inicial ya lo levantó ${iniPrevio.usuarios?.nombre||'otro técnico'} el ${fmt(iniPrevio.fecha)}. Este va como seguimiento.`
-    : (tipoAuto==='inicial' ? 'Este trabajo todavía no tiene reporte inicial. Levanta toda la información.' : '');
+  const tipoAuto = editandoInicial ? 'inicial' : 'seguimiento';
+  const infoIni = editandoInicial ? 'Estás corrigiendo el reporte inicial de este trabajo.'
+    : (iniPrevio
+      ? `El inicial se levantó el ${fmt(iniPrevio.fecha)}${iniPrevio.usuarios?.nombre?' por '+iniPrevio.usuarios.nombre:''}. Aquí reportas cómo va hoy.`
+      : 'El trabajo ya lo registró oficina. Aquí solo reportas cómo va hoy.');
   G = {
     job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
@@ -1550,7 +1547,7 @@ function pasosGuiado(){
     G.pasos.push({t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'});
   } else {
     G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Marca la situación en que lo encontraste', tipo:'chips', k:'situacion', cat:'qcat', tabla:'situaciones_catalogo', req:true});
-    G.pasos.push({t:'Explica con tus palabras', s:'Qué viste y qué se hizo hoy', tipo:'explica'});
+    G.pasos.push({t:'Explica con tus palabras', s:'Qué viste y qué se hizo hoy · obligatorio', tipo:'explica', reqTexto:true});
     G.pasos.push({t:'¿Se hizo algún trabajo hoy?', s:'Déjalo vacío si solo fuiste a revisar', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
   }
   if(esRest){
@@ -1726,6 +1723,7 @@ function pintaGuiado(){
     guardaPaso();
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
+    if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
     if(pa.tipo==='ubicacion'){
       if(G.d.mg_id && !G.d.prop_id) return toast('Escoge la propiedad.');
       if(!G.d.mg_id && (!G.d.propiedad_texto || !G.d.direccion)) return toast('Pon el nombre del lugar y la dirección.');
