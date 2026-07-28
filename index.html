@@ -429,35 +429,108 @@ async function vTecHist(){
     <div class="card ${r.jobs?.departamento==='cleaning'?'rojo':''}">
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(r.jobs?.folio||'')}</span><span class="chip">${fmt(r.fecha)}</span></div>
       <div class="tit">${esc(r.jobs?.cliente||'')}</div>
-      <div class="meta">${esc(r.hora_entrada||'—')} → ${esc(r.hora_salida||'—')} · ${(r.lecturas||[]).length} lecturas · ${(r.fotos||[]).length} fotos</div>
+      <div class="meta">${esc(r.hora_entrada||'—')} → ${esc(r.hora_salida||'—')} · ${(r.fotos||[]).length} fotos</div>
+      <div class="row" style="margin-top:5px;gap:4px">${(r.servicios||[]).slice(0,3).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>
     </div>`).join('');
 }
 
 /* ==================== FORMULARIO DE REPORTE ==================== */
 let FOT=[];
+const ZIPPERS=['no zipper','1 zipper','2 zippers','3 zippers'];
+
 async function formReporte(jobId,fecha){
-  const [{data:j},{data:prev}] = await Promise.all([
-    sb.from('jobs').select('*').eq('id',jobId).single(),
-    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle()
+  const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
+    sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r=prev||{}; FOT=r.fotos||[];
   const esRest = j.departamento==='restoration';
   const now=new Date().toTimeString().slice(0,5);
+
+  let ACAT=(acat||[]).map(x=>x.nombre), MCAT=(mcat||[]).map(x=>x.nombre), SCAT=(scat||[]).map(x=>x.nombre);
+  let AREAS=(r.areas||j.areas||[]).slice();
+  let MATS=(r.material_removido||[]).slice();
+  let SERV=(r.servicios||[]).slice();
+  ACAT=[...new Set(ACAT.concat(AREAS))];
+  MCAT=[...new Set(MCAT.concat(MATS))];
+  SCAT=[...new Set(SCAT.concat(SERV))];
+
+  let AH   = r.id ? !!r.after_hours      : false;
+  let OC   = r.ocupada || j.ocupada || 'vacia';
+  let WX   = r.id ? !!r.agua_extraida    : false;
+  let WD   = r.id ? !!r.wipe_down        : false;
+  let DM   = r.id ? !!r.demo             : false;
+  let PB   = r.id ? !!r.removio_pad_base : false;
+
+  const propiedad = j.propiedades?.nombre || j.managements?.nombre || j.cliente;
+
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${esRest?'':'style="background:var(--rojo)"'}>
-    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)}</div>
-    <div class="disp" style="font-size:19px">${esc(j.cliente)}</div></div>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)} · REPORTE DE CAMPO</div>
+    <div class="disp" style="font-size:21px;line-height:1">${esc(propiedad)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${j.unidad?'Unit '+esc(j.unidad):''}</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
-      <div class="eyebrow">Reporte del ${fmt(fecha)}${prev?' · ya enviado, puedes corregirlo':''}</div>
+
+      <div class="eyebrow">Start work${prev?' · ya enviado, puedes corregirlo':''}</div>
       <div class="g2">
-        <div><label>Entrada</label><input id="h1" type="time" value="${esc(r.hora_entrada||now)}"></div>
-        <div><label>Salida</label><input id="h2" type="time" value="${esc(r.hora_salida||'')}"></div>
+        <div><label>Fecha</label><input id="h0" type="date" value="${esc(fecha)}" disabled></div>
+        <div><label>Hora de inicio</label><input id="h1" type="time" value="${esc(r.hora_entrada||now)}"></div>
       </div>
-      <label>Trabajo realizado</label>
-      <textarea id="tr" placeholder="Qué se hizo hoy en el sitio…">${esc(r.trabajo_realizado||'')}</textarea>
+      <label>Hora de salida</label><input id="h2" type="time" value="${esc(r.hora_salida||'')}">
+
+      <div class="card" style="border-left-color:var(--linea);margin-top:14px">
+        <div class="meta">TECHNICIAN</div>
+        <div class="disp" style="font-size:19px">${esc(U.nombre)}</div>
+        <div class="meta" style="margin-top:6px">PROPERTY</div>
+        <div class="sub" style="color:var(--tinta)">${esc(propiedad)}</div>
+        <div class="meta" style="margin-top:6px">UNIT</div>
+        <div class="sub" style="color:var(--tinta)">${esc(j.unidad||'—')}</div>
+      </div>
+
+      <label>After hours?</label>
+      <div class="si-no" id="q_ah"><button data-v="1">Sí</button><button data-v="0">No</button></div>
+
+      <label>Occupied unit?</label>
+      <div class="si-no" id="q_oc"><button data-v="ocupada">Sí</button><button data-v="vacia">No</button></div>
+
+      <label>Water extracted?</label>
+      <div class="si-no" id="q_wx"><button data-v="1">Sí</button><button data-v="0">No</button></div>
+
+      <label>Deep clean o wipe down?</label>
+      <div class="si-no" id="q_wd"><button data-v="1">Sí</button><button data-v="0">No</button></div>
+
+      <label>Do you make demo?</label>
+      <div class="si-no" id="q_dm"><button data-v="1">Sí</button><button data-v="0">No</button></div>
+
+      <label>¿Removiste pad o baseboards?</label>
+      <div class="si-no" id="q_pb"><button data-v="1">Sí</button><button data-v="0">No</button></div>
+
+      <div class="eyebrow">Service / work</div>
+      <div class="chips" id="c_serv"></div>
+
+      <div class="eyebrow">Areas · <span id="n_areas">0</span></div>
+      <div class="chips" id="c_areas"></div>
+
+      <div class="eyebrow">Material removed</div>
+      <div class="chips" id="c_mats"></div>
+
+      <div class="eyebrow">Containment y equipo</div>
+      <div class="g2">
+        <div><label>Sqft plastic installed</label><input class="num" id="f_sqft" type="number" step="1" value="${r.sqft_plastico??''}"></div>
+        <div><label>Zipper</label>
+          <select id="f_zip">${ZIPPERS.map(z=>`<option ${(r.zipper||'no zipper')===z?'selected':''}>${z}</option>`).join('')}</select></div>
+      </div>
+      <label>Pack equip installed</label>
+      <input class="num" id="f_packs" type="number" min="0" value="${r.packs_equipo||0}">
+      <label>Equip installed · describe</label>
+      <textarea id="f_eqd" placeholder="1 area, 2 air movers y 1 deshu en kitchen…">${esc(r.equipo_desc||'')}</textarea>
+
       ${esRest?`
-      <div class="eyebrow">Equipo instalado hoy</div>
+      <div class="eyebrow">Conteo de equipo</div>
       <div class="g3">
         <div><label>Deshu</label><input class="num" id="di" type="number" min="0" value="${r.deshu_inst||0}"></div>
         <div><label>Air mover</label><input class="num" id="ai" type="number" min="0" value="${r.air_inst||0}"></div>
@@ -469,33 +542,75 @@ async function formReporte(jobId,fecha){
         <div><label>Air mover</label><input class="num" id="ar" type="number" min="0" value="${r.air_ret||0}"></div>
         <div><label>Scrubber</label><input class="num" id="sr" type="number" min="0" value="${r.scrub_ret||0}"></div>
       </div>
-      <div class="eyebrow">Lecturas de humedad</div>
-      <div class="lect meta" style="letter-spacing:.1em;font-size:10px"><span>ÁREA</span><span>MATERIAL</span><span>%MC</span><span>°F</span><span></span></div>
+
+      <div class="eyebrow">Moisture readings</div>
+      <div class="lect meta" style="letter-spacing:.08em;font-size:11px"><span>ÁREA</span><span>MATERIAL</span><span>%MC</span><span>°F</span><span></span></div>
       <div id="lec"></div>
-      <button class="btn ghost sm" id="addl">+ Agregar lectura</button>
-      <label>¿Se demolió o retiró algo? (genera partida de reparación)</label>
-      <textarea id="dem" placeholder="Ej. drywall cocina 48 sqft, baseboards pasillo…">${esc(r.demolido||'')}</textarea>
-      `:''}
+      <button class="btn ghost sm no-print" id="addl">+ Agregar lectura</button>`:''}
+
       <div class="eyebrow">Fotos</div>
       <input id="ft" type="file" accept="image/*" multiple capture="environment">
       <div class="thumbs" id="th"></div>
-      <label>Notas para oficina</label>
-      <textarea id="no" placeholder="Algo que deba saber la oficina o el adjuster…">${esc(r.notas||'')}</textarea>
-      <div style="height:16px"></div>
+
+      <div class="eyebrow">Cierre</div>
+      <label>Next work to do</label>
+      <input id="f_next" placeholder="Moisture check Monday" value="${esc(r.siguiente_trabajo||'')}">
+      <label>Extra notes</label>
+      <textarea id="no" placeholder="Drywall removal 1x1, pending, moisture check Monday…">${esc(r.notas||'')}</textarea>
+
+      <div style="height:18px"></div>
       <button class="btn wide" id="env">${prev?'Guardar cambios':'Enviar reporte'}</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
 
+  const pintarChips=(cont,cat,sel,tabla,extra)=>{
+    const el=$(cont);
+    el.innerHTML=cat.map(x=>`<button type="button" data-c="${esc(x)}" class="${sel.includes(x)?'on':''}">${esc(x)}</button>`).join('')
+      +'<button type="button" class="add" data-add="1">+ agregar</button>';
+    el.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.c, i=sel.indexOf(v);
+      if(i>=0) sel.splice(i,1); else sel.push(v);
+      pintarChips(cont,cat,sel,tabla,extra); if(extra) extra();
+    });
+    el.querySelector('[data-add]').onclick=async()=>{
+      const n=prompt('Escribe el nombre nuevo:');
+      if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!cat.includes(v)){ cat.push(v); await sb.from(tabla).insert({nombre:v}); }
+      if(!sel.includes(v)) sel.push(v);
+      pintarChips(cont,cat,sel,tabla,extra); if(extra) extra();
+    };
+  };
+  const contarAreas=()=>$('#n_areas').textContent=AREAS.length;
+  pintarChips('#c_serv',SCAT,SERV,'servicios_catalogo');
+  pintarChips('#c_areas',ACAT,AREAS,'areas_catalogo',contarAreas);
+  pintarChips('#c_mats',MCAT,MATS,'materiales_catalogo');
+  contarAreas();
+
+  const sino=(cont,get,set)=>{
+    const pintar=()=>document.querySelectorAll(cont+' [data-v]').forEach(b=>
+      b.className = b.dataset.v===String(get()) ? 'on' : '');
+    document.querySelectorAll(cont+' [data-v]').forEach(b=>b.onclick=()=>{set(b.dataset.v);pintar();});
+    pintar();
+  };
+  sino('#q_ah',()=>AH?1:0,v=>AH=v==='1');
+  sino('#q_oc',()=>OC,v=>OC=v);
+  sino('#q_wx',()=>WX?1:0,v=>WX=v==='1');
+  sino('#q_wd',()=>WD?1:0,v=>WD=v==='1');
+  sino('#q_dm',()=>DM?1:0,v=>DM=v==='1');
+  sino('#q_pb',()=>PB?1:0,v=>PB=v==='1');
+
   if(esRest){
     const lec=$('#lec');
     const fila=(l={})=>{const d=document.createElement('div');d.className='lect';
-      d.innerHTML=`<input placeholder="Cocina" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
+      d.innerHTML=`<input placeholder="Kitchen" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
         <input class="num" inputmode="decimal" placeholder="18" value="${esc(l.mc||'')}">
         <input class="num" inputmode="decimal" placeholder="72" value="${esc(l.temp||'')}"><button type="button">✕</button>`;
       d.querySelector('button').onclick=()=>d.remove(); lec.appendChild(d);};
     (r.lecturas||[]).forEach(fila); if(!(r.lecturas||[]).length) fila();
     $('#addl').onclick=()=>fila();
   }
+
   const pintar=()=>$('#th').innerHTML=FOT.map(u=>`<img src="${esc(u)}">`).join('');
   pintar();
   $('#ft').onchange=async e=>{
@@ -507,22 +622,41 @@ async function formReporte(jobId,fecha){
       FOT.push(sb.storage.from('capri').getPublicUrl(n).data.publicUrl);
     } pintar(); toast('Fotos listas');
   };
+
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#env').onclick=async()=>{
-    if(!$('#tr').value.trim()) return toast('Escribe qué trabajo se hizo hoy.');
-    const p={job_id:jobId,tecnico_id:U.id,fecha,hora_entrada:$('#h1').value,hora_salida:$('#h2').value,
-      trabajo_realizado:$('#tr').value.trim(),fotos:FOT,notas:$('#no').value.trim()};
+    if(!SERV.length) return toast('Marca al menos un service / work.');
+    const p={job_id:jobId,tecnico_id:U.id,fecha,
+      hora_entrada:$('#h1').value,hora_salida:$('#h2').value,
+      after_hours:AH, ocupada:OC, agua_extraida:WX, wipe_down:WD, demo:DM, removio_pad_base:PB,
+      servicios:SERV, areas:AREAS, material_removido:MATS,
+      sqft_plastico:$('#f_sqft').value?Number($('#f_sqft').value):null,
+      zipper:$('#f_zip').value, packs_equipo:Number($('#f_packs').value)||0,
+      equipo_desc:$('#f_eqd').value.trim()||null,
+      siguiente_trabajo:$('#f_next').value.trim()||null,
+      trabajo_realizado:SERV.join(' · '),
+      fotos:FOT, notas:$('#no').value.trim()||null};
     if(esRest){
       p.deshu_inst=+$('#di').value||0; p.air_inst=+$('#ai').value||0; p.scrub_inst=+$('#si').value||0;
       p.deshu_ret=+$('#dr').value||0;  p.air_ret=+$('#ar').value||0;  p.scrub_ret=+$('#sr').value||0;
       p.lecturas=[...$('#lec').children].map(d=>{const i=[...d.querySelectorAll('input')].map(x=>x.value.trim());
         return {area:i[0],material:i[1],mc:i[2],temp:i[3]};}).filter(l=>l.area||l.material||l.mc);
-      p.demolido=$('#dem').value.trim();
     }
     const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se guardó: '+error.message);
-    if(esRest && p.demolido){
-      await sb.from('partidas').insert({job_id:jobId,nombre:'Reparación pendiente',detalle:p.demolido,clase:'reparacion',estatus:'pendiente'});
+
+    if(MATS.length){
+      const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
+      const tengo=(ya||[]).map(x=>x.nombre);
+      for(const mat of MATS){
+        if(tengo.includes(mat)) continue;
+        await sb.from('partidas').insert({job_id:jobId,nombre:mat,
+          detalle:AREAS.join(', ')||null,clase:'reparacion',estatus:'pendiente'});
+      }
+    }
+    if(AREAS.length){
+      const nuevas=[...new Set((j.areas||[]).concat(AREAS))];
+      await sb.from('jobs').update({areas:nuevas,ocupada:OC}).eq('id',jobId);
     }
     cerrar(); toast('Reporte enviado'); render();
   };
@@ -1008,7 +1142,8 @@ async function formJob(id, pre){
       ${c('cliente','Cliente / residente')}
       ${c('telefono','Teléfono','tel')}
       ${c('direccion','Dirección')}
-      <div class="g2">${c('ciudad','Ciudad')}${c('zip','ZIP')}</div>
+      <div id="bl_cz" class="g2">${c('ciudad','Ciudad')}${c('zip','ZIP')}</div>
+      <div id="av_cz" class="sub" style="display:none;margin-top:4px"></div>
 
       <div class="eyebrow">Unidad y condición</div>
       <label>Número de unidad / apartamento</label>
@@ -1058,12 +1193,28 @@ async function formJob(id, pre){
     document.querySelectorAll('#orig [data-o]').forEach(b=>b.className = b.dataset.o===ORIG?'on':'');
     $('#bl_mgmt').style.display = ORIG==='management' ? '' : 'none';
     $('#bl_seg').style.display  = ORIG==='aseguranza' ? '' : 'none';
+    if(typeof tomarProp==='function') tomarProp();
   };
   const pintarProps=()=>{
     const mg=$('#f_management_id').value;
     const lista=PR.filter(x=>x.management_id===mg);
     $('#f_propiedad_id').innerHTML='<option value="">— selecciona —</option>'+
       lista.map(x=>`<option value="${x.id}" ${j.propiedad_id===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('');
+    tomarProp();
+  };
+  const tomarProp=()=>{
+    const pr=PR.find(x=>x.id===$('#f_propiedad_id').value);
+    if(pr && ORIG==='management'){
+      $('#f_direccion').value=pr.direccion||$('#f_direccion').value;
+      $('#f_ciudad').value=pr.ciudad||'San Diego';
+      $('#f_zip').value=pr.zip||'';
+      $('#bl_cz').style.display='none';
+      $('#av_cz').style.display='';
+      $('#av_cz').innerHTML='Dirección, ciudad y ZIP tomados de la propiedad: <b>'+esc([pr.direccion,pr.ciudad,pr.zip].filter(Boolean).join(', '))+'</b>';
+    } else {
+      $('#bl_cz').style.display='';
+      $('#av_cz').style.display='none';
+    }
   };
   const pintarChips=(cont,cat,sel,onAdd)=>{
     const el=$(cont);
@@ -1101,12 +1252,7 @@ async function formJob(id, pre){
 
   document.querySelectorAll('#orig [data-o]').forEach(b=>b.onclick=()=>{ORIG=b.dataset.o;pintarOrigen();});
   $('#f_management_id').onchange=pintarProps;
-  $('#f_propiedad_id').onchange=e=>{
-    const pr=PR.find(x=>x.id===e.target.value); if(!pr) return;
-    if(!$('#f_direccion').value) $('#f_direccion').value=pr.direccion||'';
-    if(!$('#f_ciudad').value || $('#f_ciudad').value==='San Diego') $('#f_ciudad').value=pr.ciudad||'San Diego';
-    if(!$('#f_zip').value) $('#f_zip').value=pr.zip||'';
-  };
+  $('#f_propiedad_id').onchange=tomarProp;
   $('#f_departamento').onchange=e=>{
     $('#f_tipo').innerHTML=TIPOS[e.target.value].map(t=>`<option>${t}</option>`).join('');
   };
@@ -1352,9 +1498,19 @@ async function abrirJob(id){
       <div class="eyebrow">Reportes recibidos · ${R.length}</div>
       ${R.slice().reverse().map(r=>`<div class="card">
         <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
-        <span class="meta">${esc(r.usuarios?.nombre||'')}</span></div>
-        <div class="sub" style="color:var(--tinta);margin-top:4px">${esc(r.trabajo_realizado||'')}</div>
-        ${(r.lecturas||[]).length?`<div class="meta" style="margin-top:5px">${(r.lecturas||[]).map(l=>`${esc(l.area)} ${esc(l.mc)}%`).join(' · ')}</div>`:''}
+        <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
+        <div class="row" style="margin-top:6px;gap:5px">
+          ${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}
+          ${r.after_hours?'<span class="chip ambar">AFTER HOURS</span>':''}
+          ${r.ocupada==='ocupada'?'<span class="chip rojo">OCUPADA</span>':''}
+        </div>
+        ${(r.areas||[]).length?`<div class="meta" style="margin-top:6px">AREAS · ${(r.areas||[]).join(', ')}</div>`:''}
+        ${(r.material_removido||[]).length?`<div class="meta" style="color:var(--rojo-d)">REMOVIDO · ${(r.material_removido||[]).join(', ')}</div>`:''}
+        ${(r.sqft_plastico||r.packs_equipo)?`<div class="meta">${r.sqft_plastico?r.sqft_plastico+' sqft plastic · ':''}${esc(r.zipper||'')}${r.packs_equipo?' · '+r.packs_equipo+' pack':''}</div>`:''}
+        ${r.equipo_desc?`<div class="sub" style="color:var(--tinta);margin-top:4px">${esc(r.equipo_desc)}</div>`:''}
+        ${(r.lecturas||[]).length?`<div class="meta" style="margin-top:5px">MOISTURE · ${(r.lecturas||[]).map(l=>`${esc(l.area)} ${esc(l.mc)}%`).join(' · ')}</div>`:''}
+        ${r.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(r.siguiente_trabajo)}</div>`:''}
+        ${r.notas?`<div class="sub" style="margin-top:6px;color:var(--tinta)">${esc(r.notas)}</div>`:''}
         <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
       </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
 
