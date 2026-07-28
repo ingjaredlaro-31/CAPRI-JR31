@@ -1125,7 +1125,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v16 · reportes que debes</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v17 · estimados</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3779,17 +3779,44 @@ function formAsig(tecs,jobs){
 /* ==================== ESTIMADOS ==================== */
 const sumaRen = r => (r||[]).reduce((a,x)=>a+(Number(x.cant||1)*Number(x.precio||0)),0);
 const soloNum = t => (t||'').replace(/[^0-9]/g,'');
+let ETAB='pendientes';
 
 async function vEstimados(){
-  const {data}=await sb.from('estimados').select('*, jobs(folio)').eq('departamento',DEP).order('created_at',{ascending:false});
+  const {data,error}=await sb.from('estimados').select('*, jobs(folio)').order('created_at',{ascending:false}).limit(200);
+  if(error) return `<div class="empty"><div class="disp">No se pudieron cargar</div><p>${esc(error.message)}</p></div>`;
   const E=data||[];
-  const env=E.filter(e=>e.estatus==='enviado'), acc=E.filter(e=>e.estatus==='aceptado');
+  const env=E.filter(e=>e.estatus==='enviado');
+  const acc=E.filter(e=>e.estatus==='aceptado');
+  const bor=E.filter(e=>e.estatus==='borrador');
+  const rec=E.filter(e=>e.estatus==='rechazado');
+
+  const lista = ETAB==='pendientes'?env : ETAB==='aceptados'?acc : ETAB==='borradores'?bor
+    : ETAB==='rechazados'?rec : E;
+
   setTimeout(()=>{
-    engancharDep();
     const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
+    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ETAB=b.dataset.t;render();});
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEstimado(b.dataset.ver));
   },0);
-  return selectorDep()+`
+
+  const tarjeta=e=>{
+    const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
+    const chip = e.estatus==='enviado'?`<span class="chip ambar">${e.fecha_envio?dias(e.fecha_envio,hoy())+' DÍAS SIN RESPUESTA':'ENVIADO'}</span>`
+      : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(e.jobs?.folio||'')}</span>`
+      : e.estatus==='rechazado'?'<span class="chip">RECHAZADO</span>':'<span class="chip">BORRADOR</span>';
+    const nr=(e.renglones||[]).length, na=(e.archivos||[]).length;
+    return `<div class="card ${col}" data-ver="${e.id}" style="cursor:pointer">
+      <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
+        <span class="meta">${esc(e.departamento||'')} · ${fmt(e.fecha_envio)}</span></div>
+      <div class="tit">${esc(e.cliente)}</div>
+      <div class="sub">${esc(e.descripcion||'sin descripción')}</div>
+      <div class="row" style="margin-top:7px;justify-content:space-between">
+        <span class="disp" style="font-size:24px">${cf(e.monto)}</span>${chip}</div>
+      <div class="meta" style="margin-top:5px">${nr} partida${nr===1?'':'s'}${na?' · '+na+' archivo'+(na===1?'':'s'):''} · toca para abrir</div>
+    </div>`;
+  };
+
+  return `
     <div class="row" style="gap:10px;margin-bottom:14px">
       <div class="stat" style="flex:1"><div class="l">ESPERANDO RESPUESTA</div>
         <div class="v">${cf(env.reduce((s,e)=>s+Number(e.monto||0),0))}</div>
@@ -3799,27 +3826,20 @@ async function vEstimados(){
         <div class="meta">${acc.length} convertidos</div></div>
     </div>
     ${EDIT()?'<button class="btn wide no-print" id="ne">+ Nuevo estimado</button>':''}
-    <div class="eyebrow">Estimados de ${DEP} · toca uno para verlo</div>`+
-    (E.map(e=>{
-      const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
-      const chip = e.estatus==='enviado'?`<span class="chip ambar">${e.fecha_envio?dias(e.fecha_envio,hoy())+' DÍAS SIN RESPUESTA':'ENVIADO'}</span>`
-        : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(e.jobs?.folio||'')}</span>`
-        : e.estatus==='rechazado'?'<span class="chip">RECHAZADO</span>':'<span class="chip">BORRADOR</span>';
-      const nr=(e.renglones||[]).length, na=(e.archivos||[]).length;
-      return `<div class="card ${col}" data-ver="${e.id}" style="cursor:pointer">
-        <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
-          <span class="meta">${fmt(e.fecha_envio)}</span></div>
-        <div class="tit">${esc(e.cliente)}</div>
-        <div class="sub">${esc(e.descripcion||'')}</div>
-        <div class="row" style="margin-top:7px;justify-content:space-between">
-          <span class="disp" style="font-size:24px">${cf(e.monto)}</span>${chip}</div>
-        <div class="meta" style="margin-top:5px">${nr} partida${nr===1?'':'s'}${na?' · '+na+' archivo'+(na===1?'':'s'):''}</div>
-      </div>`;
-    }).join('') || `<div class="empty"><div class="disp">Sin estimados</div><p>Registra el primero para darle seguimiento.</p></div>`);
+    <div class="tabs" style="margin-top:14px">
+      <button data-t="pendientes" class="${ETAB==='pendientes'?'on':''}">Pendientes<span class="c" style="color:var(--ambar-d)">${env.length}</span></button>
+      <button data-t="aceptados" class="${ETAB==='aceptados'?'on':''}">Aceptados<span class="c" style="color:var(--azul)">${acc.length}</span></button>
+      <button data-t="borradores" class="${ETAB==='borradores'?'on':''}">Borradores<span class="c">${bor.length}</span></button>
+      <button data-t="rechazados" class="${ETAB==='rechazados'?'on':''}">Cancelados<span class="c">${rec.length}</span></button>
+      <button data-t="todos" class="${ETAB==='todos'?'on':''}">Todos<span class="c">${E.length}</span></button>
+    </div>
+    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">Nada en esta lista</div>
+      <p>${E.length? 'Tienes '+E.length+' estimado'+(E.length===1?'':'s')+' en total. Cambia de pestaña para verlos.' : 'Registra el primero para darle seguimiento.'}</p></div>`}`;
 }
 
 async function abrirEstimado(id){
   const {data:e}=await sb.from('estimados').select('*, jobs(folio,cliente)').eq('id',id).single();
+  const x=e;
   const R=e.renglones||[], A=e.archivos||[];
   const sub=sumaRen(R), imp=Number(e.impuesto||0);
   const tot=Number(e.monto||0) || (sub+imp);
@@ -3879,6 +3899,9 @@ async function abrirEstimado(id){
         <button class="btn ghost" style="flex:1" id="ed2">Editar</button>
         <button class="btn ghost" style="flex:1" onclick="window.print()">Imprimir / PDF</button>
       </div>
+      <div class="row no-print" style="margin-top:10px">
+        <button class="btn ghost wide" id="del2" style="color:var(--rojo)">Borrar estimado</button>
+      </div>
       ${e.estatus==='enviado'?`<div class="row no-print" style="margin-top:10px">
         <button class="btn ghost" style="flex:1" id="rch">Rechazado</button>
         <button class="btn" style="flex:1" id="acc">Marcar aceptado</button></div>`:''}
@@ -3889,6 +3912,12 @@ async function abrirEstimado(id){
 
   $('#c1').onclick=$('#c2').onclick=cerrar;
   const ed2=$('#ed2'); if(ed2) ed2.onclick=()=>formEstimado(id);
+  const del2=$('#del2'); if(del2) del2.onclick=async()=>{
+    if(!confirm('¿Borrar el estimado '+x.folio+'? Esto no se puede deshacer.')) return;
+    const {error}=await sb.from('estimados').delete().eq('id',id);
+    if(error) return toast('No se borró: '+error.message);
+    cerrar(); toast('Estimado borrado'); render();
+  };
   const rch=$('#rch'); if(rch) rch.onclick=async()=>{
     await sb.from('estimados').update({estatus:'rechazado'}).eq('id',id);
     cerrar(); toast('Marcado como rechazado'); render();
@@ -3905,8 +3934,9 @@ async function formEstimado(id){
   let e={departamento:DEP,estatus:'borrador',monto:0,renglones:[],archivos:[]};
   if(id){const {data}=await sb.from('estimados').select('*').eq('id',id).single(); e=data;}
   if(!id){
+    const anio=new Date().getFullYear();
     const {count}=await sb.from('estimados').select('*',{count:'exact',head:true});
-    e.folio='EST-'+String(200+(count||0)+1);
+    e.folio='EST-'+anio+'-'+String((count||0)+1).padStart(3,'0');
   }
   EFOT=(e.archivos||[]).slice();
   const c=(k,l,t='text')=>`<label>${l}</label><input id="e_${k}" type="${t}" value="${esc(e[k]||'')}">`;
