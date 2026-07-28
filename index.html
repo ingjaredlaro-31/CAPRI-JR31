@@ -780,11 +780,13 @@ async function verJobTecnico(id){
         </div>
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
       </div>
-      ${j.notas?`<div class="eyebrow">Alcance del trabajo</div>
+      ${j.scope?`<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--azul)">
-        <div class="texto clamp" id="nota_j">${esc(j.notas)}</div>
-        ${j.notas.length>320?'<button class="vermas" id="vermas">Ver todo el texto ▾</button>':''}
+        <div class="texto clamp" id="nota_j">${esc(j.scope)}</div>
+        ${j.scope.length>320?'<button class="vermas" id="vermas">Ver todo el scope ▾</button>':''}
       </div>`:''}
+      ${j.notas?`<div class="eyebrow">Notas de oficina</div>
+      <div class="card" style="border-left-color:var(--ambar)"><div class="texto">${esc(j.notas)}</div></div>`:''}
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas</div>
       <div class="chips">${(j.areas||[]).map(x=>`<button type="button" class="on" style="cursor:default">${esc(x)}</button>`).join('')}</div>`:''}
 
@@ -1051,7 +1053,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v11 · mapa y textos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v12 · scope of work</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1906,6 +1908,8 @@ function verReporteCampo(r, j){
         <div class="disp" style="font-size:24px">${r.tipo_reporte==='inicial'?'Initial Work Report':'Follow-up Work Report'}</div>
       </div>
 
+      ${j.scope?`<div class="eyebrow">Scope of work</div>
+      <div class="texto" style="margin-bottom:14px">${esc(j.scope)}</div>`:''}
       <table class="frm">
         ${fila('REPORT TYPE', r.tipo_reporte==='inicial'?'INITIAL':'FOLLOW-UP')}
         ${fila('START WORK DATE', dLarga(r.fecha))}
@@ -2700,7 +2704,7 @@ async function vTecTrabajos(){
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
       <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):(j.origen==='aseguranza'?' · aseguranza':'')}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
-      ${j.notas?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.notas)}</div>`:''}
+      ${j.scope?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.scope)}</div>`:''}
     </div>`).join('');
 }
 
@@ -3012,7 +3016,13 @@ async function formJob(id, pre){
       ${id?`<label>Estatus</label>
       <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>`:
       `<div class="ok" style="margin-top:14px">El job nace con estatus <b>ACTIVO</b>. Lo cambias después desde aquí mismo.</div>`}
-      <label>Notas</label><textarea id="f_notas">${esc(j.notas||'')}</textarea>
+      <div class="eyebrow">Scope of work</div>
+      <label>Alcance del trabajo · lo que se va a hacer</label>
+      <textarea id="f_scope" style="min-height:200px;line-height:1.6"
+        placeholder="Date of Service: July 24, 2026&#10;&#10;Initial Assessment&#10;A moisture inspection was performed…&#10;&#10;Demolition and Material Removal&#10;* Drywall removal: Guest Bedroom 1ft x 1ft…&#10;&#10;Equipment installed:&#10;* 2 Dehumidifiers&#10;* 2 Air Movers">${esc(j.scope||'')}</textarea>
+      <div class="sub" style="margin-top:5px">Este texto lo ve el técnico en su app y sale en el reporte impreso.</div>
+
+      <label>Notas internas</label><textarea id="f_notas" placeholder="Recados de oficina, cosas que no van en el scope">${esc(j.notas||'')}</textarea>
       <div style="height:16px"></div>
       <button class="btn wide" id="sv">Guardar job</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
@@ -3095,7 +3105,7 @@ async function formJob(id, pre){
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#sv').onclick=async()=>{
     const p={};
-    ['folio','cliente','telefono','direccion','ciudad','zip','unidad','po_number','aseguranza','claim_number','adjuster','adjuster_tel','notas']
+    ['folio','cliente','telefono','direccion','ciudad','zip','unidad','po_number','aseguranza','claim_number','adjuster','adjuster_tel','notas','scope']
       .forEach(k=>{const el=$('#f_'+k); p[k]=el?(el.value.trim()||null):null;});
     p.origen=ORIG;
     p.management_id=ORIG==='management'?($('#f_management_id').value||null):null;
@@ -3247,6 +3257,17 @@ async function abrirJob(id){
           ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}">Correo</a>`:''}
         </div></div>`).join('')}`:''}
 
+      ${j.scope?`<div class="eyebrow">Scope of work</div>
+      <div class="card" style="border-left-color:var(--azul)">
+        <div class="texto clamp" id="scope_j">${esc(j.scope)}</div>
+        ${j.scope.length>320?'<button class="vermas" id="vermas_j">Ver todo el scope ▾</button>':''}
+        ${EDIT()?'<div class="row no-print" style="margin-top:8px"><button class="btn ghost sm" id="edscope">Editar scope</button></div>':''}
+      </div>`:(EDIT()?`<div class="eyebrow">Scope of work</div>
+      <div class="card" style="border-left-color:var(--linea)">
+        <div class="sub">Todavía no has capturado el scope de este trabajo.</div>
+        <div class="row no-print" style="margin-top:8px"><button class="btn sm" id="edscope">Agregar scope</button></div>
+      </div>`:'')}
+
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas afectadas · ${(j.areas||[]).length}</div>
       <div class="chips">${(j.areas||[]).map(a=>`<button type="button" class="on" style="cursor:default">${esc(a)}</button>`).join('')}</div>`:''}
 
@@ -3378,6 +3399,12 @@ async function abrirJob(id){
 
   $('#c1').onclick=$('#c2').onclick=cerrar;
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
+  const vmj=$('#vermas_j');
+  if(vmj) vmj.onclick=()=>{
+    const n=$('#scope_j'); const ab=n.classList.toggle('clamp');
+    vmj.textContent = ab ? 'Ver todo el scope ▾' : 'Ver menos ▴';
+  };
+  const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -3456,6 +3483,26 @@ async function abrirJob(id){
     const d=prompt('Detalle o cantidad (opcional)')||'';
     await sb.from('partidas').insert({job_id:id,nombre:n,detalle:d,clase:'reparacion',estatus:'pendiente'});
     cerrar(); abrirJob(id);
+  };
+}
+
+async function editarScope(id, actual){
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">Scope of work</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Alcance del trabajo</label>
+      <textarea id="sc" style="min-height:340px;line-height:1.6;font-size:16px">${esc(actual)}</textarea>
+      <div class="sub" style="margin-top:6px">Lo ve el técnico en su app y sale en el reporte impreso.</div>
+      <div style="height:16px"></div>
+      <button class="btn wide" id="sv">Guardar scope</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(id);};
+  $('#sv').onclick=async()=>{
+    const {error}=await sb.from('jobs').update({scope:$('#sc').value.trim()||null}).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Scope guardado'); abrirJob(id);
   };
 }
 
