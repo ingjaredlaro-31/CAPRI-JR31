@@ -117,6 +117,12 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
+.frm{width:100%;border-collapse:collapse;margin-top:4px}
+.frm td{border-bottom:1px solid var(--linea);padding:10px 4px;vertical-align:top}
+.frm td.k{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--gris);text-transform:uppercase;width:52%}
+.frm td.v{font-family:var(--disp);font-size:19px;font-weight:700;text-align:right;text-transform:uppercase}
+.frm tr.blk td{display:block;text-align:left;width:auto;border:0;padding-bottom:2px}
+.frm tr.blk td.v{font-family:var(--body);font-size:16px;font-weight:400;text-transform:none;border-bottom:1px solid var(--linea);padding-bottom:10px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin:5px 0 4px}
 .chips button{background:#fff;border:1px solid var(--linea);color:var(--gris);padding:9px 14px;border-radius:22px;font-size:15px;cursor:pointer;font-family:var(--body)}
 .chips button.on{background:var(--azul-l);border-color:var(--azul);color:var(--azul-d);font-weight:500}
@@ -425,12 +431,14 @@ async function vTecHist(){
   const {data}=await sb.from('reportes').select('*, jobs(folio,cliente,departamento)').eq('tecnico_id',U.id)
     .order('fecha',{ascending:false}).limit(50);
   if(!data?.length) return `<div class="empty"><div class="disp">Sin reportes todavía</div><p>Aquí se guarda todo lo que envías.</p></div>`;
+  setTimeout(()=>document.querySelectorAll('[data-vh]').forEach(b=>b.onclick=()=>{const rr=data.find(x=>x.id===b.dataset.vh);if(rr) verReporteCampo({...rr,usuarios:{nombre:U.nombre}}, rr.jobs||{});}),0);
   return `<div class="eyebrow">Mis últimos reportes</div>`+data.map(r=>`
     <div class="card ${r.jobs?.departamento==='cleaning'?'rojo':''}">
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(r.jobs?.folio||'')}</span><span class="chip">${fmt(r.fecha)}</span></div>
       <div class="tit">${esc(r.jobs?.cliente||'')}</div>
       <div class="meta">${esc(r.hora_entrada||'—')} → ${esc(r.hora_salida||'—')} · ${(r.fotos||[]).length} fotos</div>
       <div class="row" style="margin-top:5px;gap:4px">${(r.servicios||[]).slice(0,3).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-vh="${r.id}">Ver formato</button></div>
     </div>`).join('');
 }
 
@@ -660,6 +668,87 @@ async function formReporte(jobId,fecha){
     }
     cerrar(); toast('Reporte enviado'); render();
   };
+}
+
+/* ==================== REPORTE EN FORMATO DE CAMPO ==================== */
+function verReporteCampo(r, j){
+  const SN = v => v ? 'YES' : 'NO';
+  const dLarga = f => {
+    if(!f) return '—';
+    const d=new Date(f+'T12:00:00');
+    return d.toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  };
+  const h12 = t => {
+    if(!t) return '—';
+    const [H,M]=t.split(':').map(Number);
+    const ap=H>=12?'PM':'AM'; const h=H%12||12;
+    return `${h}:${String(M).padStart(2,'0')} ${ap}`;
+  };
+  const areas=(r.areas||[]), mats=(r.material_removido||[]), serv=(r.servicios||[]);
+  const fila=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${esc(v||'—')}</td></tr>`;
+  const bloque=(k,v)=>v?`<tr class="blk"><td class="k">${k}</td><td class="v">${esc(v)}</td></tr>`:'';
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp" style="font-size:21px;line-height:1">Reporte de campo</div>
+    <div style="font-size:13px;color:#C3D6F7">${fmt(r.fecha)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <div style="text-align:center;padding:6px 0 14px">
+        <div class="mono" style="font-size:11px;letter-spacing:.18em;color:var(--gris)">CAPRI RESTORATION SERVICES INC</div>
+        <div class="disp" style="font-size:24px">Daily Work Report</div>
+      </div>
+
+      <table class="frm">
+        ${fila('START WORK DATE', dLarga(r.fecha))}
+        ${fila('HORA', h12(r.hora_entrada))}
+        ${r.hora_salida?fila('HORA DE SALIDA', h12(r.hora_salida)):''}
+        ${fila('TECHNICIAN', r.usuarios?.nombre || '')}
+        ${fila('AFTER HOURS??', SN(r.after_hours))}
+        ${fila('PROPERTY', j.propiedades?.nombre || j.managements?.nombre || j.cliente)}
+        ${fila('UNIT', j.unidad)}
+        ${fila('OCCUPIED UNIT?', r.ocupada==='ocupada'?'YES':'NO')}
+        ${fila('WATER EXTRACTED?', SN(r.agua_extraida))}
+        ${fila('DO YOU DO A DEEP CLEAN OR WIPE DOWN?', SN(r.wipe_down))}
+        ${fila('DO YOU MAKE DEMO?', SN(r.demo))}
+        ${fila('DO YOU REMOVE PADD OR BASEBOARDS?', SN(r.removio_pad_base))}
+        ${fila('SERVICE/WORK', serv.join('  ·  '))}
+        ${fila('HOW MANY AREAS ?', areas.length ? areas.length+(areas.length===1?' AREA':' AREAS') : '—')}
+        ${fila('AREAS', areas.join(', '))}
+        ${fila('MATERIAL REMOVED', mats.join(', '))}
+        ${fila('SQFT PLASTIC INSTALLED', r.sqft_plastico ?? '')}
+        ${fila('ZIPPER', r.zipper)}
+        ${fila('PACK EQUIP INSTALLED', r.packs_equipo ? r.packs_equipo+' PACK' : '')}
+        ${bloque('EQUIP INSTALLED DESCRIBE', r.equipo_desc)}
+        ${bloque('NEXT WORK TO DO', r.siguiente_trabajo)}
+        ${bloque('EXTRA NOTES', r.notas)}
+      </table>
+
+      ${(r.deshu_inst||r.air_inst||r.scrub_inst||r.deshu_ret||r.air_ret||r.scrub_ret)?`
+      <div class="eyebrow">Equipment count</div>
+      <table class="frm">
+        ${fila('DEHUMIDIFIERS IN / OUT', (r.deshu_inst||0)+' / '+(r.deshu_ret||0))}
+        ${fila('AIR MOVERS IN / OUT', (r.air_inst||0)+' / '+(r.air_ret||0))}
+        ${fila('SCRUBBERS IN / OUT', (r.scrub_inst||0)+' / '+(r.scrub_ret||0))}
+      </table>`:''}
+
+      ${(r.lecturas||[]).length?`
+      <div class="eyebrow">Moisture readings</div>
+      <table class="frm">
+        ${(r.lecturas||[]).map(l=>fila(esc(l.area)+' · '+esc(l.material||''), (l.mc||'')+'% MC'+(l.temp?'  ·  '+l.temp+'°F':''))).join('')}
+      </table>`:''}
+
+      ${(r.fotos||[]).length?`<div class="eyebrow">Photos · ${(r.fotos||[]).length}</div>
+      <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>`:''}
+
+      <div style="height:22px"></div>
+      <button class="btn wide no-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+      <div style="height:12px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
 }
 
 /* ==================== CONTROL DEL DÍA ==================== */
@@ -1180,8 +1269,9 @@ async function formJob(id, pre){
       </div>
 
       ${c('fecha_perdida','Fecha de la pérdida','date')}
-      <label>Estatus</label>
-      <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>
+      ${id?`<label>Estatus</label>
+      <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>`:
+      `<div class="ok" style="margin-top:14px">El job nace con estatus <b>ACTIVO</b>. Lo cambias después desde aquí mismo.</div>`}
       <label>Notas</label><textarea id="f_notas">${esc(j.notas||'')}</textarea>
       <div style="height:16px"></div>
       <button class="btn wide" id="sv">Guardar job</button>
@@ -1204,13 +1294,17 @@ async function formJob(id, pre){
   };
   const tomarProp=()=>{
     const pr=PR.find(x=>x.id===$('#f_propiedad_id').value);
-    if(pr && ORIG==='management'){
-      $('#f_direccion').value=pr.direccion||$('#f_direccion').value;
-      $('#f_ciudad').value=pr.ciudad||'San Diego';
-      $('#f_zip').value=pr.zip||'';
+    if(ORIG==='management'){
+      if(pr){
+        $('#f_direccion').value=pr.direccion||$('#f_direccion').value;
+        $('#f_ciudad').value=pr.ciudad||'San Diego';
+        $('#f_zip').value=pr.zip||'';
+        $('#av_cz').innerHTML='Dirección y ZIP tomados de <b>'+esc(pr.nombre)+'</b>: '+esc([pr.direccion,pr.ciudad,pr.zip].filter(Boolean).join(', '));
+      } else {
+        $('#av_cz').innerHTML='Escoge la propiedad y la dirección se llena sola.';
+      }
       $('#bl_cz').style.display='none';
       $('#av_cz').style.display='';
-      $('#av_cz').innerHTML='Dirección, ciudad y ZIP tomados de la propiedad: <b>'+esc([pr.direccion,pr.ciudad,pr.zip].filter(Boolean).join(', '))+'</b>';
     } else {
       $('#bl_cz').style.display='';
       $('#av_cz').style.display='none';
@@ -1267,7 +1361,8 @@ async function formJob(id, pre){
     p.management_id=ORIG==='management'?($('#f_management_id').value||null):null;
     p.propiedad_id =ORIG==='management'?($('#f_propiedad_id').value||null):null;
     p.departamento=$('#f_departamento').value; p.tipo=$('#f_tipo').value;
-    p.tipo_propiedad=$('#f_tipo_propiedad').value; p.estatus=$('#f_estatus').value;
+    p.tipo_propiedad=$('#f_tipo_propiedad').value;
+    p.estatus = id ? $('#f_estatus').value : 'activo';
     p.fecha_perdida=$('#f_fecha_perdida').value||null;
     p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
     p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
@@ -1512,6 +1607,7 @@ async function abrirJob(id){
         ${r.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(r.siguiente_trabajo)}</div>`:''}
         ${r.notas?`<div class="sub" style="margin-top:6px;color:var(--tinta)">${esc(r.notas)}</div>`:''}
         <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
+        <div class="row no-print" style="margin-top:9px"><button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button></div>
       </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
 
       <div style="height:20px"></div>
@@ -1548,6 +1644,9 @@ async function abrirJob(id){
     const up={estatus:s.value}; if(s.value==='aprobada') up.fecha_fin=hoy();
     await sb.from('partidas').update(up).eq('id',s.dataset.pe);
     cerrar(); abrirJob(id);
+  });
+  document.querySelectorAll('[data-vr]').forEach(b=>b.onclick=()=>{
+    const rr=R.find(x=>x.id===b.dataset.vr); if(rr) verReporteCampo(rr,j);
   });
   const asv=$('#asv'); if(asv) asv.onclick=async()=>{
     const lista=SERVICIOS.map((x,i)=>(i+1)+'. '+x).join('\n');
