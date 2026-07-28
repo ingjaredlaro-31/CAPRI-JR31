@@ -423,7 +423,7 @@ function tarjetaTec(a,hecho,tarde){
       <button class="btn sm" data-rep="${a.job_id}" data-f="${a.fecha}">${hecho?'Ver':'Reporte'}</button>
     </div></div>`;
 }
-function engancharRep(){ document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>formReporte(b.dataset.rep,b.dataset.f)); }
+function engancharRep(){ document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rep,b.dataset.f)); }
 
 async function vTecDia(){
   const h=hoy();
@@ -691,6 +691,267 @@ async function formReporte(jobId,fecha){
     }
     cerrar(); toast('Reporte enviado'); render();
   };
+}
+
+/* ==================== REPORTE GUIADO PASO A PASO ==================== */
+let G = null;
+
+async function reporteGuiado(jobId, fecha){
+  const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
+    sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
+  ]);
+  const r = prev || {};
+  G = {
+    job:j, fecha, paso:0, prev:!!prev,
+    acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
+    d:{
+      hora_entrada:r.hora_entrada||new Date().toTimeString().slice(0,5),
+      hora_salida:r.hora_salida||'',
+      after_hours:!!r.after_hours, ocupada:r.ocupada||j.ocupada||'vacia',
+      agua_extraida:!!r.agua_extraida, wipe_down:!!r.wipe_down, demo:!!r.demo,
+      removio_pad_base:!!r.removio_pad_base,
+      servicios:(r.servicios||[]).slice(), areas:(r.areas||j.areas||[]).slice(),
+      material_removido:(r.material_removido||[]).slice(),
+      sqft_plastico:r.sqft_plastico??'', zipper:r.zipper||'no zipper',
+      packs_equipo:r.packs_equipo||0, equipo_desc:r.equipo_desc||'',
+      deshu_inst:r.deshu_inst||0, air_inst:r.air_inst||0, scrub_inst:r.scrub_inst||0,
+      deshu_ret:r.deshu_ret||0, air_ret:r.air_ret||0, scrub_ret:r.scrub_ret||0,
+      lecturas:(r.lecturas||[]).slice(), fotos:(r.fotos||[]).slice(),
+      siguiente_trabajo:r.siguiente_trabajo||'', notas:r.notas||''
+    }
+  };
+  G.acat=[...new Set(G.acat.concat(G.d.areas))];
+  G.mcat=[...new Set(G.mcat.concat(G.d.material_removido))];
+  G.scat=[...new Set(G.scat.concat(G.d.servicios))];
+  pasosGuiado();
+  pintaGuiado();
+}
+
+function pasosGuiado(){
+  const d=G.d, esRest=G.job.departamento==='restoration';
+  G.pasos=[
+    {t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'},
+    {t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'},
+    {t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'},
+    {t:'¿Se hizo water extraction?', s:'¿Sacaste agua hoy?', tipo:'sino', k:'agua_extraida'},
+    {t:'¿Hiciste deep clean o wipe down?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'},
+    {t:'¿Hiciste demo?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'},
+    {t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'},
+    {t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true},
+    {t:'¿En qué áreas trabajaste?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'},
+    {t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'},
+    {t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'},
+    {t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'},
+  ];
+  if(esRest){
+    G.pasos.push({t:'Conteo de equipo', s:'Lo que entró y lo que salió hoy', tipo:'conteo'});
+    G.pasos.push({t:'Lecturas de humedad', s:'Opcional — agrega las que tomaste', tipo:'lecturas'});
+  }
+  G.pasos.push({t:'Fotos del trabajo', s:'Toma o sube las fotos de hoy', tipo:'fotos'});
+  G.pasos.push({t:'¿Qué sigue?', s:'Next work to do y notas extra', tipo:'cierre'});
+  G.pasos.push({t:'Revisa y envía', s:'Verifica que todo esté bien', tipo:'resumen'});
+}
+
+function gChips(k, cat, tabla){
+  const sel=G.d[k], lista=G[cat];
+  return `<div class="chips" id="gc">${lista.map(x=>
+    `<button type="button" data-c="${esc(x)}" class="${sel.includes(x)?'on':''}">${esc(x)}</button>`).join('')}
+    <button type="button" class="add" data-add="1">+ agregar</button></div>`;
+}
+
+function pintaGuiado(){
+  const p=G.pasos[G.paso], d=G.d, n=G.pasos.length;
+  const pct=Math.round((G.paso)/(n-1)*100);
+  const prop=G.job.propiedades?.nombre||G.job.managements?.nombre||G.job.cliente;
+  let cuerpo='';
+
+  if(p.tipo==='horas') cuerpo=`
+    <label>Hora de llegada</label><input id="g1" type="time" value="${esc(d.hora_entrada)}" style="font-size:22px">
+    <label>Hora de salida (si ya sabes)</label><input id="g2" type="time" value="${esc(d.hora_salida)}" style="font-size:22px">`;
+  else if(p.tipo==='sino') cuerpo=`
+    <div class="si-no" style="margin-top:10px"><button data-b="1" class="${d[p.k]?'on':''}">Sí</button>
+    <button data-b="0" class="${!d[p.k]?'on':''}">No</button></div>`;
+  else if(p.tipo==='ocup') cuerpo=`
+    <div class="si-no" style="margin-top:10px"><button data-o="ocupada" class="${d.ocupada==='ocupada'?'on r':''}">Sí, ocupada</button>
+    <button data-o="vacia" class="${d.ocupada==='vacia'?'on':''}">No, vacía</button></div>`;
+  else if(p.tipo==='chips') cuerpo=gChips(p.k,p.cat,p.tabla)+
+    `<div class="sub" style="margin-top:8px">Seleccionados: ${d[p.k].length}</div>`;
+  else if(p.tipo==='contain') cuerpo=`
+    <label>Sqft de plástico instalado</label><input class="num" id="g1" type="number" value="${d.sqft_plastico}" style="font-size:22px">
+    <label>Zipper</label><select id="g2">${ZIPPERS.map(z=>`<option ${d.zipper===z?'selected':''}>${z}</option>`).join('')}</select>`;
+  else if(p.tipo==='equipo') cuerpo=`
+    <label>Pack equip installed</label><input class="num" id="g1" type="number" min="0" value="${d.packs_equipo}" style="font-size:22px">
+    <label>Describe el equipo instalado</label><textarea id="g2" placeholder="1 area, 2 air movers y 1 deshu en kitchen">${esc(d.equipo_desc)}</textarea>`;
+  else if(p.tipo==='conteo') cuerpo=`
+    <div class="eyebrow">Instalado hoy</div>
+    <div class="g3">
+      <div><label>Deshu</label><input class="num" id="gdi" type="number" min="0" value="${d.deshu_inst}"></div>
+      <div><label>Air mover</label><input class="num" id="gai" type="number" min="0" value="${d.air_inst}"></div>
+      <div><label>Scrubber</label><input class="num" id="gsi" type="number" min="0" value="${d.scrub_inst}"></div></div>
+    <div class="eyebrow">Retirado hoy</div>
+    <div class="g3">
+      <div><label>Deshu</label><input class="num" id="gdr" type="number" min="0" value="${d.deshu_ret}"></div>
+      <div><label>Air mover</label><input class="num" id="gar" type="number" min="0" value="${d.air_ret}"></div>
+      <div><label>Scrubber</label><input class="num" id="gsr" type="number" min="0" value="${d.scrub_ret}"></div></div>`;
+  else if(p.tipo==='lecturas') cuerpo=`
+    <div class="lect meta" style="letter-spacing:.08em;font-size:11px"><span>ÁREA</span><span>MATERIAL</span><span>%MC</span><span>°F</span><span></span></div>
+    <div id="glec"></div>
+    <button class="btn ghost sm" id="gaddl">+ Agregar lectura</button>`;
+  else if(p.tipo==='fotos') cuerpo=`
+    <input id="gft" type="file" accept="image/*" multiple capture="environment">
+    <div class="thumbs" id="gth"></div>
+    <div class="sub" style="margin-top:8px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} lista${d.fotos.length===1?'':'s'}</div>`;
+  else if(p.tipo==='cierre') cuerpo=`
+    <label>Next work to do</label><input id="g1" placeholder="Moisture check Monday" value="${esc(d.siguiente_trabajo)}">
+    <label>Extra notes</label><textarea id="g2" placeholder="Drywall removal 1x1, pending…">${esc(d.notas)}</textarea>`;
+  else if(p.tipo==='resumen'){
+    const SN=v=>v?'SÍ':'NO';
+    const f=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${esc(v||'—')}</td></tr>`;
+    cuerpo=`<table class="frm">
+      ${f('HORA',d.hora_entrada+(d.hora_salida?' → '+d.hora_salida:''))}
+      ${f('AFTER HOURS',SN(d.after_hours))}
+      ${f('OCCUPIED',d.ocupada==='ocupada'?'SÍ':'NO')}
+      ${f('WATER EXTRACTED',SN(d.agua_extraida))}
+      ${f('WIPE DOWN',SN(d.wipe_down))}
+      ${f('DEMO',SN(d.demo))}
+      ${f('PAD / BASEBOARDS',SN(d.removio_pad_base))}
+      ${f('SERVICE',d.servicios.join(' · '))}
+      ${f('AREAS',d.areas.length+' · '+d.areas.join(', '))}
+      ${f('MATERIAL REMOVED',d.material_removido.join(', '))}
+      ${f('PLASTIC',(d.sqft_plastico||'—')+' sqft · '+d.zipper)}
+      ${f('PACKS',d.packs_equipo)}
+      ${f('FOTOS',d.fotos.length)}
+      ${f('NEXT',d.siguiente_trabajo)}
+    </table>`;
+  }
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(G.job.folio)} · PASO ${G.paso+1} DE ${n}</div>
+    <div class="disp" style="font-size:20px;line-height:1">${esc(prop)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${G.job.unidad?'Unit '+esc(G.job.unidad):''}</div></div>
+    <button class="x" id="gx">✕</button></div>
+    <div class="barra" style="border-radius:0;height:5px"><i style="width:${pct}%"></i></div>
+    <div class="sheet-body">
+      <div class="disp" style="font-size:27px;line-height:1.05;margin-top:6px">${esc(p.t)}</div>
+      <div class="sub" style="margin-bottom:10px">${esc(p.s)}</div>
+      ${cuerpo}
+      <div style="height:22px"></div>
+      <div class="row">
+        ${G.paso>0?'<button class="btn ghost" style="flex:1" id="gprev">Atrás</button>':''}
+        <button class="btn" style="flex:2" id="gnext">${G.paso===n-1?(G.prev?'Guardar cambios':'Enviar reporte'):'Siguiente'}</button>
+      </div>
+      <div style="height:12px"></div>
+      <button class="btn ghost wide" id="gform">Usar formulario completo</button>
+    </div></div>`;
+
+  $('#gx').onclick=cerrar;
+  $('#gform').onclick=()=>{ const j=G.job.id, f=G.fecha; cerrar(); formReporte(j,f); };
+  const prev=$('#gprev'); if(prev) prev.onclick=()=>{guardaPaso();G.paso--;pintaGuiado();};
+  $('#gnext').onclick=async()=>{
+    guardaPaso();
+    const pa=G.pasos[G.paso];
+    if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
+    if(G.paso===G.pasos.length-1) return enviarGuiado();
+    G.paso++; pintaGuiado();
+  };
+
+  if(p.tipo==='sino') document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{
+    G.d[p.k]=b.dataset.b==='1'; pintaGuiado(); });
+  if(p.tipo==='ocup') document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{
+    G.d.ocupada=b.dataset.o; pintaGuiado(); });
+  if(p.tipo==='chips'){
+    document.querySelectorAll('#gc [data-c]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.c, arr=G.d[p.k], i=arr.indexOf(v);
+      if(i>=0) arr.splice(i,1); else arr.push(v);
+      pintaGuiado();
+    });
+    $('#gc [data-add]').onclick=async()=>{
+      const nn=prompt('Escribe el nombre nuevo:'); if(!nn||!nn.trim()) return;
+      const v=nn.trim();
+      if(!G[p.cat].includes(v)){ G[p.cat].push(v); await sb.from(p.tabla).insert({nombre:v}); }
+      if(!G.d[p.k].includes(v)) G.d[p.k].push(v);
+      pintaGuiado();
+    };
+  }
+  if(p.tipo==='lecturas'){
+    const lec=$('#glec');
+    const fila=(l={})=>{const dd=document.createElement('div');dd.className='lect';
+      dd.innerHTML=`<input placeholder="Kitchen" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
+        <input class="num" inputmode="decimal" placeholder="18" value="${esc(l.mc||'')}">
+        <input class="num" inputmode="decimal" placeholder="72" value="${esc(l.temp||'')}"><button type="button">✕</button>`;
+      dd.querySelector('button').onclick=()=>dd.remove(); lec.appendChild(dd);};
+    (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
+    $('#gaddl').onclick=()=>fila();
+  }
+  if(p.tipo==='fotos'){
+    const pinta=()=>$('#gth').innerHTML=G.d.fotos.map(u=>`<img src="${esc(u)}">`).join('');
+    pinta();
+    $('#gft').onchange=async e=>{
+      const fs=[...e.target.files]; if(!fs.length) return; toast('Subiendo fotos…');
+      for(const f of fs){
+        const nm=`rep/${G.job.id}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+        const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'image/jpeg'});
+        if(error){toast('No se pudo subir una foto');continue;}
+        G.d.fotos.push(sb.storage.from('capri').getPublicUrl(nm).data.publicUrl);
+      }
+      pinta(); toast('Fotos listas'); pintaGuiado();
+    };
+  }
+}
+
+function guardaPaso(){
+  const p=G.pasos[G.paso], d=G.d;
+  const v=id=>{const el=document.getElementById(id); return el?el.value:null;};
+  if(p.tipo==='horas'){ d.hora_entrada=v('g1')||d.hora_entrada; d.hora_salida=v('g2')||''; }
+  if(p.tipo==='contain'){ d.sqft_plastico=v('g1'); d.zipper=v('g2')||'no zipper'; }
+  if(p.tipo==='equipo'){ d.packs_equipo=Number(v('g1'))||0; d.equipo_desc=v('g2')||''; }
+  if(p.tipo==='cierre'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||''; }
+  if(p.tipo==='conteo'){
+    d.deshu_inst=+v('gdi')||0; d.air_inst=+v('gai')||0; d.scrub_inst=+v('gsi')||0;
+    d.deshu_ret=+v('gdr')||0;  d.air_ret=+v('gar')||0;  d.scrub_ret=+v('gsr')||0;
+  }
+  if(p.tipo==='lecturas'){
+    const lec=document.getElementById('glec');
+    if(lec) d.lecturas=[...lec.children].map(x=>{
+      const i=[...x.querySelectorAll('input')].map(y=>y.value.trim());
+      return {area:i[0],material:i[1],mc:i[2],temp:i[3]};
+    }).filter(l=>l.area||l.material||l.mc);
+  }
+}
+
+async function enviarGuiado(){
+  const d=G.d, jobId=G.job.id, fecha=G.fecha;
+  const p={job_id:jobId, tecnico_id:U.id, fecha,
+    hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
+    after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
+    wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
+    servicios:d.servicios, areas:d.areas, material_removido:d.material_removido,
+    sqft_plastico:d.sqft_plastico?Number(d.sqft_plastico):null, zipper:d.zipper,
+    packs_equipo:d.packs_equipo, equipo_desc:d.equipo_desc||null,
+    deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
+    deshu_ret:d.deshu_ret, air_ret:d.air_ret, scrub_ret:d.scrub_ret,
+    lecturas:d.lecturas, fotos:d.fotos,
+    trabajo_realizado:d.servicios.join(' · '),
+    siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null};
+  const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
+  if(error) return toast('No se guardó: '+error.message);
+  if(d.material_removido.length){
+    const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
+    const tengo=(ya||[]).map(x=>x.nombre);
+    for(const mat of d.material_removido){
+      if(tengo.includes(mat)) continue;
+      await sb.from('partidas').insert({job_id:jobId,nombre:mat,detalle:d.areas.join(', ')||null,clase:'reparacion',estatus:'pendiente'});
+    }
+  }
+  if(d.areas.length){
+    const nuevas=[...new Set((G.job.areas||[]).concat(d.areas))];
+    await sb.from('jobs').update({areas:nuevas, ocupada:d.ocupada}).eq('id',jobId);
+  }
+  cerrar(); toast('Reporte enviado'); render();
 }
 
 /* ==================== REPORTE EN FORMATO DE CAMPO ==================== */
@@ -1007,6 +1268,78 @@ async function pintarMapa(jobs){
     puntos.push([lat,lng]);
   }
   if(puntos.length) MAPA.fitBounds(puntos,{padding:[40,40],maxZoom:13});
+}
+
+/* ==================== HISTORIAL DE UNA PROPIEDAD ==================== */
+async function abrirPropiedad(id){
+  const [{data:pr},{data:jobs},{data:cts}] = await Promise.all([
+    sb.from('propiedades').select('*, managements(nombre,telefono)').eq('id',id).single(),
+    sb.from('jobs').select('*').eq('propiedad_id',id).order('created_at',{ascending:false}),
+    sb.from('contactos').select('*').eq('propiedad_id',id)
+  ]);
+  const J=jobs||[], C=cts||[];
+  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus));
+  const porTipo={}; J.forEach(x=>porTipo[x.tipo]=(porTipo[x.tipo]||0)+1);
+  const unidades=[...new Set(J.map(x=>x.unidad).filter(Boolean))];
+  const soloDig=t=>t?t.replace(/[^0-9]/g,''):'';
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(pr.managements?.nombre||'PROPIEDAD')}</div>
+    <div class="disp" style="font-size:23px;line-height:1">${esc(pr.nombre)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(pr.direccion||'')}${pr.ciudad?', '+esc(pr.ciudad):''}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <div class="kpis">
+        <div class="kpi a"><div class="l">Trabajos totales</div><div class="v">${J.length}</div>
+          <div class="p">desde que la atendemos</div></div>
+        <div class="kpi ${activos.length?'r':''}"><div class="l">Activos ahora</div>
+          <div class="v" style="color:${activos.length?'var(--rojo)':'var(--tinta)'}">${activos.length}</div>
+          <div class="p">${activos.length?'en proceso':'ninguno abierto'}</div></div>
+        <div class="kpi"><div class="l">Unidades atendidas</div><div class="v">${unidades.length}</div>
+          <div class="p">${esc(unidades.slice(0,6).join(', '))||'—'}</div></div>
+        <div class="kpi m"><div class="l">Total de unidades</div><div class="v">${esc(pr.unidades||'—')}</div>
+          <div class="p">según registro</div></div>
+      </div>
+
+      ${pr.notas?`<div class="ok" style="margin-top:12px"><b>Acceso:</b> ${esc(pr.notas)}</div>`:''}
+
+      <div class="row no-print" style="margin-top:12px">
+        ${pr.direccion?`<a class="btn ghost" style="flex:1" target="_blank" rel="noopener"
+          href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([pr.direccion,pr.ciudad,'CA'].filter(Boolean).join(', '))}">Cómo llegar</a>`:''}
+        ${EDIT()?`<button class="btn ghost" style="flex:1" id="ep2">Editar propiedad</button>`:''}
+      </div>
+
+      ${Object.keys(porTipo).length?`<div class="eyebrow">Tipos de trabajo realizados</div>
+      <div class="chips">${Object.entries(porTipo).map(([t,n])=>
+        `<button type="button" class="on" style="cursor:default">${esc(t)} · ${n}</button>`).join('')}</div>`:''}
+
+      ${C.length?`<div class="eyebrow">Contactos de esta propiedad · ${C.length}</div>
+      ${C.map(c=>`<div class="card ${c.puesto==='mantenimiento'?'ambar':''}">
+        <div class="row" style="justify-content:space-between">
+          <span class="disp" style="font-size:18px">${esc(c.nombre)}</span>
+          <span class="chip ${c.puesto==='manager'?'azul':''}">${esc(c.puesto)}</span></div>
+        ${c.telefono?`<div class="sub" style="color:var(--tinta)">${esc(c.telefono)}</div>
+        <div class="row no-print" style="margin-top:8px">
+          <a class="btn ghost sm" href="tel:${soloDig(c.telefono)}">Llamar</a>
+          <a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/${soloDig(c.telefono)}">WhatsApp</a></div>`:''}
+      </div>`).join('')}`:''}
+
+      <div class="eyebrow">Historial de trabajos · ${J.length}</div>
+      ${J.map(j=>`<div class="fila ${['terminado','facturado'].includes(j.estatus)?'':'r'}" data-job="${j.id}">
+        <div class="t"><b>${j.unidad?'Unit '+esc(j.unidad):esc(j.cliente)}</b>
+        <span class="sub">${esc(j.folio)} · ${esc(j.tipo)} · ${fmt((j.fecha_inicio||j.created_at||'').slice(0,10))}</span>
+        ${(j.areas||[]).length?`<span class="meta">${(j.areas||[]).join(', ')}</span>`:''}</div>
+        <span class="chip ${['terminado','facturado'].includes(j.estatus)?'azul':'rojo'}">${esc(j.estatus)}</span>
+      </div>`).join('')||'<div class="sub">Todavía no hay trabajos registrados en esta propiedad.</div>'}
+
+      <div style="height:20px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  const ep2=$('#ep2'); if(ep2) ep2.onclick=()=>formPropiedad(id,pr.management_id);
+  document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
 }
 
 /* ==================== MAPA Y RUTAS ==================== */
@@ -1345,7 +1678,7 @@ async function abrirManagement(id){
     sb.from('managements').select('*').eq('id',id).single(),
     sb.from('propiedades').select('*').eq('management_id',id).order('nombre'),
     sb.from('contactos').select('*, propiedades(nombre)').eq('management_id',id).order('puesto'),
-    sb.from('jobs').select('id,folio,cliente,estatus,tipo,propiedad_id').eq('management_id',id).order('created_at',{ascending:false}).limit(30)
+    sb.from('jobs').select('id,folio,cliente,estatus,tipo,propiedad_id,unidad').eq('management_id',id).order('created_at',{ascending:false}).limit(60)
   ]);
   const P=props||[], C=cts||[], J=jobs||[];
   const tel=t=>t?t.replace(/\D/g,''):'';
@@ -1360,16 +1693,19 @@ async function abrirManagement(id){
       ${EDIT()?'<button class="btn ghost wide no-print" id="em" style="margin-bottom:8px">Editar management</button>':''}
 
       <div class="eyebrow">Propiedades · ${P.length}</div>
-      ${P.map(x=>`<div class="card">
+      ${P.map(x=>{
+        const n=J.filter(y=>y.propiedad_id===x.id).length;
+        return `<div class="card" data-pv="${x.id}" style="cursor:pointer">
         <div class="row" style="justify-content:space-between">
           <span class="disp" style="font-size:19px">${esc(x.nombre)}</span>
-          ${x.unidades?`<span class="chip">${esc(x.unidades)} UNIDADES</span>`:''}</div>
+          ${n?`<span class="chip azul">${n} TRABAJO${n>1?'S':''}</span>`:'<span class="chip">SIN TRABAJOS</span>'}</div>
         <div class="sub">${esc(x.direccion||'')}${x.ciudad?', '+esc(x.ciudad):''}${x.zip?' '+esc(x.zip):''}</div>
+        ${x.unidades?`<div class="meta">${esc(x.unidades)} unidades</div>`:''}
         ${x.notas?`<div class="sub" style="color:var(--tinta);margin-top:4px">${esc(x.notas)}</div>`:''}
         <div class="row" style="margin-top:9px">
-          ${x.direccion?`<a class="btn ghost sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.direccion+' '+(x.ciudad||''))}">Mapa</a>`:''}
+          <button class="btn sm" data-pv2="${x.id}">Ver historial</button>
           ${EDIT()?`<button class="btn ghost sm" data-ep="${x.id}">Editar</button>`:''}
-        </div></div>`).join('')||'<div class="sub">Sin propiedades registradas.</div>'}
+        </div></div>`;}).join('')||'<div class="sub">Sin propiedades registradas.</div>'}
       ${EDIT()?'<button class="btn ghost wide no-print" id="np">+ Agregar propiedad</button>':''}
 
       <div class="eyebrow">Contactos · ${C.length}</div>
@@ -1400,7 +1736,9 @@ async function abrirManagement(id){
   const em=$('#em'); if(em) em.onclick=()=>formManagement(id);
   const np=$('#np'); if(np) np.onclick=()=>formPropiedad(null,id);
   const nc2=$('#nc2'); if(nc2) nc2.onclick=()=>formContacto(null,id,P);
-  document.querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>formPropiedad(b.dataset.ep,id));
+  document.querySelectorAll('[data-ep]').forEach(b=>b.onclick=e=>{e.stopPropagation();formPropiedad(b.dataset.ep,id);});
+  document.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>abrirPropiedad(b.dataset.pv));
+  document.querySelectorAll('[data-pv2]').forEach(b=>b.onclick=e=>{e.stopPropagation();abrirPropiedad(b.dataset.pv2);});
   document.querySelectorAll('[data-ec]').forEach(b=>b.onclick=()=>formContacto(b.dataset.ec,id,P));
   document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
 }
