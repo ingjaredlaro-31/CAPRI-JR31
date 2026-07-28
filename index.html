@@ -117,6 +117,14 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:5px 0 4px}
+.chips button{background:#fff;border:1px solid var(--linea);color:var(--gris);padding:9px 14px;border-radius:22px;font-size:15px;cursor:pointer;font-family:var(--body)}
+.chips button.on{background:var(--azul-l);border-color:var(--azul);color:var(--azul-d);font-weight:500}
+.chips button.add{border-style:dashed;color:var(--azul)}
+.si-no{display:flex;gap:8px;margin:5px 0}
+.si-no button{flex:1;background:#fff;border:1px solid var(--linea);color:var(--gris);padding:12px;border-radius:8px;font-family:var(--disp);font-size:18px;text-transform:uppercase;cursor:pointer}
+.si-no button.on{background:var(--azul);border-color:var(--azul);color:#fff}
+.si-no button.on.r{background:var(--rojo);border-color:var(--rojo)}
 .modos{display:flex;gap:6px;margin-bottom:12px}
 .modos button{flex:1;background:#fff;border:1px solid var(--linea);color:var(--gris);padding:11px;font-family:var(--disp);font-size:18px;text-transform:uppercase;border-radius:6px;cursor:pointer}
 .modos button.on{background:var(--azul);border-color:var(--azul);color:#fff}
@@ -943,6 +951,7 @@ async function vJobs(){
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
       <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):''}</div>
+      <div class="row" style="margin-top:7px">${j.unidad?`<span class="chip">UNIT ${esc(j.unidad)}</span>`:''}<span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}</div>
       <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
     </div>`).join('') || `<div class="empty"><div class="disp">Sin jobs</div><p>Registra el primero para poder programar visitas.</p></div>`);
 }
@@ -958,11 +967,17 @@ async function formJob(id, pre){
                   tipo_propiedad:'apartamento', origen:'management'};
   if(id){ const {data}=await sb.from('jobs').select('*').eq('id',id).single(); j=data; }
   if(!id && !j.folio) j.folio = await nuevoFolio(j.departamento);
-  const [{data:mgs},{data:props}] = await Promise.all([
+  const [{data:mgs},{data:props},{data:acat},{data:mcat}] = await Promise.all([
     sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
-    sb.from('propiedades').select('*').order('nombre')
+    sb.from('propiedades').select('*').order('nombre'),
+    sb.from('areas_catalogo').select('*').order('orden').order('nombre'),
+    sb.from('materiales_catalogo').select('*').order('orden').order('nombre')
   ]);
   const MG=mgs||[], PR=props||[];
+  let ACAT=(acat||[]).map(x=>x.nombre), MCAT=(mcat||[]).map(x=>x.nombre);
+  let AREAS=(j.areas||[]).slice(), REMOV=(j.removido||[]).slice();
+  let OCUP=j.ocupada||'vacia', EXTR=!!j.extraccion;
+  ACAT=[...new Set(ACAT.concat(AREAS))]; MCAT=[...new Set(MCAT.concat(REMOV))];
   const c=(k,l,t='text')=>`<label>${l}</label><input id="f_${k}" type="${t}" value="${esc(j[k]||'')}">`;
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
@@ -993,10 +1008,35 @@ async function formJob(id, pre){
       ${c('cliente','Cliente / residente')}
       ${c('telefono','Teléfono','tel')}
       ${c('direccion','Dirección')}
-      <div class="g2">${c('unidad','Unidad')}${c('zip','ZIP')}</div>
-      ${c('ciudad','Ciudad')}
+      <div class="g2">${c('ciudad','Ciudad')}${c('zip','ZIP')}</div>
+
+      <div class="eyebrow">Unidad y condición</div>
+      <label>Número de unidad / apartamento</label>
+      <input id="f_unidad" placeholder="204" value="${esc(j.unidad||'')}" style="font-family:var(--mono);font-size:20px">
       <label>Tipo de propiedad</label>
       <select id="f_tipo_propiedad">${['apartamento','condominio','casa','comercial','otro'].map(t=>`<option ${j.tipo_propiedad===t?'selected':''}>${t}</option>`).join('')}</select>
+      <label>¿La unidad está ocupada o vacía?</label>
+      <div class="si-no" id="ocup">
+        <button data-oc="ocupada">Ocupada</button>
+        <button data-oc="vacia">Vacía</button>
+      </div>
+
+      <div class="eyebrow">Áreas afectadas</div>
+      <div class="chips" id="areas"></div>
+
+      <div class="eyebrow">Trabajo inicial</div>
+      <label>¿Se hizo water extraction?</label>
+      <div class="si-no" id="extr">
+        <button data-ex="1">Sí</button>
+        <button data-ex="0">No</button>
+      </div>
+      <div id="bl_extr">
+        <label>Detalle de la extracción (galones, cuartos, equipo)</label>
+        <textarea id="f_extraccion_notas">${esc(j.extraccion_notas||'')}</textarea>
+      </div>
+
+      <label>¿Se removió material? Marca todo lo que se quitó</label>
+      <div class="chips" id="remov"></div>
 
       <div id="bl_seg">
         <div class="eyebrow">Aseguranza</div>
@@ -1025,6 +1065,40 @@ async function formJob(id, pre){
     $('#f_propiedad_id').innerHTML='<option value="">— selecciona —</option>'+
       lista.map(x=>`<option value="${x.id}" ${j.propiedad_id===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('');
   };
+  const pintarChips=(cont,cat,sel,onAdd)=>{
+    const el=$(cont);
+    el.innerHTML=cat.map(x=>`<button type="button" data-c="${esc(x)}" class="${sel.includes(x)?'on':''}">${esc(x)}</button>`).join('')
+      +'<button type="button" class="add" data-add="1">+ agregar</button>';
+    el.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.c;
+      const i=sel.indexOf(v);
+      if(i>=0) sel.splice(i,1); else sel.push(v);
+      pintarChips(cont,cat,sel,onAdd);
+    });
+    el.querySelector('[data-add]').onclick=async()=>{
+      const n=prompt('Nombre del área o material nuevo:');
+      if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!cat.includes(v)){ cat.push(v); await onAdd(v); }
+      if(!sel.includes(v)) sel.push(v);
+      pintarChips(cont,cat,sel,onAdd);
+    };
+  };
+  pintarChips('#areas',ACAT,AREAS,async v=>{ await sb.from('areas_catalogo').insert({nombre:v}); });
+  pintarChips('#remov',MCAT,REMOV,async v=>{ await sb.from('materiales_catalogo').insert({nombre:v}); });
+
+  const pintarOcup=()=>document.querySelectorAll('#ocup [data-oc]').forEach(b=>
+    b.className = b.dataset.oc===OCUP ? (OCUP==='ocupada'?'on r':'on') : '');
+  document.querySelectorAll('#ocup [data-oc]').forEach(b=>b.onclick=()=>{OCUP=b.dataset.oc;pintarOcup();});
+  pintarOcup();
+
+  const pintarExtr=()=>{
+    document.querySelectorAll('#extr [data-ex]').forEach(b=>b.className=(b.dataset.ex==='1')===EXTR?'on':'');
+    $('#bl_extr').style.display = EXTR?'':'none';
+  };
+  document.querySelectorAll('#extr [data-ex]').forEach(b=>b.onclick=()=>{EXTR=b.dataset.ex==='1';pintarExtr();});
+  pintarExtr();
+
   document.querySelectorAll('#orig [data-o]').forEach(b=>b.onclick=()=>{ORIG=b.dataset.o;pintarOrigen();});
   $('#f_management_id').onchange=pintarProps;
   $('#f_propiedad_id').onchange=e=>{
@@ -1049,11 +1123,27 @@ async function formJob(id, pre){
     p.departamento=$('#f_departamento').value; p.tipo=$('#f_tipo').value;
     p.tipo_propiedad=$('#f_tipo_propiedad').value; p.estatus=$('#f_estatus').value;
     p.fecha_perdida=$('#f_fecha_perdida').value||null;
+    p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
+    p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
     if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
     if(!p.folio||!p.cliente||!p.direccion) return toast('Faltan folio, cliente y dirección.');
     const q = id ? sb.from('jobs').update(p).eq('id',id) : sb.from('jobs').insert(p).select().single();
     const {data,error}=await q;
     if(error) return toast('No se guardó: '+error.message);
+    const jid = id || data.id;
+    if(!id && REMOV.length){
+      const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jid);
+      const tengo=(ya||[]).map(x=>x.nombre);
+      for(const mat of REMOV){
+        if(tengo.includes(mat)) continue;
+        await sb.from('partidas').insert({job_id:jid,nombre:mat,
+          detalle:AREAS.length?AREAS.join(', '):null,clase:'reparacion',estatus:'pendiente'});
+      }
+    }
+    if(!id && EXTR){
+      await sb.from('partidas').insert({job_id:jid,nombre:'Water extraction',
+        detalle:$('#f_extraccion_notas').value.trim()||null,clase:'servicio',estatus:'aprobada',fecha_fin:hoy()});
+    }
     if(!id && pre && pre.estimado_id){
       await sb.from('estimados').update({estatus:'aceptado',job_id:data.id}).eq('id',pre.estimado_id);
       if(pre.partidas) for(const n of pre.partidas)
@@ -1147,6 +1237,10 @@ async function abrirJob(id){
           <div><div class="meta" style="font-size:10px">ORIGEN</div><div class="sub" style="color:var(--tinta)">${esc(j.origen||'—')}</div></div>
         </div>
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
+        <div class="row" style="margin-top:10px">
+          <span class="chip ${j.ocupada==='ocupada'?'rojo':'azul'}">UNIDAD ${esc((j.ocupada||'vacia').toUpperCase())}</span>
+          ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
+        </div>
         ${EDIT()?'<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>':''}
       </div>
 
@@ -1161,6 +1255,15 @@ async function abrirJob(id){
           <a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/${soloDig(c.telefono)}">WhatsApp</a>`:''}
           ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}">Correo</a>`:''}
         </div></div>`).join('')}`:''}
+
+      ${(j.areas||[]).length?`<div class="eyebrow">Áreas afectadas · ${(j.areas||[]).length}</div>
+      <div class="chips">${(j.areas||[]).map(a=>`<button type="button" class="on" style="cursor:default">${esc(a)}</button>`).join('')}</div>`:''}
+
+      ${(j.removido||[]).length?`<div class="eyebrow">Material removido · ${(j.removido||[]).length}</div>
+      <div class="chips">${(j.removido||[]).map(a=>`<button type="button" class="on" style="cursor:default;background:var(--rojo-l);border-color:var(--rojo);color:var(--rojo-d)">${esc(a)}</button>`).join('')}</div>
+      <div class="sub" style="margin-top:6px">Cada material removido ya generó su partida de reparación abajo.</div>`:''}
+
+      ${j.extraccion_notas?`<div class="eyebrow">Water extraction</div><p class="sub" style="color:var(--tinta)">${esc(j.extraccion_notas)}</p>`:''}
 
       <div class="eyebrow">Historial del trabajo</div>
       <div class="linea-t">
