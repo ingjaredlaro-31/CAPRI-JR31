@@ -809,7 +809,7 @@ async function verJobTecnico(id){
 async function vTecReporte(){
   const h=hoy();
   const dep = U.departamento==='ambos' ? null : U.departamento;
-  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento,direccion, propiedades(nombre), managements(nombre)')
+  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento,direccion,tecnico_id, propiedades(nombre), managements(nombre)')
     .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false}).limit(80);
   if(dep) q=q.eq('departamento',dep);
   const {data:jobs}=await q;
@@ -832,6 +832,7 @@ async function vTecReporte(){
 
   const {data:asig}=await sb.from('asignaciones').select('job_id,hora').eq('tecnico_id',U.id).eq('fecha',h);
   const asignados=new Set((asig||[]).map(x=>x.job_id));
+  J.forEach(x=>{ if(x.tecnico_id===U.id) asignados.add(x.id); });
 
   const hechos=J.filter(x=>hoyPorJob[x.id]).length;
   const pct=J.length?Math.round(hechos*100/J.length):0;
@@ -851,7 +852,7 @@ async function vTecReporte(){
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(j.folio)}</span>
         <div class="row" style="gap:5px">
-          ${asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':''}
+          ${j.tecnico_id===U.id?'<span class="chip azul">MI TRABAJO</span>':(asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':'')}
           ${rHoy?'<span class="chip azul">REPORTADO</span>':'<span class="chip rojo">FALTA HOY</span>'}
         </div></div>
       <div class="tit">${esc(prop)}</div>
@@ -886,7 +887,7 @@ async function vTecReporte(){
   if(!J.length) return out+`<div class="empty"><div class="disp">Todavía no hay trabajos</div>
     <p>Oficina tiene que dar de alta los trabajos. Si llegaste a uno nuevo, usa el botón de arriba para levantarlo.</p></div>`;
 
-  if(asigFaltan.length){ out+=`<div class="eyebrow">Tus visitas de hoy · ${asigFaltan.length}</div>`+asigFaltan.map(tarjeta).join(''); }
+  if(asigFaltan.length){ out+=`<div class="eyebrow">Tus trabajos · ${asigFaltan.length}</div>`+asigFaltan.map(tarjeta).join(''); }
   if(otrosFaltan.length){ out+=`<div class="eyebrow">Otros trabajos sin reporte de hoy · ${otrosFaltan.length}</div>`+otrosFaltan.map(tarjeta).join(''); }
   if(listos.length){ out+=`<div class="eyebrow">Ya reportados hoy · ${listos.length}</div>`+listos.map(tarjeta).join(''); }
   return out;
@@ -1032,7 +1033,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v8 · reporte diario</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v9 · técnico encargado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2672,7 +2673,7 @@ async function vTecTrabajos(){
         ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
-      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):(j.origen==='aseguranza'?' · aseguranza':'')}</div>
+      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):(j.origen==='aseguranza'?' · aseguranza':'')}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
       ${j.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
     </div>`).join('');
 }
@@ -2867,7 +2868,7 @@ async function formContacto(id, mgId, props){
 
 /* ==================== JOBS ==================== */
 async function vJobs(){
-  const {data}=await sb.from('jobs').select('*, managements(nombre)').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
+  const {data}=await sb.from('jobs').select('*, managements(nombre), usuarios(nombre)').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
@@ -2895,13 +2896,14 @@ async function formJob(id, pre){
                   tipo_propiedad:'apartamento', origen:'management'};
   if(id){ const {data}=await sb.from('jobs').select('*').eq('id',id).single(); j=data; }
   if(!id && !j.folio) j.folio = await nuevoFolio(j.departamento);
-  const [{data:mgs},{data:props},{data:acat},{data:mcat}] = await Promise.all([
+  const [{data:mgs},{data:props},{data:acat},{data:mcat},{data:tecsJ}] = await Promise.all([
     sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
     sb.from('propiedades').select('*').order('nombre'),
     sb.from('areas_catalogo').select('*').order('orden').order('nombre'),
-    sb.from('materiales_catalogo').select('*').order('orden').order('nombre')
+    sb.from('materiales_catalogo').select('*').order('orden').order('nombre'),
+    sb.from('usuarios').select('id,nombre,departamento,telefono').eq('rol','tecnico').eq('activo',true).order('nombre')
   ]);
-  const MG=mgs||[], PR=props||[];
+  const MG=mgs||[], PR=props||[], TEC=tecsJ||[];
   let ACAT=(acat||[]).map(x=>x.nombre), MCAT=(mcat||[]).map(x=>x.nombre);
   let AREAS=(j.areas||[]).slice(), REMOV=(j.removido||[]).slice();
   let OCUP=j.ocupada||'vacia', EXTR=!!j.extraccion;
@@ -2974,6 +2976,12 @@ async function formJob(id, pre){
       </div>
 
       ${c('fecha_perdida','Fecha de la pérdida','date')}
+      <div class="eyebrow">Técnico encargado</div>
+      <label>¿Quién lleva este trabajo?</label>
+      <select id="f_tecnico_id"><option value="">— sin asignar —</option>
+        ${TEC.map(t=>`<option value="${t.id}" ${j.tecnico_id===t.id?'selected':''}>${esc(t.nombre)} · ${esc(t.departamento)}</option>`).join('')}</select>
+      <div class="sub" style="margin-top:5px">Se le asigna la visita de hoy y le aparece en su app para reportar.</div>
+
       ${id?`<label>Estatus</label>
       <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>`:
       `<div class="ok" style="margin-top:14px">El job nace con estatus <b>ACTIVO</b>. Lo cambias después desde aquí mismo.</div>`}
@@ -3067,6 +3075,7 @@ async function formJob(id, pre){
     p.propiedad_id =ORIG==='management'?($('#f_propiedad_id').value||null):null;
     p.departamento=$('#f_departamento').value; p.tipo=$('#f_tipo').value;
     p.tipo_propiedad=$('#f_tipo_propiedad').value;
+    p.tecnico_id=$('#f_tecnico_id').value||null;
     p.estatus = id ? $('#f_estatus').value : 'activo';
     p.fecha_perdida=$('#f_fecha_perdida').value||null;
     p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
@@ -3077,6 +3086,19 @@ async function formJob(id, pre){
     const {data,error}=await q;
     if(error) return toast('No se guardó: '+error.message);
     const jid = id || data.id;
+    if(p.tecnico_id){
+      await sb.from('asignaciones').upsert(
+        {job_id:jid, tecnico_id:p.tecnico_id, fecha:hoy()},
+        {onConflict:'job_id,tecnico_id,fecha'});
+      const t=TEC.find(x=>x.id===p.tecnico_id);
+      const tel=(t&&t.telefono||'').replace(/[^0-9]/g,'');
+      if(tel && !id && confirm('¿Avisarle por WhatsApp a '+(t.nombre||'el técnico')+' que lleva este trabajo?')){
+        const msg='Te asigné este trabajo:\n\n'+p.cliente+(p.unidad?' · Unit '+p.unidad:'')+'\n'
+          +p.folio+' · '+p.tipo+'\n'+(p.direccion||'')+'\n\n'
+          +'Entra a la app y deja tu reporte del día.';
+        window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
+      }
+    }
     if(!id && pre && pre.intake){
       const x=pre.intake;
       await sb.from('reportes').insert({
@@ -3120,7 +3142,7 @@ async function formJob(id, pre){
 /* ==================== DETALLE DEL JOB ==================== */
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
-    sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas)').eq('id',id).single(),
+    sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas), usuarios(nombre,telefono)').eq('id',id).single(),
     sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
     sb.from('reportes').select('*, usuarios(nombre)').eq('job_id',id).order('fecha'),
     sb.from('notas').select('*').eq('job_id',id).order('created_at',{ascending:false}),
@@ -3176,6 +3198,7 @@ async function abrirJob(id){
           <div><div class="meta" style="font-size:10px">CLAIM</div><div class="sub" style="color:var(--tinta)">${esc(j.claim_number||'—')}</div></div>
           <div><div class="meta" style="font-size:10px">ADJUSTER</div><div class="sub" style="color:var(--tinta)">${esc(j.adjuster||'—')} ${esc(j.adjuster_tel||'')}</div></div>`:''}
           <div><div class="meta" style="font-size:10px">ORIGEN</div><div class="sub" style="color:var(--tinta)">${esc(j.origen||'—')}</div></div>
+          <div><div class="meta" style="font-size:10px">TÉCNICO ENCARGADO</div><div class="sub" style="color:var(--tinta)">${esc(j.usuarios?.nombre||'sin asignar')}</div></div>
         </div>
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
         <div class="row" style="margin-top:10px">
