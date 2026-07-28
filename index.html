@@ -290,7 +290,7 @@ async function vTecInicio(){
   const h=hoy();
   const dep = U.departamento==='ambos' ? null : U.departamento;
   const [a, r] = await Promise.all([asigDe(U.id,h,h), repsDe(U.id,h,h)]);
-  const faltantes = await contarPendientes();
+  const faltantes = await contarPend();
   const hechos=new Set(r.map(x=>x.job_id));
   const faltanHoy=a.filter(x=>!hechos.has(x.job_id)).length;
   const tarde=new Date().getHours()>=HORA_CORTE;
@@ -433,7 +433,7 @@ async function vTecReporte(){
   const h=hoy();
   const [a,r] = await Promise.all([asigDe(U.id,h,h), repsDe(U.id,h,h)]);
   const hechos=new Set(r.map(x=>x.job_id));
-  const faltantes=await contarPendientes();
+  const faltantes=await contarPend();
   const dep=U.departamento==='ambos'?null:U.departamento;
   let q=sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus, propiedades(nombre)')
     .not('estatus','in','("terminado","facturado")').limit(60);
@@ -465,7 +465,7 @@ async function vTecReporte(){
     out+=faltantes.slice(0,8).map(x=>`<div class="card rojo">
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(x.jobs?.folio||'')}</span><span class="chip rojo">${fmt(x.fecha)}</span></div>
-      <div class="tit">${esc(x.jobs?.cliente||'')}</div>
+      <div class="tit">${esc(x.jobs?.propiedades?.nombre||x.jobs?.cliente||'')}</div>
       <button class="btn wide" data-rg="${x.job_id}" data-f="${x.fecha}" style="margin-top:10px">Hacer reporte de ese día</button>
     </div>`).join('');
   }
@@ -695,7 +695,8 @@ function engancharDep(){
 
 /* ============================ TÉCNICO ============================ */
 async function asigDe(id,d1,d2){
-  const {data,error}=await sb.from('asignaciones').select('*, jobs(*)').eq('tecnico_id',id)
+  const {data,error}=await sb.from('asignaciones')
+    .select('*, jobs(*, propiedades(nombre), managements(nombre))').eq('tecnico_id',id)
     .gte('fecha',d1).lte('fecha',d2).order('fecha');
   if(error) throw error; return data||[];
 }
@@ -717,7 +718,7 @@ function tarjetaTec(a,hecho,tarde){
   return `<div class="card ${cl}">
     <div class="row" style="justify-content:space-between">
       <span class="folio">${esc(j.folio)}</span><span class="meta">${esc(j.tipo)}</span></div>
-    <div class="tit">${esc(j.cliente)}</div>
+    <div class="tit">${esc(j.propiedades?.nombre||j.managements?.nombre||j.cliente)}</div>
     <div class="sub">${esc(dir)}</div>
     ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
     ${a.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(a.notas)}</div>`:''}
