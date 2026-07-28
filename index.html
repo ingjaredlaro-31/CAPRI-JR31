@@ -724,6 +724,7 @@ async function vTecTrabajos(){
         ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
       <div class="tit">${esc(prop)}</div>
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.direccion||'')}</div>
+      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
       <div class="row" style="margin-top:7px">
         ${repHoyIds.has(j.id)?'<span class="chip azul">REPORTADO HOY</span>':'<span class="chip rojo">SIN REPORTE HOY</span>'}
         <span class="chip">${esc(j.tipo)}</span>
@@ -755,7 +756,7 @@ async function verJobTecnico(id){
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
     <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)} · ${esc(j.estatus)}</div>
     <div class="disp" style="font-size:22px;line-height:1">${esc(prop)}</div>
-    <div style="font-size:13px;color:#C3D6F7">${j.unidad?'Unit '+esc(j.unidad):''} · ${esc(j.tipo)}</div></div>
+    <div style="font-size:13px;color:#C3D6F7">${j.unidad?'Unit '+esc(j.unidad):''} · ${esc(j.tipo)} · ${esc(antiguedad(j).txt)}</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
@@ -826,6 +827,13 @@ async function verJobTecnico(id){
 }
 
 /* ==================== TÉCNICO · REPORTE DIARIO ==================== */
+function inicioJob(j){ return (j.fecha_inicio||j.created_at||hoy()).slice(0,10); }
+function antiguedad(j){
+  const ini=inicioJob(j);
+  const d=dias(ini,hoy())+1;
+  return {ini, d, txt:'Inició '+fmt(ini)+' · día '+d+' del trabajo'};
+}
+
 function diasFaltantes(job, fechasConReporte, maxDias){
   const arranque = (job.fecha_inicio||job.created_at||hoy()).slice(0,10);
   const tope = hace(maxDias||20);
@@ -843,7 +851,7 @@ function diasFaltantes(job, fechasConReporte, maxDias){
 async function vTecReporte(){
   const h=hoy();
   const dep = U.departamento==='ambos' ? null : U.departamento;
-  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento,direccion,tecnico_id, propiedades(nombre), managements(nombre)')
+  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento,direccion,tecnico_id,fecha_inicio,created_at, propiedades(nombre), managements(nombre)')
     .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false}).limit(80);
   if(dep) q=q.eq('departamento',dep);
   const {data:jobs}=await q;
@@ -893,7 +901,8 @@ async function vTecReporte(){
         </div></div>
       <div class="tit">${esc(prop)}</div>
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.tipo)}</div>
-      <div class="meta" style="margin-top:4px">Última visita: ${desde}${ult&&ult.usuarios?.nombre?' · '+esc(ult.usuarios.nombre):''}</div>
+      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
+      <div class="meta">Última visita: ${desde}${ult&&ult.usuarios?.nombre?' · '+esc(ult.usuarios.nombre):''}</div>
       ${ult&&(ult.situacion||[]).length?`<div class="row" style="margin-top:6px;gap:5px">${(ult.situacion||[]).slice(0,3).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}</div>`:''}
       ${ult&&ult.siguiente_trabajo?`<div class="ok" style="margin:9px 0 0;padding:10px"><b>Lo que sigue:</b> ${esc(ult.siguiente_trabajo)}</div>`:''}
       ${(()=>{
@@ -1081,7 +1090,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v13 · reportes por día</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v14 · fechas visibles</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1742,6 +1751,7 @@ function pintaGuiado(){
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
     <div><div class="mono" style="font-size:11px;color:#C3D6F7">${G.modo==='intake'?'LEVANTAMIENTO INICIAL':esc(G.job.folio)+' · '+(G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO')} · PASO ${G.paso+1} DE ${n}</div>
+    ${G.modo!=='intake'?`<div class="mono" style="font-size:11px;color:#C3D6F7">REPORTE DEL ${fmt(G.fecha)} · ${esc(antiguedad(G.job).txt.toUpperCase())}</div>`:''}
     <div class="disp" style="font-size:20px;line-height:1">${esc(prop)}</div>
     <div style="font-size:13px;color:#C3D6F7">${(G.modo==='intake'? (G.d.unidad?'Unit '+esc(G.d.unidad):'') : (G.job.unidad?'Unit '+esc(G.job.unidad):''))}</div></div>
     <button class="x" id="gx">✕</button></div>
@@ -2938,6 +2948,7 @@ async function vJobs(){
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
       <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):''}</div>
+      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
       <div class="row" style="margin-top:7px">${j.unidad?`<span class="chip">UNIT ${esc(j.unidad)}</span>`:''}<span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}</div>
       ${j.notas?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.notas)}</div>`:''}
       <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
