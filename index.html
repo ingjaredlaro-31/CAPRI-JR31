@@ -665,6 +665,13 @@ async function vTecInicio(){
   }
   const totalT=idsT.length, faltanT=Math.max(0,totalT-repHoy);
   const pctT=totalT?Math.round(repHoy*100/totalT):0;
+  let debeT=0;
+  if(idsT.length){
+    const {data:jj}=await sb.from('jobs').select('id,fecha_inicio,created_at').in('id',idsT);
+    const {data:rr2}=await sb.from('reportes').select('job_id,fecha').in('job_id',idsT).limit(600);
+    const fx={}; (rr2||[]).forEach(x=>(fx[x.job_id] ||= new Set()).add(x.fecha));
+    (jj||[]).forEach(x=>{ debeT+=diasFaltantes(x, fx[x.id]||new Set()).length; });
+  }
 
   out += `<div class="kpi ${faltanT?'r':'a'}" style="margin-bottom:12px">
       <div class="l">Reporte diario de hoy</div>
@@ -675,7 +682,7 @@ async function vTecInicio(){
       <div class="p">${faltanT?faltanT+' trabajo'+(faltanT===1?'':'s')+' sin reporte de hoy':'Todos los trabajos reportados'}</div>
     </div>
     <div class="kpis" style="margin-bottom:12px">
-    <div class="fila ${faltanT?'r':'a'}" data-ir="reporte"><div class="t"><b>Dejar mi reporte diario</b><span class="sub">${faltanT?faltanT+' pendientes':'todo listo'}</span></div></div>
+    <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>Dejar mi reporte diario</b><span class="sub">${debeT?'debes '+debeT+' reporte'+(debeT===1?'':'s'):'todo al corriente'}</span></div></div>
     <div class="fila a" id="miruta" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
     <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
     <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
@@ -704,6 +711,12 @@ async function vTecTrabajos(){
   const J=data||[];
   const {data:rh}=await sb.from('reportes').select('job_id').eq('fecha',hoy());
   const repHoyIds=new Set((rh||[]).map(x=>x.job_id));
+  const idsJ=J.map(x=>x.id);
+  const fechasJob={};
+  if(idsJ.length){
+    const {data:rr}=await sb.from('reportes').select('job_id,fecha').in('job_id',idsJ).limit(600);
+    (rr||[]).forEach(x=>(fechasJob[x.job_id] ||= new Set()).add(x.fecha));
+  }
 
   const activos = J.filter(x=>x.departamento===miDep && x.estatus!=='reconstruccion');
   const reparando = J.filter(x=>x.departamento===miDep && x.estatus==='reconstruccion');
@@ -714,6 +727,9 @@ async function vTecTrabajos(){
   setTimeout(()=>{
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TTAB=b.dataset.t;render();});
     document.querySelectorAll('[data-vj]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj));
+    document.querySelectorAll('[data-rg2]').forEach(b=>b.onclick=e=>{
+      e.stopPropagation(); reporteGuiado(b.dataset.rg2, b.dataset.f2);
+    });
   },0);
 
   const tarjeta=j=>{
@@ -726,14 +742,26 @@ async function vTecTrabajos(){
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.direccion||'')}</div>
       <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
       <div class="row" style="margin-top:7px">
+        ${(()=>{const d=diasFaltantes(j,fechasJob[j.id]||new Set()).length;
+          return d?`<span class="chip rojo">DEBE ${d} REPORTE${d>1?'S':''}</span>`:'<span class="chip azul">AL CORRIENTE</span>';})()}
         ${repHoyIds.has(j.id)?'<span class="chip azul">REPORTADO HOY</span>':'<span class="chip rojo">SIN REPORTE HOY</span>'}
         <span class="chip">${esc(j.tipo)}</span>
         <span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>
         ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
-      </div></div>`;
+      </div>
+      ${(()=>{const f=diasFaltantes(j,fechasJob[j.id]||new Set());
+        if(!f.length) return '';
+        return `<div class="chips" style="margin-top:8px">${f.slice(-8).map(x=>
+          `<button type="button" data-rg2="${j.id}" data-f2="${x}"
+            style="border-color:var(--rojo-b);background:var(--rojo-l);color:var(--rojo-d);font-size:14px;padding:7px 11px">${x.slice(8)} ${MESCORTO[+x.slice(5,7)-1]}</button>`).join('')}</div>`;})()}
+      </div>`;
   };
 
-  return `<div class="tabs">
+  const debeTotal=J.filter(x=>x.departamento===miDep).reduce((a,x)=>a+diasFaltantes(x,fechasJob[x.id]||new Set()).length,0);
+  return `${debeTotal?`<div class="alerta" style="margin-bottom:12px">
+      <div class="n">${debeTotal}</div>
+      <div class="t">reporte${debeTotal===1?'':'s'} que debes en total · toca la fecha roja de cada trabajo</div></div>`:''}
+    <div class="tabs">
       <button data-t="activos" class="${TTAB==='activos'?'on':''}">Activos<span class="c">${activos.length}</span></button>
       <button data-t="reparando" class="${TTAB==='reparando'?'on':''}">Reparación<span class="c">${reparando.length}</span></button>
       <button data-t="cleaning" class="${TTAB==='cleaning'?'on':''}">Cleaning<span class="c" style="color:var(--rojo)">${cleaning.length}</span></button>
@@ -751,6 +779,7 @@ async function verJobTecnico(id){
   ]);
   const P=part||[], R=reps||[], AS=asg||[];
   const repHoy = R.some(x=>x.fecha===hoy());
+  const faltasJ = diasFaltantes(j, new Set(R.map(x=>x.fecha)));
   const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
   const dir=[j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', ');
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
@@ -760,10 +789,13 @@ async function verJobTecnico(id){
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
-      ${!repHoy?`<div class="alerta" style="margin-bottom:14px">
-        <div class="disp" style="font-size:21px;color:var(--rojo)">Falta tu reporte de hoy</div>
-        <div class="t">${fmt(hoy())} · sin este reporte, oficina no sabe cómo dejaste el trabajo y mañana nadie sabe qué sigue.</div>
-      </div>`:`<div class="ok" style="margin-bottom:14px">Ya dejaste tu reporte de hoy en este trabajo.</div>`}
+      ${faltasJ.length?`<div class="alerta" style="margin-bottom:14px">
+        <div class="n">${faltasJ.length}</div>
+        <div class="t">reporte${faltasJ.length===1?'':'s'} que debes en este trabajo${faltasJ.includes(hoy())?' · incluido el de hoy':''}</div>
+        <div class="chips" style="margin-top:8px">${faltasJ.slice(-10).map(x=>
+          `<button type="button" data-rgf="${x}"
+            style="border-color:var(--rojo);background:#fff;color:var(--rojo-d);font-size:14px">${x===hoy()?'HOY':x.slice(8)+' '+MESCORTO[+x.slice(5,7)-1]}</button>`).join('')}</div>
+      </div>`:`<div class="ok" style="margin-bottom:14px">Estás al corriente en este trabajo. Todos los días reportados.</div>`}
       <div class="row" style="margin-bottom:10px">
         <a class="btn ghost" style="flex:1" target="_blank" rel="noopener"
           href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Cómo llegar</a>
@@ -823,6 +855,9 @@ async function verJobTecnico(id){
   };
   $('#sheet').querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{
     const f=b.dataset.cal; cerrar(); reporteGuiado(id,f);
+  });
+  $('#sheet').querySelectorAll('[data-rgf]').forEach(b=>b.onclick=()=>{
+    const f=b.dataset.rgf; cerrar(); reporteGuiado(id,f);
   });
 }
 
@@ -1090,7 +1125,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v15 · fecha de arranque</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v16 · reportes que debes</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
