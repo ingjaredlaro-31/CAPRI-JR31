@@ -31,18 +31,24 @@ h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-we
 button,input,select,textarea{font-family:inherit;font-size:17px}
 a{color:var(--azul)}
 
-.top{background:var(--azul);color:#fff;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center}
+.top{background:var(--azul);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
+  display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(27,86,211,.18)}
 .top .marca{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:#C3D6F7}
 .top .t{font-family:var(--disp);font-weight:800;font-size:24px;line-height:1.05}
 .top .who{text-align:right;font-size:12.5px;color:#C3D6F7;line-height:1.3}
 .top .who b{display:block;color:#fff;font-size:14px}
-.franja{height:4px;background:var(--rojo)}
+.franja{height:3px;background:var(--rojo)}
 .franja.split{display:flex}.franja.split i{flex:1;display:block;height:100%}
 .franja.split i:first-child{background:var(--azul)}.franja.split i:last-child{background:var(--rojo)}
 
 main{padding:14px;padding-bottom:96px;max-width:1400px;margin:0 auto}
-nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;background:#fff;border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:10px 1px 12px;font-family:var(--disp);font-size:14.5px;text-transform:uppercase;cursor:pointer;position:relative;letter-spacing:.01em}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;background:rgba(255,255,255,.97);
+  backdrop-filter:blur(8px);border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 14px rgba(11,13,17,.06)}
+nav button svg{display:block;margin:0 auto 3px;width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+nav button{flex:1;background:none;border:0;border-top:3px solid transparent;color:var(--gris);padding:9px 1px 11px;
+  font-family:var(--disp);font-size:13px;text-transform:uppercase;cursor:pointer;position:relative;letter-spacing:.02em}
 nav button.on{color:var(--azul);border-top-color:var(--azul)}
 nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rojo)}
 .side{display:none}
@@ -55,7 +61,11 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .side .head{padding:16px 14px;border-bottom:1px solid #1F242C}
   .side .head .m{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--gris)}
   .side .head .j{font-family:var(--disp);font-weight:800;font-size:25px;color:#fff;letter-spacing:.08em}
-  .side button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#9AA3AF;padding:13px 16px;font-family:var(--disp);font-size:20px;text-transform:uppercase;cursor:pointer}
+  .side button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;
+    border-left:3px solid transparent;color:#9AA3AF;padding:13px 16px;font-family:var(--disp);font-size:19px;
+    text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}
+  .side button:hover{background:#141922;color:#E7EBEE}
+  .side button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
   .side button.on{background:var(--azul);color:#fff;border-left-color:#5B8DEF}
   .wrap{flex:1;min-width:0;max-width:100%}
   nav{display:none}
@@ -65,22 +75,28 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 }
 
-.eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;color:var(--gris);text-transform:uppercase;margin:22px 0 9px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--gris);text-transform:uppercase;
+  margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:'';flex:1;height:1px;background:var(--linea)}
 .eyebrow:first-child{margin-top:2px}
-.card{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--azul);padding:12px;margin-bottom:10px}
+.card{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--azul);border-radius:0 10px 10px 0;
+  padding:15px 16px;margin-bottom:11px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .card.rojo{border-left-color:var(--rojo)} .card.ambar{border-left-color:var(--ambar)} .card.gris{border-left-color:#9AA3AF}
 .folio{font-family:var(--mono);font-size:12.5px;color:var(--azul)}
 .meta{font-family:var(--mono);font-size:13.5px;color:var(--gris)}
-.tit{font-family:var(--disp);font-size:25px;line-height:1.1;margin:4px 0}
+.tit{font-family:var(--disp);font-size:24px;line-height:1.12;margin:5px 0 3px;letter-spacing:.005em}
 .sub{font-size:15px;color:var(--gris)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.chip{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--linea);color:var(--gris);background:#F3F4F6;white-space:nowrap}
+.chip{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;
+  border:1px solid var(--linea);border-radius:5px;color:var(--gris);background:#F3F4F6;white-space:nowrap}
 .chip.azul{color:var(--azul-d);border-color:var(--azul-b);background:var(--azul-l)}
 .chip.rojo{color:var(--rojo-d);border-color:var(--rojo-b);background:var(--rojo-l)}
 .chip.ambar{color:var(--ambar-d);border-color:var(--ambar-b);background:var(--ambar-l)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--azul);color:#fff;border:0;border-radius:6px;padding:11px 16px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;cursor:pointer;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--azul);color:#fff;border:0;
+  border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
-.btn.ghost{background:#fff;color:var(--tinta);border:1px solid #C9CFD6}
+.btn.ghost{background:#fff;color:var(--tinta);border:1px solid #C9CFD6;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .btn.rojo{background:var(--rojo)}
 .btn.wide{width:100%;padding:13px}
 .btn.sm{padding:7px 12px;font-size:15px}
@@ -93,10 +109,10 @@ textarea{min-height:80px;resize:vertical}
 .num{text-align:center;font-family:var(--mono)}
 .empty{text-align:center;color:var(--gris);padding:36px 16px;font-size:16px}
 .empty .disp{font-size:25px;color:var(--tinta);margin-bottom:6px}
-.stat{background:#fff;border:1px solid var(--linea);border-radius:8px;padding:11px}
+.stat{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:14px 15px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .stat .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris)}
 .stat .v{font-family:var(--disp);font-size:34px;line-height:1.05}
-footer{padding:26px 14px 34px;text-align:center;border-top:1px solid var(--linea);margin-top:34px}
+footer{padding:30px 14px 38px;text-align:center;border-top:1px solid var(--linea);margin-top:40px}
 footer .n{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
 footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3AF;margin-top:4px}
 .homebtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -112,18 +128,41 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fabm{position:fixed;right:18px;bottom:158px;z-index:46;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
 .fabm button{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:12px 16px;font-family:var(--disp);font-size:17px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 14px rgba(11,13,17,.14);white-space:nowrap}
 @media(min-width:900px){.fab{bottom:26px;right:26px}.fabm{bottom:98px;right:26px}}
-.alerta{border-left:4px solid var(--rojo);background:var(--rojo-l);padding:13px;margin-bottom:14px}
+.alerta{border-left:4px solid var(--rojo);background:var(--rojo-l);padding:15px 16px;margin-bottom:15px;border-radius:0 10px 10px 0}
 .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:6px}
 @media(min-width:900px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.kpi{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:13px}
+.kpi{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .kpi .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris);text-transform:uppercase}
 .kpi .v{font-family:var(--disp);font-weight:800;font-size:42px;line-height:1;margin-top:5px}
 .kpi .p{font-size:14.5px;color:var(--gris);margin-top:2px}
 .kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
 .kpi.m{border-left:4px solid var(--ambar)}
-.barra{height:8px;background:var(--linea2);border-radius:4px;overflow:hidden;margin-top:8px}
+.etapas{position:relative;padding-left:6px}
+.etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:16px}
+.etapa:last-child{padding-bottom:0}
+.etapa::before{content:'';position:absolute;left:13px;top:28px;bottom:-2px;width:2px;background:var(--linea)}
+.etapa:last-child::before{display:none}
+.etapa.done::before{background:var(--azul)}
+.etapa .bolita{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:13px;font-weight:600;position:relative;z-index:1;
+  background:#fff;border:2px solid var(--linea);color:var(--gris)}
+.etapa.done .bolita{background:var(--azul);border-color:var(--azul);color:#fff}
+.etapa.hoy .bolita{border-color:var(--ambar);color:var(--ambar-d);box-shadow:0 0 0 4px var(--ambar-l)}
+.etapa .txt{flex:1;min-width:0;padding-top:2px}
+.etapa .txt b{display:block;font-family:var(--disp);font-size:19px;text-transform:uppercase;line-height:1.1}
+.etapa.done .txt b{color:var(--azul-d)}
+.etapa .txt span{font-size:14px;color:var(--gris)}
+.etapa .mano{cursor:pointer}
+.etapa .auto{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--gris);
+  border:1px solid var(--linea);border-radius:4px;padding:2px 6px;align-self:center}
+.barra{height:10px;background:var(--linea2);border-radius:5px;overflow:hidden;margin-top:10px}
+.barra i{transition:width .4s ease}
 .barra i{display:block;height:100%;background:var(--azul)}
-.fila{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--linea);border-left:4px solid var(--linea);padding:11px;margin-bottom:8px;cursor:pointer}
+.fila{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--linea);border-left:4px solid var(--linea);
+  border-radius:0 10px 10px 0;padding:14px 15px;margin-bottom:9px;cursor:pointer;
+  box-shadow:0 1px 2px rgba(11,13,17,.04);transition:box-shadow .15s,transform .15s}
+.fila:hover{box-shadow:0 3px 10px rgba(11,13,17,.09)}
+.fila:active{transform:translateY(1px)}
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
@@ -132,7 +171,8 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
   transform:translate(-50%,-50%);background:var(--logobg) center/contain no-repeat;
   filter:blur(3px);opacity:.10;pointer-events:none;z-index:0}
 .marca-agua > *{position:relative;z-index:1}
-.hero{background:var(--tinta);color:#fff;border-radius:12px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero{background:linear-gradient(160deg,#141922 0%,var(--tinta) 60%);color:#fff;border-radius:14px;padding:20px;
+  margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 18px rgba(11,13,17,.18)}
 .hero::before{content:'';position:absolute;top:50%;right:-6%;width:78%;padding-bottom:78%;
   transform:translateY(-50%);background:var(--logobg) center/contain no-repeat;
   filter:blur(2.5px);opacity:.16;pointer-events:none;z-index:0}
@@ -154,10 +194,10 @@ main > *{position:relative;z-index:1}
 .hero .franja2 i:last-child{background:var(--rojo)}
 .hero .salu{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:#9AA3AF;text-transform:uppercase}
 .hero .nom{font-family:var(--disp);font-weight:800;font-size:30px;line-height:1.02;margin-top:2px}
-.hero .reloj{font-family:var(--mono);font-size:40px;font-weight:600;line-height:1;letter-spacing:-.01em}
+.hero .reloj{font-family:var(--mono);font-size:42px;font-weight:600;line-height:1;letter-spacing:-.02em;margin-top:6px}
 .hero .fch{font-size:14px;color:#C3D6F7;text-transform:capitalize}
 .hero .grid{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-top:14px}
-.clima{background:rgba(255,255,255,.09);border-radius:10px;padding:11px 14px;min-width:168px}
+.clima{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:13px 16px;min-width:172px}
 .clima .t{font-family:var(--disp);font-size:32px;line-height:1}
 .clima .d{font-size:13px;color:#C3D6F7}
 .clima .l{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#9AA3AF;text-transform:uppercase}
@@ -201,9 +241,13 @@ main > *{position:relative;z-index:1}
 .sem .d .h b{font-family:var(--disp);font-size:18px;text-transform:uppercase}
 .alerta .n{font-family:var(--disp);font-weight:800;font-size:40px;line-height:1;color:var(--rojo)}
 .alerta .t{font-size:14px;color:var(--rojo-d)}
-.ok{border-left:4px solid var(--azul);background:var(--azul-l);padding:13px;margin-bottom:14px;font-size:15px;color:var(--azul-d)}
-.tabs{display:flex;background:#fff;border-bottom:1px solid var(--linea);margin:-14px -14px 14px}
-.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 4px;font-family:var(--disp);font-size:16.5px;text-transform:uppercase;color:var(--gris);cursor:pointer}
+.ok{border-left:4px solid var(--azul);background:var(--azul-l);padding:15px 16px;margin-bottom:15px;font-size:15px;color:var(--azul-d);border-radius:0 10px 10px 0}
+.tabs{display:flex;background:#fff;border:1px solid var(--linea);border-radius:12px;margin:0 0 16px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(11,13,17,.04)}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:13px 4px;
+  font-family:var(--disp);font-size:15.5px;text-transform:uppercase;color:var(--gris);cursor:pointer;transition:background .15s}
+.tabs button:hover{background:#F7F8FA}
+.tabs button.on{background:var(--azul-l)}
 .tabs button.on{color:var(--azul);border-bottom-color:var(--azul)}
 .tabs .c{font-family:var(--mono);font-size:16px;display:block}
 .linea-t{border-left:2px solid var(--linea);margin-left:5px;padding-left:16px}
@@ -277,7 +321,18 @@ const CAUSAS = ['water','fire','mold','sewage','otro'];
 const SERVICIOS = ['wipe down','remediation','demolition','secado / drying','containment','antimicrobial','deodorization','reconstruction','final cleaning','otro'];
 const ORIGENES = ['management','aseguranza','particular'];
 const PUESTOS = ['manager','assistant manager','supervisor','mantenimiento','contabilidad','otro'];
-const DOCS = {
+const ETAPAS = [
+  {k:'inicial',    t:'Reporte inicial',   s:'Se levantó el trabajo'},
+  {k:'reportes',   t:'Reportes diarios',  s:'Visitas documentadas'},
+  {k:'estimado',   t:'Estimado enviado',  s:'Cotización al management'},
+  {k:'trabajando', t:'Trabajando',        s:'Equipo instalado y operando'},
+  {k:'seco',       t:'Seco',              s:'Lecturas en nivel aceptable'},
+  {k:'reparando',  t:'Reparando',         s:'Reconstrucción en proceso'},
+  {k:'aceptado',   t:'Estimado aceptado', s:'Autorizado para cobrar'},
+  {k:'invoice',    t:'Invoice creado',    s:'Factura generada'},
+  {k:'subido',     t:'Invoice subido',    s:'Cargado a la plataforma del management'}
+];
+const DOCS_VIEJO = {
   management:['Work order / PO recibido','Autorización del manager','Fotos de antes','Fotos de después','Reporte final enviado al manager','Factura al management'],
   aseguranza:['Autorización firmada del cliente','Fotos de antes','Lecturas de humedad completas','Estimado enviado al adjuster','Aprobación del adjuster','Certificado de secado','Fotos de después','Factura al carrier'],
   particular:['Estimado firmado por el cliente','Anticipo recibido','Fotos de antes','Fotos de después','Pago final recibido']
@@ -1107,9 +1162,13 @@ function shell(html){
   const azulRojo = depTec==='cleaning';
   $('#root').innerHTML = `
     ${esTec?'':`<div class="side">
-      <div class="head" data-v="${inicio}"><div class="m">CAPRI RESTORATION</div><div class="j">JR31</div></div>
-      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">⌂ Inicio</button></div>
-      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}</button>`).join('')}
+      <div class="head" data-v="${inicio}">
+        <div class="logo-img" style="width:52px;height:52px;margin:0 0 9px"></div>
+        <div class="m">CAPRI RESTORATION</div><div class="j">JR31</div>
+        <div class="m" style="margin-top:5px;color:#5B8DEF">${esc(U.rol.toUpperCase())}</div>
+      </div>
+      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC('resumen')}Inicio</button></div>
+      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
       <button data-v="salir" style="margin-top:22px;color:#6B7280">Salir</button>
     </div>`}
     <div class="wrap">
@@ -1125,10 +1184,10 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v18 · estimados ok</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v20 · etapas del trabajo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
-      ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
+      ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
     </div>`;
   document.body.classList.toggle('tec', esTec);
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
@@ -2272,6 +2331,22 @@ async function pintarMapa(jobs){
 
 /* ==================== HISTORIAL Y CALENDARIO DEL TRABAJO ==================== */
 const MESCORTO=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const IC={
+  resumen:'<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  dia:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+  inicial:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6"/>',
+  mapa:'<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/>',
+  jobs:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+  mgmt:'<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h2M9 13h2M13 9h2M13 13h2M9 21v-4h6v4"/>',
+  schedule:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 18h3"/>',
+  estimados:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  equipo:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  trabajos:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+  reporte:'<path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h4"/>',
+  hist:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  notif:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'
+};
+const svgIC=k=>IC[k]?`<svg viewBox="0 0 24 24">${IC[k]}</svg>`:'';
 
 function fechasClave(j,R,P,A){
   const apertura=(j.fecha_inicio||j.created_at||'').slice(0,10);
@@ -2693,10 +2768,9 @@ async function vResumen(){
   vencidos.forEach(x=>alertas.push({c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
   sinAsig.forEach(x=>alertas.push({c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
   J.filter(x=>['terminado','reconstruccion'].includes(x.estatus)).forEach(x=>{
-    const req=DOCS[x.origen||'management']||[];
     const hechos=x.docs||[];
-    const falt=req.filter(d=>!hechos.includes(d)).length;
-    if(falt) alertas.push({c:'m',t:'Documentación incompleta',s:x.folio+' · faltan '+falt+' documentos para cobrar',job:x.id});
+    if(!hechos.includes('subido'))
+      alertas.push({c:'m',t:'Falta subir el invoice',s:x.folio+' · '+(hechos.includes('invoice')?'invoice creado, falta subirlo':'ni siquiera se ha creado el invoice'),job:x.id});
   });
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
      .forEach(x=>alertas.push({c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
@@ -3276,6 +3350,8 @@ async function abrirJob(id){
   const soloDig=t=>t?t.replace(/\D/g,''):'';
   const fechasRep=new Set(R.map(r=>r.fecha));
 
+  const {data:ests}=await sb.from('estimados').select('id,folio,monto,estatus,fecha_envio').eq('job_id',id);
+  const EST=ests||[];
   const {data:asigs}=await sb.from('asignaciones').select('fecha, usuarios(nombre, telefono)').eq('job_id',id).order('fecha');
   const A=asigs||[];
   const faltantes=A.filter(a=>!fechasRep.has(a.fecha)&&a.fecha<=hoy());
@@ -3417,23 +3493,37 @@ async function abrirJob(id){
       ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>':''}`:''}
 
       ${(()=>{
-        const req=DOCS[j.origen||'management']||[];
-        const hechos=j.docs||[];
-        const listos=req.filter(x=>hechos.includes(x)).length;
-        const pc=req.length?Math.round(listos*100/req.length):0;
-        return `<div class="eyebrow">Documentación para cobrar · ${listos} de ${req.length}</div>
-        <div class="kpi" style="border-left:4px solid ${pc===100?'var(--azul)':'var(--rojo)'}">
+        const manuales=j.docs||[];
+        const nRep=R.length;
+        const tieneIni=R.some(x=>x.tipo_reporte==='inicial') || nRep>0;
+        const estEnv=EST.some(x=>['enviado','aceptado'].includes(x.estatus));
+        const estAcep=EST.some(x=>x.estatus==='aceptado');
+        const repProc=P.some(x=>['asignada','proceso','revision'].includes(x.estatus));
+        const repTodas=P.length>0 && P.every(x=>x.estatus==='aprobada');
+        const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas, aceptado:estAcep};
+        const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
+          estimado:estEnv?cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0):'sin estimado todavía',
+          reparando:P.length?P.filter(x=>x.estatus==='aprobada').length+' de '+P.length+' partidas listas':'sin partidas'};
+        const listo=k=> (k in auto) ? (auto[k]||manuales.includes(k)) : manuales.includes(k);
+        const hechas=ETAPAS.filter(e=>listo(e.k)).length;
+        const pc=Math.round(hechas*100/ETAPAS.length);
+        const idxAct=ETAPAS.findIndex(e=>!listo(e.k));
+        return `<div class="eyebrow">Etapas del trabajo · ${hechas} de ${ETAPAS.length}</div>
+        <div class="kpi" style="border-left:4px solid ${pc===100?'var(--azul)':'var(--ambar)'};margin-bottom:14px">
           <div class="row" style="justify-content:space-between">
-            <span class="disp" style="font-size:18px">Ruta ${esc(j.origen||'management')}</span>
-            <span class="disp" style="font-size:23px;color:${pc===100?'var(--azul)':'var(--rojo)'}">${pc}%</span></div>
-          <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--rojo)'}"></i></div>
+            <span class="disp" style="font-size:19px">${idxAct<0?'Trabajo completo':esc(ETAPAS[idxAct].t)}</span>
+            <span class="disp" style="font-size:25px;color:${pc===100?'var(--azul)':'var(--ambar-d)'}">${pc}%</span></div>
+          <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--ambar)'}"></i></div>
+          <div class="p" style="margin-top:6px">Ruta ${esc(j.origen||'management')}${idxAct>=0?' · sigue: '+esc(ETAPAS[idxAct].s):''}</div>
         </div>
-        ${req.map(x=>{
-          const ok=hechos.includes(x);
-          return `<div class="fila ${ok?'a':'r'}" style="cursor:${EDIT()?'pointer':'default'}" ${EDIT()?`data-doc="${esc(x)}"`:''}>
-            <span style="font-size:19px;color:${ok?'var(--azul)':'var(--rojo)'};width:22px;flex:0 0 22px">${ok?'✓':'○'}</span>
-            <div class="t"><span class="sub" style="color:var(--tinta)">${esc(x)}</span></div>
-          </div>`;}).join('')}`;
+        <div class="etapas">${ETAPAS.map((e,i)=>{
+          const ok=listo(e.k), esAuto=(e.k in auto), act=(i===idxAct);
+          return `<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
+            <div class="bolita ${(!esAuto&&EDIT())?'mano':''}" ${(!esAuto&&EDIT())?`data-et="${e.k}"`:''}>${ok?'✓':i+1}</div>
+            <div class="txt ${(!esAuto&&EDIT())?'mano':''}" ${(!esAuto&&EDIT())?`data-et="${e.k}"`:''}>
+              <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span></div>
+            ${esAuto?'<span class="auto">AUTO</span>':(EDIT()?'':'')}
+          </div>`;}).join('')}</div>`;
       })()}
 
       <div class="eyebrow">Notas y comentarios</div>
@@ -3503,9 +3593,9 @@ async function abrirJob(id){
     await sb.from('recordatorios').insert({job_id:id,texto:t,fecha_venc:$('#rf').value||null});
     cerrar(); abrirJob(id);
   };
-  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=async()=>{
-    const d=b.dataset.doc; let lista=(j.docs||[]).slice();
-    lista = lista.includes(d) ? lista.filter(x=>x!==d) : lista.concat([d]);
+  document.querySelectorAll('[data-et]').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.et; let lista=(j.docs||[]).slice();
+    lista = lista.includes(k) ? lista.filter(x=>x!==k) : lista.concat([k]);
     const {error}=await sb.from('jobs').update({docs:lista}).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
     cerrar(); abrirJob(id);
