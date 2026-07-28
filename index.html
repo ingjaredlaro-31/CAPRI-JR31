@@ -291,8 +291,8 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? [['dia','Mi día'],['trabajos','Trabajos'],['pend','Pendientes'],['hist','Historial']]
     : (U.rol==='admin'
-      ? [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
-      : [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
+      ? [['resumen','Resumen'],['dia','Control'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
+      : [['resumen','Resumen'],['dia','Control'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
@@ -367,6 +367,7 @@ async function render(){
     }
     if(V==='resumen')   return shell(await vResumen());
     if(V==='mgmt')      return shell(await vManagements());
+    if(V==='mapa')      return shell(await vMapa());
     if(V==='dia')       return shell(await vControl());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -436,7 +437,8 @@ async function vTecDia(){
     : (a.length?`<div class="ok">Todos tus reportes de hoy están enviados.</div>`:'');
   out += `<div class="eyebrow">Trabajos de hoy · ${fmt(h)}</div>`;
   if(!a.length) return out+`<div class="empty"><div class="disp">Sin trabajos hoy</div><p>Cuando oficina te asigne un job aparece aquí con su ruta.</p></div>`;
-  setTimeout(engancharRep,0);
+  out += `<button class="btn wide no-print" id="miruta" style="margin-bottom:12px">Ver ruta del día en el mapa</button>`;
+  setTimeout(()=>{ engancharRep(); const b=$('#miruta'); if(b) b.onclick=rutaDelTecnico; },0);
   return out + a.map(x=>tarjetaTec(x,hechos.has(x.job_id),tarde)).join('');
 }
 async function vTecPend(){
@@ -1007,6 +1009,185 @@ async function pintarMapa(jobs){
   if(puntos.length) MAPA.fitBounds(puntos,{padding:[40,40],maxZoom:13});
 }
 
+/* ==================== MAPA Y RUTAS ==================== */
+let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
+
+async function coordsDe(j){
+  if(j.lat && j.lng) return {lat:+j.lat,lng:+j.lng};
+  if(j.propiedades?.lat) return {lat:+j.propiedades.lat,lng:+j.propiedades.lng};
+  if(!j.direccion) return null;
+  const g=await geocodificar([j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', '));
+  if(g){ await sb.from('jobs').update({lat:g.lat,lng:g.lng}).eq('id',j.id); await new Promise(r=>setTimeout(r,1100)); }
+  return g;
+}
+
+function ordenarCercania(pts){
+  if(pts.length<3) return pts;
+  const rest=pts.slice(1), out=[pts[0]];
+  while(rest.length){
+    const u=out[out.length-1];
+    let mejor=0, d0=Infinity;
+    rest.forEach((p,i)=>{
+      const d=(p.lat-u.lat)**2+(p.lng-u.lng)**2;
+      if(d<d0){d0=d;mejor=i;}
+    });
+    out.push(rest.splice(mejor,1)[0]);
+  }
+  return out;
+}
+
+function linkGoogle(pts){
+  if(!pts.length) return '#';
+  const q=p=>encodeURIComponent(p.dir||`${p.lat},${p.lng}`);
+  if(pts.length===1) return 'https://www.google.com/maps/dir/?api=1&destination='+q(pts[0]);
+  const org=q(pts[0]), dst=q(pts[pts.length-1]);
+  const wp=pts.slice(1,-1).slice(0,9).map(q).join('|');
+  return 'https://www.google.com/maps/dir/?api=1&origin='+org+'&destination='+dst+
+    (wp?'&waypoints='+wp:'')+'&travelmode=driving';
+}
+
+async function trazarRuta(pts){
+  const info=document.getElementById('rinfo');
+  if(pts.length<2){ if(info) info.innerHTML='<span class="sub">Necesitas al menos dos paradas para trazar ruta.</span>'; return; }
+  try{
+    const c=pts.map(p=>p.lng+','+p.lat).join(';');
+    const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+c+'?overview=full&geometries=geojson');
+    const d=await r.json();
+    if(!d.routes || !d.routes[0]) throw 0;
+    const ruta=d.routes[0];
+    L.geoJSON(ruta.geometry,{style:{color:'#1B56D3',weight:5,opacity:.75}}).addTo(MAPA);
+    const km=(ruta.distance/1609.34).toFixed(1), min=Math.round(ruta.duration/60);
+    if(info) info.innerHTML=`<div class="kpis" style="margin:0">
+      <div class="kpi a"><div class="l">Distancia total</div><div class="v">${km}<span style="font-size:18px"> mi</span></div></div>
+      <div class="kpi a"><div class="l">Tiempo en carretera</div><div class="v">${min}<span style="font-size:18px"> min</span></div></div>
+    </div>`;
+  }catch(e){
+    if(info) info.innerHTML='<span class="sub">No se pudo trazar la línea de la ruta, pero el orden y el enlace a Google Maps sí funcionan.</span>';
+  }
+}
+
+async function dibujarMapaRuta(items, conRuta){
+  const el=document.getElementById('mapa');
+  if(!el || typeof L==='undefined') return;
+  if(MAPA){ try{MAPA.remove();}catch(e){} MAPA=null; }
+  MAPA=L.map(el,{scrollWheelZoom:false}).setView([SD.lat,SD.lng],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAPA);
+
+  let pts=[];
+  for(const it of items){
+    const g=await coordsDe(it.job);
+    if(!g) continue;
+    pts.push({lat:g.lat,lng:g.lng,dir:[it.job.direccion,it.job.ciudad||'San Diego','CA'].filter(Boolean).join(', '),it});
+  }
+  if(!pts.length){
+    document.getElementById('rinfo').innerHTML='<span class="sub">Ninguno de estos trabajos tiene dirección ubicable todavía.</span>';
+    return;
+  }
+  if(conRuta && OPTIMIZAR) pts=ordenarCercania(pts);
+  RUTA_PTS=pts;
+
+  pts.forEach((p,i)=>{
+    const j=p.it.job;
+    const col = j.departamento==='cleaning' ? '#D42129' : '#1B56D3';
+    const icon = conRuta
+      ? L.divIcon({className:'',html:`<div style="background:${col};color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:600;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${i+1}</div>`,iconSize:[30,30],iconAnchor:[15,15]})
+      : L.divIcon({className:'',html:`<div style="background:${col};width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+    const m=L.marker([p.lat,p.lng],{icon}).addTo(MAPA);
+    const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+    m.bindPopup(`<b>${esc(prop)}</b><br>${esc(j.folio)}${j.unidad?' · Unit '+esc(j.unidad):''}<br>${esc(j.direccion||'')}<br>`
+      +`<i>${esc(j.estatus)}</i>${p.it.hora?'<br>Llegada '+esc(p.it.hora):''}${p.it.tecnico?'<br>'+esc(p.it.tecnico):''}`);
+  });
+  MAPA.fitBounds(pts.map(p=>[p.lat,p.lng]),{padding:[45,45],maxZoom:14});
+
+  const gl=document.getElementById('glink');
+  if(gl) gl.href=linkGoogle(pts);
+  if(conRuta) trazarRuta(pts);
+}
+
+async function vMapa(){
+  const h=hoy();
+  let items=[], titulo='';
+  if(MODO_MAPA==='hoy'){
+    const {data}=await sb.from('asignaciones')
+      .select('hora, jobs(*, propiedades(nombre,lat,lng), managements(nombre)), usuarios(nombre)')
+      .eq('fecha',h).order('hora');
+    items=(data||[]).filter(a=>a.jobs?.departamento===DEP)
+      .map(a=>({job:a.jobs,hora:a.hora,tecnico:a.usuarios?.nombre}));
+    titulo='Ruta de hoy · '+fmt(h);
+  } else {
+    const {data}=await sb.from('jobs')
+      .select('*, propiedades(nombre,lat,lng), managements(nombre)')
+      .eq('departamento',DEP).not('estatus','in','("terminado","facturado")').limit(40);
+    items=(data||[]).map(j=>({job:j}));
+    titulo='Todos los trabajos activos';
+  }
+  const conRuta = MODO_MAPA==='hoy';
+
+  setTimeout(()=>{
+    engancharDep();
+    document.querySelectorAll('[data-mm]').forEach(b=>b.onclick=()=>{MODO_MAPA=b.dataset.mm;render();});
+    const op=$('#opt'); if(op) op.onclick=()=>{OPTIMIZAR=!OPTIMIZAR;render();};
+    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+    dibujarMapaRuta(items, conRuta);
+  },0);
+
+  const lista = items.map((it,i)=>{
+    const j=it.job;
+    const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+    return `<div class="fila ${j.departamento==='cleaning'?'r':'a'}" data-job="${j.id}">
+      ${conRuta?`<span class="disp" style="font-size:22px;width:30px;flex:0 0 30px;text-align:center;color:var(--azul)">${i+1}</span>`:''}
+      <div class="t"><b>${esc(prop)}</b>
+      <span class="sub">${esc(j.folio)}${j.unidad?' · Unit '+esc(j.unidad):''} · ${esc(j.direccion||'')}</span>
+      ${it.hora||it.tecnico?`<span class="meta">${esc(it.hora||'')}${it.tecnico?' · '+esc(it.tecnico):''}</span>`:''}</div>
+      <span class="chip ${j.departamento==='cleaning'?'rojo':'azul'}">${esc(j.estatus)}</span>
+    </div>`;}).join('');
+
+  return selectorDep()+`
+    <div class="modos no-print">
+      <button data-mm="hoy" class="${MODO_MAPA==='hoy'?'on':''}">Ruta de hoy</button>
+      <button data-mm="activos" class="${MODO_MAPA==='activos'?'on':''}">Todos los activos</button>
+    </div>
+    <div class="eyebrow">${esc(titulo)} · ${items.length} paradas</div>
+    <div class="mapa" id="mapa"></div>
+    <div id="rinfo" style="margin-bottom:10px"></div>
+    ${conRuta?`<div class="row no-print" style="margin-bottom:12px">
+      <button class="btn ghost" style="flex:1" id="opt">${OPTIMIZAR?'✓ Orden por cercanía':'Optimizar por cercanía'}</button>
+      <a class="btn" style="flex:1" id="glink" target="_blank" rel="noopener" href="#">Abrir en Google Maps</a>
+    </div>`:`<div class="row no-print" style="margin-bottom:12px">
+      <a class="btn wide" id="glink" target="_blank" rel="noopener" href="#">Abrir en Google Maps</a></div>`}
+    ${lista || `<div class="empty"><div class="disp">Sin paradas</div><p>${MODO_MAPA==='hoy'?'No hay visitas programadas para hoy.':'No hay trabajos activos.'}</p></div>`}`;
+}
+
+async function rutaDelTecnico(){
+  const h=hoy();
+  const {data}=await sb.from('asignaciones')
+    .select('hora, jobs(*, propiedades(nombre,lat,lng), managements(nombre))')
+    .eq('tecnico_id',U.id).eq('fecha',h).order('hora');
+  const items=(data||[]).map(a=>({job:a.jobs,hora:a.hora}));
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">MI RUTA</div>
+    <div class="disp" style="font-size:21px;line-height:1">${fmt(h)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${items.length} paradas</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="mapa" id="mapa"></div>
+      <div id="rinfo" style="margin-bottom:10px"></div>
+      <a class="btn wide no-print" id="glink" target="_blank" rel="noopener" href="#">Abrir ruta en Google Maps</a>
+      <div class="eyebrow">Orden de visitas</div>
+      ${items.map((it,i)=>`<div class="fila a">
+        <span class="disp" style="font-size:22px;width:30px;flex:0 0 30px;text-align:center;color:var(--azul)">${i+1}</span>
+        <div class="t"><b>${esc(it.job.propiedades?.nombre||it.job.cliente)}</b>
+        <span class="sub">${it.job.unidad?'Unit '+esc(it.job.unidad)+' · ':''}${esc(it.job.direccion||'')}</span>
+        ${it.hora?`<span class="meta">Llegada ${esc(it.hora)}</span>`:''}</div>
+      </div>`).join('')||'<div class="sub">Sin visitas hoy.</div>'}
+      <div style="height:18px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{ if(MAPA){try{MAPA.remove();}catch(e){} MAPA=null;} cerrar(); };
+  setTimeout(()=>dibujarMapaRuta(items,true),60);
+}
+
 /* ==================== PANEL DE RESUMEN ==================== */
 async function vResumen(){
   const h=hoy();
@@ -1057,12 +1238,12 @@ async function vResumen(){
 
   const cl = await traerClima();
   const conDir = activos.filter(x=>x.direccion);
-  setTimeout(()=>{ arrancarReloj(); pintarMapa(conDir.slice(0,25)); },0);
+  setTimeout(()=>{ arrancarReloj();
+    const b=$('#irmapa'); if(b) b.onclick=()=>{V='mapa';render();};
+  },0);
 
   return selectorDep()+ heroHTML(cl, activos.length, A.length) + `
-    <div class="eyebrow">Mapa de trabajos activos · ${conDir.length}</div>
-    <div class="mapa" id="mapa"></div>
-    <div class="sub" style="margin-bottom:6px">Toca un punto para ver el job. Azul restoration, rojo cleaning.</div>
+    <button class="btn wide no-print" id="irmapa" style="margin-bottom:14px">Ver mapa y rutas · ${conDir.length} trabajos ubicados</button>
 
     <div class="kpis">
       <div class="kpi a"><div class="l">Jobs activos</div><div class="v">${activos.length}</div><div class="p">de ${J.length} en total</div></div>
