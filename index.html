@@ -196,7 +196,16 @@ async function sha256(t){
 }
 function toast(m){ const e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2600); }
 function cerrar(){ $('#sheet').innerHTML=''; }
-const TIPOS = { restoration:['water','fire','mold','otro'], cleaning:['carpet cleaning','upholstery','vinyl cleaning','tile and grout'] };
+const TIPOS = { restoration:['flood service','inspection','otro'], cleaning:['carpet cleaning','upholstery','vinyl cleaning','tile and grout'] };
+const CAUSAS = ['water','fire','mold','sewage','otro'];
+const SERVICIOS = ['wipe down','remediation','demolition','secado / drying','containment','antimicrobial','deodorization','reconstruction','final cleaning','otro'];
+const ORIGENES = ['management','aseguranza','particular'];
+const PUESTOS = ['manager','assistant manager','supervisor','mantenimiento','contabilidad','otro'];
+const DOCS = {
+  management:['Work order / PO recibido','Autorización del manager','Fotos de antes','Fotos de después','Reporte final enviado al manager','Factura al management'],
+  aseguranza:['Autorización firmada del cliente','Fotos de antes','Lecturas de humedad completas','Estimado enviado al adjuster','Aprobación del adjuster','Certificado de secado','Fotos de después','Factura al carrier'],
+  particular:['Estimado firmado por el cliente','Anticipo recibido','Fotos de antes','Fotos de después','Pago final recibido']
+};
 const ESTAT_PART = {pendiente:['PENDIENTE','rojo'],asignada:['ASIGNADA','ambar'],proceso:['EN PROCESO','ambar'],revision:['POR REVISAR','rojo'],aprobada:['APROBADA','azul']};
 
 let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
@@ -249,8 +258,8 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? [['dia','Mi día'],['trabajos','Trabajos'],['pend','Pendientes'],['hist','Historial']]
     : (U.rol==='admin'
-      ? [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
-      : [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['schedule','Schedule'],['estimados','Estimados']]);
+      ? [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
+      : [['resumen','Resumen'],['dia','Control'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
@@ -322,6 +331,7 @@ async function render(){
       if(V==='hist')     return shell(await vTecHist());
     }
     if(V==='resumen')   return shell(await vResumen());
+    if(V==='mgmt')      return shell(await vManagements());
     if(V==='dia')       return shell(await vControl());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -504,7 +514,7 @@ async function formReporte(jobId,fecha){
     const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se guardó: '+error.message);
     if(esRest && p.demolido){
-      await sb.from('partidas').insert({job_id:jobId,nombre:'Reparación pendiente',detalle:p.demolido,estatus:'pendiente'});
+      await sb.from('partidas').insert({job_id:jobId,nombre:'Reparación pendiente',detalle:p.demolido,clase:'reparacion',estatus:'pendiente'});
     }
     cerrar(); toast('Reporte enviado'); render();
   };
@@ -625,7 +635,7 @@ async function vControl(){
 async function vResumen(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
-    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,created_at'),
+    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,created_at,origen,docs'),
     sb.from('asignaciones').select('*, jobs(folio,cliente,departamento), usuarios(nombre)').eq('fecha',h),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
     sb.from('partidas').select('*, jobs(folio,cliente,departamento)'),
@@ -660,6 +670,12 @@ async function vResumen(){
   revisar.forEach(x=>alertas.push({c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
   vencidos.forEach(x=>alertas.push({c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
   sinAsig.forEach(x=>alertas.push({c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+  J.filter(x=>['terminado','reconstruccion'].includes(x.estatus)).forEach(x=>{
+    const req=DOCS[x.origen||'management']||[];
+    const hechos=x.docs||[];
+    const falt=req.filter(d=>!hechos.includes(d)).length;
+    if(falt) alertas.push({c:'m',t:'Documentación incompleta',s:x.folio+' · faltan '+falt+' documentos para cobrar',job:x.id});
+  });
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
      .forEach(x=>alertas.push({c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
 
@@ -716,7 +732,7 @@ async function vResumen(){
 /* ==================== TÉCNICO · TRABAJOS ACTIVOS ==================== */
 async function vTecTrabajos(){
   const dep = U.departamento==='ambos'?null:U.departamento;
-  let q = sb.from('jobs').select('*').not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false});
+  let q = sb.from('jobs').select('*, managements(nombre)').not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false});
   if(dep) q = q.eq('departamento',dep);
   const {data}=await q;
   const {data:mias}=await sb.from('asignaciones').select('job_id,fecha').eq('tecnico_id',U.id).gte('fecha',hace(30));
@@ -730,14 +746,192 @@ async function vTecTrabajos(){
         ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
-      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.management?' · '+esc(j.management):''}</div>
+      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):(j.origen==='aseguranza'?' · aseguranza':'')}</div>
       ${j.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(j.notas)}</div>`:''}
     </div>`).join('');
 }
 
+/* ==================== MANAGEMENTS ==================== */
+async function vManagements(){
+  const [{data:mg},{data:pr},{data:ct},{data:jb}] = await Promise.all([
+    sb.from('managements').select('*').order('nombre'),
+    sb.from('propiedades').select('id,management_id'),
+    sb.from('contactos').select('id,management_id'),
+    sb.from('jobs').select('id,management_id,estatus')
+  ]);
+  const cuenta=(arr,id)=>(arr||[]).filter(x=>x.management_id===id).length;
+  setTimeout(()=>{
+    const n=$('#nm'); if(n) n.onclick=()=>formManagement();
+    document.querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>abrirManagement(b.dataset.mg));
+  },0);
+  return `${EDIT()?'<button class="btn wide no-print" id="nm">+ Nuevo management</button>':''}
+    <div class="eyebrow">Managements · ${(mg||[]).length}</div>
+    ${(mg||[]).map(m=>{
+      const act=(jb||[]).filter(x=>x.management_id===m.id&&!['terminado','facturado'].includes(x.estatus)).length;
+      return `<div class="fila a" data-mg="${m.id}">
+        <div class="t"><b>${esc(m.nombre)}</b>
+        <span class="sub">${cuenta(pr,m.id)} propiedades · ${cuenta(ct,m.id)} contactos${m.telefono?' · '+esc(m.telefono):''}</span></div>
+        ${act?`<span class="chip azul">${act} JOB${act>1?'S':''} ACTIVO${act>1?'S':''}</span>`:'<span class="chip">—</span>'}
+      </div>`;}).join('') || `<div class="empty"><div class="disp">Sin managements</div><p>Da de alta el primero para ligarle sus propiedades.</p></div>`}`;
+}
+
+async function abrirManagement(id){
+  const [{data:m},{data:props},{data:cts},{data:jobs}] = await Promise.all([
+    sb.from('managements').select('*').eq('id',id).single(),
+    sb.from('propiedades').select('*').eq('management_id',id).order('nombre'),
+    sb.from('contactos').select('*, propiedades(nombre)').eq('management_id',id).order('puesto'),
+    sb.from('jobs').select('id,folio,cliente,estatus,tipo,propiedad_id').eq('management_id',id).order('created_at',{ascending:false}).limit(30)
+  ]);
+  const P=props||[], C=cts||[], J=jobs||[];
+  const tel=t=>t?t.replace(/\D/g,''):'';
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">MANAGEMENT COMPANY</div>
+    <div class="disp" style="font-size:23px;line-height:1">${esc(m.nombre)}</div>
+    ${m.telefono?`<div style="font-size:13px;color:#C3D6F7">${esc(m.telefono)}</div>`:''}</div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      ${EDIT()?'<button class="btn ghost wide no-print" id="em" style="margin-bottom:8px">Editar management</button>':''}
+
+      <div class="eyebrow">Propiedades · ${P.length}</div>
+      ${P.map(x=>`<div class="card">
+        <div class="row" style="justify-content:space-between">
+          <span class="disp" style="font-size:19px">${esc(x.nombre)}</span>
+          ${x.unidades?`<span class="chip">${esc(x.unidades)} UNIDADES</span>`:''}</div>
+        <div class="sub">${esc(x.direccion||'')}${x.ciudad?', '+esc(x.ciudad):''}${x.zip?' '+esc(x.zip):''}</div>
+        ${x.notas?`<div class="sub" style="color:var(--tinta);margin-top:4px">${esc(x.notas)}</div>`:''}
+        <div class="row" style="margin-top:9px">
+          ${x.direccion?`<a class="btn ghost sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.direccion+' '+(x.ciudad||''))}">Mapa</a>`:''}
+          ${EDIT()?`<button class="btn ghost sm" data-ep="${x.id}">Editar</button>`:''}
+        </div></div>`).join('')||'<div class="sub">Sin propiedades registradas.</div>'}
+      ${EDIT()?'<button class="btn ghost wide no-print" id="np">+ Agregar propiedad</button>':''}
+
+      <div class="eyebrow">Contactos · ${C.length}</div>
+      ${C.map(c=>`<div class="card ${c.puesto==='mantenimiento'?'ambar':''}">
+        <div class="row" style="justify-content:space-between">
+          <span class="disp" style="font-size:19px">${esc(c.nombre)}</span>
+          <span class="chip ${c.puesto==='manager'?'azul':''}">${esc(c.puesto)}</span></div>
+        ${c.propiedades?.nombre?`<div class="meta">${esc(c.propiedades.nombre)}</div>`:'<div class="meta">todas las propiedades</div>'}
+        ${c.telefono?`<div class="sub" style="color:var(--tinta);margin-top:3px">${esc(c.telefono)}</div>`:''}
+        ${c.email?`<div class="sub">${esc(c.email)}</div>`:''}
+        <div class="row" style="margin-top:9px">
+          ${c.telefono?`<a class="btn ghost sm" href="tel:${tel(c.telefono)}">Llamar</a>
+            <a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/${tel(c.telefono)}">WhatsApp</a>`:''}
+          ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}">Correo</a>`:''}
+          ${EDIT()?`<button class="btn ghost sm" data-ec="${c.id}">Editar</button>`:''}
+        </div></div>`).join('')||'<div class="sub">Sin contactos registrados.</div>'}
+      ${EDIT()?'<button class="btn ghost wide no-print" id="nc2">+ Agregar contacto</button>':''}
+
+      <div class="eyebrow">Jobs de este management · ${J.length}</div>
+      ${J.map(j=>`<div class="fila a" data-job="${j.id}">
+        <div class="t"><b>${esc(j.cliente)}</b><span class="sub">${esc(j.folio)} · ${esc(j.tipo)}</span></div>
+        <span class="chip">${esc(j.estatus)}</span></div>`).join('')||'<div class="sub">Sin jobs todavía.</div>'}
+
+      <div style="height:20px"></div>
+      <button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  const em=$('#em'); if(em) em.onclick=()=>formManagement(id);
+  const np=$('#np'); if(np) np.onclick=()=>formPropiedad(null,id);
+  const nc2=$('#nc2'); if(nc2) nc2.onclick=()=>formContacto(null,id,P);
+  document.querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>formPropiedad(b.dataset.ep,id));
+  document.querySelectorAll('[data-ec]').forEach(b=>b.onclick=()=>formContacto(b.dataset.ec,id,P));
+  document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
+}
+
+async function formManagement(id){
+  let m={};
+  if(id){const {data}=await sb.from('managements').select('*').eq('id',id).single(); m=data;}
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">${id?'Editar management':'Nuevo management'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Nombre</label><input id="m_n" placeholder="Greystar" value="${esc(m.nombre||'')}">
+      <label>Teléfono de oficina</label><input id="m_t" type="tel" value="${esc(m.telefono||'')}">
+      <label>Correo</label><input id="m_e" type="email" value="${esc(m.email||'')}">
+      <label>Dirección de oficina</label><input id="m_o" value="${esc(m.oficina||'')}">
+      <label>Notas</label><textarea id="m_x">${esc(m.notas||'')}</textarea>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={nombre:$('#m_n').value.trim(),telefono:$('#m_t').value.trim()||null,
+      email:$('#m_e').value.trim()||null,oficina:$('#m_o').value.trim()||null,notas:$('#m_x').value.trim()||null};
+    if(!p.nombre) return toast('Ponle nombre.');
+    const q=id?sb.from('managements').update(p).eq('id',id):sb.from('managements').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Management guardado');
+    if(id) abrirManagement(id); else render();
+  };
+}
+
+async function formPropiedad(id, mgId){
+  let x={};
+  if(id){const {data}=await sb.from('propiedades').select('*').eq('id',id).single(); x=data; mgId=x.management_id;}
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">${id?'Editar propiedad':'Nueva propiedad'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Nombre de la propiedad</label><input id="p_n" placeholder="Sunset Apartments" value="${esc(x.nombre||'')}">
+      <label>Dirección</label><input id="p_d" value="${esc(x.direccion||'')}">
+      <div class="g2">
+        <div><label>Ciudad</label><input id="p_c" value="${esc(x.ciudad||'San Diego')}"></div>
+        <div><label>ZIP</label><input id="p_z" value="${esc(x.zip||'')}"></div>
+      </div>
+      <label>Número de unidades</label><input id="p_u" value="${esc(x.unidades||'')}">
+      <label>Notas (acceso, portón, estacionamiento…)</label><textarea id="p_x">${esc(x.notas||'')}</textarea>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={management_id:mgId,nombre:$('#p_n').value.trim(),direccion:$('#p_d').value.trim()||null,
+      ciudad:$('#p_c').value.trim()||null,zip:$('#p_z').value.trim()||null,
+      unidades:$('#p_u').value.trim()||null,notas:$('#p_x').value.trim()||null};
+    if(!p.nombre) return toast('Ponle nombre a la propiedad.');
+    const q=id?sb.from('propiedades').update(p).eq('id',id):sb.from('propiedades').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Propiedad guardada'); abrirManagement(mgId);
+  };
+}
+
+async function formContacto(id, mgId, props){
+  let c={puesto:'manager'};
+  if(id){const {data}=await sb.from('contactos').select('*').eq('id',id).single(); c=data; mgId=c.management_id;}
+  if(!props){const {data}=await sb.from('propiedades').select('*').eq('management_id',mgId); props=data||[];}
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">${id?'Editar contacto':'Nuevo contacto'}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Nombre</label><input id="c_n" value="${esc(c.nombre||'')}">
+      <label>Puesto</label>
+      <select id="c_p">${PUESTOS.map(x=>`<option ${c.puesto===x?'selected':''}>${x}</option>`).join('')}</select>
+      <label>Propiedad (déjalo en "todas" si atiende varias)</label>
+      <select id="c_pr"><option value="">todas las propiedades</option>
+        ${props.map(x=>`<option value="${x.id}" ${c.propiedad_id===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>
+      <label>Teléfono</label><input id="c_t" type="tel" placeholder="16195550148" value="${esc(c.telefono||'')}">
+      <label>Correo</label><input id="c_e" type="email" value="${esc(c.email||'')}">
+      <label>Notas</label><textarea id="c_x">${esc(c.notas||'')}</textarea>
+      <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sv').onclick=async()=>{
+    const p={management_id:mgId,nombre:$('#c_n').value.trim(),puesto:$('#c_p').value,
+      propiedad_id:$('#c_pr').value||null,telefono:$('#c_t').value.trim()||null,
+      email:$('#c_e').value.trim()||null,notas:$('#c_x').value.trim()||null};
+    if(!p.nombre) return toast('Ponle nombre al contacto.');
+    const q=id?sb.from('contactos').update(p).eq('id',id):sb.from('contactos').insert(p);
+    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Contacto guardado'); abrirManagement(mgId);
+  };
+}
+
 /* ==================== JOBS ==================== */
 async function vJobs(){
-  const {data}=await sb.from('jobs').select('*').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
+  const {data}=await sb.from('jobs').select('*, managements(nombre)').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
@@ -745,10 +939,10 @@ async function vJobs(){
     <div class="eyebrow">Jobs de ${DEP}</div>`+
     ((data||[]).map(j=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(j.folio)}</span>
-        <span class="chip">${esc(j.estatus)}</span></div>
+        <div class="row" style="gap:5px"><span class="chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${(j.origen||'').slice(0,4).toUpperCase()}</span><span class="chip">${esc(j.estatus)}</span></div></div>
       <div class="tit">${esc(j.cliente)}</div>
       <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
-      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.management?' · '+esc(j.management):''}</div>
+      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):''}</div>
       <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
     </div>`).join('') || `<div class="empty"><div class="disp">Sin jobs</div><p>Registra el primero para poder programar visitas.</p></div>`);
 }
@@ -760,33 +954,57 @@ async function nuevoFolio(dep){
 }
 
 async function formJob(id, pre){
-  let j = pre || {departamento:DEP, tipo:TIPOS[DEP][0], estatus:'activo', ciudad:'San Diego', tipo_propiedad:'casa'};
+  let j = pre || {departamento:DEP, tipo:TIPOS[DEP][0], estatus:'activo', ciudad:'San Diego',
+                  tipo_propiedad:'apartamento', origen:'management'};
   if(id){ const {data}=await sb.from('jobs').select('*').eq('id',id).single(); j=data; }
   if(!id && !j.folio) j.folio = await nuevoFolio(j.departamento);
+  const [{data:mgs},{data:props}] = await Promise.all([
+    sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('propiedades').select('*').order('nombre')
+  ]);
+  const MG=mgs||[], PR=props||[];
   const c=(k,l,t='text')=>`<label>${l}</label><input id="f_${k}" type="${t}" value="${esc(j[k]||'')}">`;
-  const esRest = j.departamento==='restoration';
+
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
-    <div class="disp" style="font-size:20px">${id?'Editar job':'Nuevo job'}</div><button class="x" id="c1">✕</button></div>
+    <div class="disp" style="font-size:21px">${id?'Editar job':'Nuevo job'}</div><button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+
+      <div class="eyebrow">Origen del trabajo</div>
+      <div class="modos" id="orig">
+        ${ORIGENES.map(o=>`<button data-o="${o}" class="${j.origen===o?'on':''}">${o}</button>`).join('')}
+      </div>
+
+      <div id="bl_mgmt">
+        <label>Management company</label>
+        <select id="f_management_id"><option value="">— selecciona —</option>
+          ${MG.map(m=>`<option value="${m.id}" ${j.management_id===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select>
+        <label>Propiedad</label>
+        <select id="f_propiedad_id"><option value="">— selecciona —</option></select>
+        ${c('po_number','PO number')}
+      </div>
+
+      <div class="eyebrow">Datos del trabajo</div>
       <label>Departamento</label>
       <select id="f_departamento">${['restoration','cleaning'].map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
-      <label>${esRest?'Tipo de pérdida':'Tipo de servicio'}</label>
+      <label>Tipo de servicio inicial</label>
       <select id="f_tipo">${TIPOS[j.departamento].map(t=>`<option ${j.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
       ${c('folio','Folio')}
-      ${c('cliente','Cliente')}
+      ${c('cliente','Cliente / residente')}
       ${c('telefono','Teléfono','tel')}
       ${c('direccion','Dirección')}
-      <div class="g2">${c('ciudad','Ciudad')}${c('zip','ZIP')}</div>
-      <div class="eyebrow">Propiedad y management</div>
+      <div class="g2">${c('unidad','Unidad')}${c('zip','ZIP')}</div>
+      ${c('ciudad','Ciudad')}
       <label>Tipo de propiedad</label>
-      <select id="f_tipo_propiedad">${['casa','condominio','apartamento','comercial','otro'].map(t=>`<option ${j.tipo_propiedad===t?'selected':''}>${t}</option>`).join('')}</select>
-      <div class="g2">${c('unidad','Unidad')}${c('propietario','Dueño / residente')}</div>
-      <div class="g2">${c('management','Management company')}${c('management_tel','Tel. management','tel')}</div>
-      ${esRest?`<div class="eyebrow">Aseguranza</div>
-      <div class="g2">${c('aseguranza','Aseguranza')}${c('claim_number','Claim number')}</div>
-      <div class="g2">${c('adjuster','Adjuster')}${c('adjuster_tel','Tel. adjuster','tel')}</div>
-      ${c('fecha_perdida','Fecha de la pérdida','date')}`:''}
+      <select id="f_tipo_propiedad">${['apartamento','condominio','casa','comercial','otro'].map(t=>`<option ${j.tipo_propiedad===t?'selected':''}>${t}</option>`).join('')}</select>
+
+      <div id="bl_seg">
+        <div class="eyebrow">Aseguranza</div>
+        <div class="g2">${c('aseguranza','Aseguranza')}${c('claim_number','Claim number')}</div>
+        <div class="g2">${c('adjuster','Adjuster')}${c('adjuster_tel','Tel. adjuster','tel')}</div>
+      </div>
+
+      ${c('fecha_perdida','Fecha de la pérdida','date')}
       <label>Estatus</label>
       <select id="f_estatus">${['activo','secando','reconstruccion','terminado','facturado'].map(t=>`<option ${j.estatus===t?'selected':''}>${t}</option>`).join('')}</select>
       <label>Notas</label><textarea id="f_notas">${esc(j.notas||'')}</textarea>
@@ -794,18 +1012,43 @@ async function formJob(id, pre){
       <button class="btn wide" id="sv">Guardar job</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
-  $('#f_departamento').onchange=e=>{
-    const d=e.target.value;
-    $('#f_tipo').innerHTML=TIPOS[d].map(t=>`<option>${t}</option>`).join('');
+
+  let ORIG = j.origen || 'management';
+  const pintarOrigen=()=>{
+    document.querySelectorAll('#orig [data-o]').forEach(b=>b.className = b.dataset.o===ORIG?'on':'');
+    $('#bl_mgmt').style.display = ORIG==='management' ? '' : 'none';
+    $('#bl_seg').style.display  = ORIG==='aseguranza' ? '' : 'none';
   };
+  const pintarProps=()=>{
+    const mg=$('#f_management_id').value;
+    const lista=PR.filter(x=>x.management_id===mg);
+    $('#f_propiedad_id').innerHTML='<option value="">— selecciona —</option>'+
+      lista.map(x=>`<option value="${x.id}" ${j.propiedad_id===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('');
+  };
+  document.querySelectorAll('#orig [data-o]').forEach(b=>b.onclick=()=>{ORIG=b.dataset.o;pintarOrigen();});
+  $('#f_management_id').onchange=pintarProps;
+  $('#f_propiedad_id').onchange=e=>{
+    const pr=PR.find(x=>x.id===e.target.value); if(!pr) return;
+    if(!$('#f_direccion').value) $('#f_direccion').value=pr.direccion||'';
+    if(!$('#f_ciudad').value || $('#f_ciudad').value==='San Diego') $('#f_ciudad').value=pr.ciudad||'San Diego';
+    if(!$('#f_zip').value) $('#f_zip').value=pr.zip||'';
+  };
+  $('#f_departamento').onchange=e=>{
+    $('#f_tipo').innerHTML=TIPOS[e.target.value].map(t=>`<option>${t}</option>`).join('');
+  };
+  pintarOrigen(); pintarProps();
+
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#sv').onclick=async()=>{
     const p={};
-    ['folio','cliente','telefono','direccion','ciudad','zip','unidad','propietario','management','management_tel','aseguranza','claim_number','adjuster','adjuster_tel','notas']
+    ['folio','cliente','telefono','direccion','ciudad','zip','unidad','po_number','aseguranza','claim_number','adjuster','adjuster_tel','notas']
       .forEach(k=>{const el=$('#f_'+k); p[k]=el?(el.value.trim()||null):null;});
+    p.origen=ORIG;
+    p.management_id=ORIG==='management'?($('#f_management_id').value||null):null;
+    p.propiedad_id =ORIG==='management'?($('#f_propiedad_id').value||null):null;
     p.departamento=$('#f_departamento').value; p.tipo=$('#f_tipo').value;
     p.tipo_propiedad=$('#f_tipo_propiedad').value; p.estatus=$('#f_estatus').value;
-    const fp=$('#f_fecha_perdida'); if(fp) p.fecha_perdida=fp.value||null;
+    p.fecha_perdida=$('#f_fecha_perdida').value||null;
     if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
     if(!p.folio||!p.cliente||!p.direccion) return toast('Faltan folio, cliente y dirección.');
     const q = id ? sb.from('jobs').update(p).eq('id',id) : sb.from('jobs').insert(p).select().single();
@@ -814,7 +1057,7 @@ async function formJob(id, pre){
     if(!id && pre && pre.estimado_id){
       await sb.from('estimados').update({estatus:'aceptado',job_id:data.id}).eq('id',pre.estimado_id);
       if(pre.partidas) for(const n of pre.partidas)
-        await sb.from('partidas').insert({job_id:data.id,nombre:n,estatus:'pendiente'});
+        await sb.from('partidas').insert({job_id:data.id,nombre:n,clase:'reparacion',estatus:'pendiente'});
     }
     cerrar(); toast('Job guardado'); render();
   };
@@ -823,14 +1066,22 @@ async function formJob(id, pre){
 /* ==================== DETALLE DEL JOB ==================== */
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
-    sb.from('jobs').select('*').eq('id',id).single(),
+    sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas)').eq('id',id).single(),
     sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
     sb.from('reportes').select('*, usuarios(nombre)').eq('job_id',id).order('fecha'),
     sb.from('notas').select('*').eq('job_id',id).order('created_at',{ascending:false}),
     sb.from('recordatorios').select('*').eq('job_id',id).order('fecha_venc'),
     sb.from('contratistas').select('*').eq('activo',true)
   ]);
-  const R=reps||[], P=part||[], N=nts||[], RC=rec||[];
+  const R=reps||[], PT=part||[], N=nts||[], RC=rec||[];
+  const P=PT.filter(x=>(x.clase||'reparacion')==='reparacion');
+  const SV=PT.filter(x=>x.clase==='servicio');
+  let CT=[];
+  if(j.management_id){
+    const {data:cc}=await sb.from('contactos').select('*').eq('management_id',j.management_id);
+    CT=(cc||[]).filter(c=>!c.propiedad_id || c.propiedad_id===j.propiedad_id);
+  }
+  const soloDig=t=>t?t.replace(/\D/g,''):'';
   const fechasRep=new Set(R.map(r=>r.fecha));
 
   const {data:asigs}=await sb.from('asignaciones').select('fecha, usuarios(nombre, telefono)').eq('job_id',id).order('fecha');
@@ -880,18 +1131,36 @@ async function abrirJob(id){
         <button class="btn ghost" style="flex:1" onclick="window.print()">Generar PDF</button>
       </div>
 
-      <div class="eyebrow">Propiedad y management</div>
+      <div class="eyebrow">Ubicación${j.origen==='management'?' y management':''}</div>
       <div class="card" style="border-left-color:var(--linea)">
-        <div class="g2" style="gap:8px 14px">
-          <div><div class="meta" style="font-size:9px">DIRECCIÓN</div><div class="sub" style="color:var(--tinta)">${esc(j.direccion)}${j.ciudad?', '+esc(j.ciudad):''}</div></div>
-          <div><div class="meta" style="font-size:9px">UNIDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.unidad||'—')}</div></div>
-          <div><div class="meta" style="font-size:9px">MANAGEMENT</div><div class="sub" style="color:var(--tinta)">${esc(j.management||'—')}</div></div>
-          <div><div class="meta" style="font-size:9px">CONTACTO</div><div class="sub" style="color:var(--tinta)">${esc(j.management_tel||'—')}</div></div>
-          <div><div class="meta" style="font-size:9px">DUEÑO / RESIDENTE</div><div class="sub" style="color:var(--tinta)">${esc(j.propietario||'—')}</div></div>
-          <div><div class="meta" style="font-size:9px">ASEGURANZA</div><div class="sub" style="color:var(--tinta)">${esc(j.aseguranza||'—')} ${esc(j.claim_number||'')}</div></div>
+        <div class="g2" style="gap:9px 14px">
+          <div><div class="meta" style="font-size:10px">DIRECCIÓN</div><div class="sub" style="color:var(--tinta)">${esc(j.direccion)}${j.ciudad?', '+esc(j.ciudad):''}</div></div>
+          <div><div class="meta" style="font-size:10px">UNIDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.unidad||'—')}</div></div>
+          ${j.origen==='management'?`
+          <div><div class="meta" style="font-size:10px">MANAGEMENT</div><div class="sub" style="color:var(--tinta)">${esc(j.managements?.nombre||'—')}</div></div>
+          <div><div class="meta" style="font-size:10px">PROPIEDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.propiedades?.nombre||'—')}</div></div>
+          ${j.po_number?`<div><div class="meta" style="font-size:10px">PO NUMBER</div><div class="sub" style="color:var(--tinta)">${esc(j.po_number)}</div></div>`:''}`:''}
+          ${j.origen==='aseguranza'?`
+          <div><div class="meta" style="font-size:10px">ASEGURANZA</div><div class="sub" style="color:var(--tinta)">${esc(j.aseguranza||'—')}</div></div>
+          <div><div class="meta" style="font-size:10px">CLAIM</div><div class="sub" style="color:var(--tinta)">${esc(j.claim_number||'—')}</div></div>
+          <div><div class="meta" style="font-size:10px">ADJUSTER</div><div class="sub" style="color:var(--tinta)">${esc(j.adjuster||'—')} ${esc(j.adjuster_tel||'')}</div></div>`:''}
+          <div><div class="meta" style="font-size:10px">ORIGEN</div><div class="sub" style="color:var(--tinta)">${esc(j.origen||'—')}</div></div>
         </div>
+        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
         ${EDIT()?'<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>':''}
       </div>
+
+      ${CT.length?`<div class="eyebrow">Contactos de la propiedad · ${CT.length}</div>
+      ${CT.map(c=>`<div class="card ${c.puesto==='mantenimiento'?'ambar':''}">
+        <div class="row" style="justify-content:space-between">
+          <span class="disp" style="font-size:18px">${esc(c.nombre)}</span>
+          <span class="chip ${c.puesto==='manager'?'azul':''}">${esc(c.puesto)}</span></div>
+        ${c.telefono?`<div class="sub" style="color:var(--tinta)">${esc(c.telefono)}</div>`:''}
+        <div class="row no-print" style="margin-top:8px">
+          ${c.telefono?`<a class="btn ghost sm" href="tel:${soloDig(c.telefono)}">Llamar</a>
+          <a class="btn ghost sm" target="_blank" rel="noopener" href="https://wa.me/${soloDig(c.telefono)}">WhatsApp</a>`:''}
+          ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}">Correo</a>`:''}
+        </div></div>`).join('')}`:''}
 
       <div class="eyebrow">Historial del trabajo</div>
       <div class="linea-t">
@@ -908,6 +1177,21 @@ async function abrirJob(id){
       </div>
 
       ${j.departamento==='restoration'?`
+      <div class="eyebrow">Servicios del trabajo · ${SV.length}</div>
+      ${SV.map(x=>{
+        const [t,cl]=ESTAT_PART[x.estatus];
+        const col = x.estatus==='aprobada'?'':(x.estatus==='pendiente'||x.estatus==='revision')?'rojo':'ambar';
+        return `<div class="card ${col}">
+          <div class="row" style="justify-content:space-between">
+            <span class="disp" style="font-size:18px">${esc(x.nombre)}</span><span class="chip ${cl}">${t}</span></div>
+          ${x.detalle?`<div class="sub">${esc(x.detalle)}</div>`:''}
+          ${x.fecha_fin?`<div class="meta">terminado ${fmt(x.fecha_fin)}</div>`:''}
+          ${EDIT()?`<div class="row no-print" style="margin-top:8px">
+            <select data-pe="${x.id}" style="flex:1;padding:6px">
+              ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${x.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
+          </div>`:''}</div>`;}).join('')||'<div class="sub">Sin servicios registrados todavía.</div>'}
+      ${EDIT()?'<button class="btn ghost wide no-print" id="asv">+ Agregar servicio</button>':''}
+
       <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='aprobada').length} de ${P.length} aprobadas</div>
       <div id="parts">${P.map(p=>{
         const [t,c]=ESTAT_PART[p.estatus];
@@ -924,6 +1208,26 @@ async function abrirJob(id){
               ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
           </div>`:''}</div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
       ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>':''}`:''}
+
+      ${(()=>{
+        const req=DOCS[j.origen||'management']||[];
+        const hechos=j.docs||[];
+        const listos=req.filter(x=>hechos.includes(x)).length;
+        const pc=req.length?Math.round(listos*100/req.length):0;
+        return `<div class="eyebrow">Documentación para cobrar · ${listos} de ${req.length}</div>
+        <div class="kpi" style="border-left:4px solid ${pc===100?'var(--azul)':'var(--rojo)'}">
+          <div class="row" style="justify-content:space-between">
+            <span class="disp" style="font-size:18px">Ruta ${esc(j.origen||'management')}</span>
+            <span class="disp" style="font-size:23px;color:${pc===100?'var(--azul)':'var(--rojo)'}">${pc}%</span></div>
+          <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--rojo)'}"></i></div>
+        </div>
+        ${req.map(x=>{
+          const ok=hechos.includes(x);
+          return `<div class="fila ${ok?'a':'r'}" style="cursor:${EDIT()?'pointer':'default'}" ${EDIT()?`data-doc="${esc(x)}"`:''}>
+            <span style="font-size:19px;color:${ok?'var(--azul)':'var(--rojo)'};width:22px;flex:0 0 22px">${ok?'✓':'○'}</span>
+            <div class="t"><span class="sub" style="color:var(--tinta)">${esc(x)}</span></div>
+          </div>`;}).join('')}`;
+      })()}
 
       <div class="eyebrow">Notas y comentarios</div>
       <div>${N.map(n=>`<div class="card" style="border-left-color:var(--linea)">
@@ -967,6 +1271,13 @@ async function abrirJob(id){
     await sb.from('recordatorios').insert({job_id:id,texto:t,fecha_venc:$('#rf').value||null});
     cerrar(); abrirJob(id);
   };
+  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=async()=>{
+    const d=b.dataset.doc; let lista=(j.docs||[]).slice();
+    lista = lista.includes(d) ? lista.filter(x=>x!==d) : lista.concat([d]);
+    const {error}=await sb.from('jobs').update({docs:lista}).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); abrirJob(id);
+  });
   document.querySelectorAll('[data-rc]').forEach(c=>c.onchange=async()=>{
     await sb.from('recordatorios').update({hecho:c.checked}).eq('id',c.dataset.rc);
   });
@@ -979,10 +1290,20 @@ async function abrirJob(id){
     await sb.from('partidas').update(up).eq('id',s.dataset.pe);
     cerrar(); abrirJob(id);
   });
+  const asv=$('#asv'); if(asv) asv.onclick=async()=>{
+    const lista=SERVICIOS.map((x,i)=>(i+1)+'. '+x).join('\n');
+    const n=prompt('¿Qué servicio se hizo o se va a hacer?\n\n'+lista+'\n\nEscribe el número o el nombre:');
+    if(!n) return;
+    const idx=parseInt(n,10);
+    const nombre=(idx>=1&&idx<=SERVICIOS.length)?SERVICIOS[idx-1]:n.trim();
+    const d=prompt('Detalle (área, cantidad, notas) — opcional')||'';
+    await sb.from('partidas').insert({job_id:id,nombre,detalle:d,clase:'servicio',estatus:'asignada'});
+    cerrar(); abrirJob(id);
+  };
   const ap=$('#ap'); if(ap) ap.onclick=async()=>{
     const n=prompt('¿Qué se tiene que reparar? (ej. Drywall cocina)'); if(!n) return;
     const d=prompt('Detalle o cantidad (opcional)')||'';
-    await sb.from('partidas').insert({job_id:id,nombre:n,detalle:d,estatus:'pendiente'});
+    await sb.from('partidas').insert({job_id:id,nombre:n,detalle:d,clase:'reparacion',estatus:'pendiente'});
     cerrar(); abrirJob(id);
   };
 }
