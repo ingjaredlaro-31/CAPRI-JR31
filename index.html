@@ -826,6 +826,20 @@ async function verJobTecnico(id){
 }
 
 /* ==================== TÉCNICO · REPORTE DIARIO ==================== */
+function diasFaltantes(job, fechasConReporte, maxDias){
+  const arranque = (job.fecha_inicio||job.created_at||hoy()).slice(0,10);
+  const tope = hace(maxDias||20);
+  const desde = arranque > tope ? arranque : tope;
+  const out=[];
+  let d=new Date(desde+'T12:00:00'), fin=new Date(hoy()+'T12:00:00');
+  while(d<=fin){
+    const f=iso(d);
+    if(!fechasConReporte.has(f)) out.push(f);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+
 async function vTecReporte(){
   const h=hoy();
   const dep = U.departamento==='ambos' ? null : U.departamento;
@@ -843,10 +857,11 @@ async function vTecReporte(){
       .in('job_id',ids).order('fecha',{ascending:false}).limit(400);
     R=data||[];
   }
-  const hoyPorJob={}, ultimoPorJob={}, tieneIni={};
+  const hoyPorJob={}, ultimoPorJob={}, tieneIni={}, fechasPorJob={};
   R.forEach(r=>{
     if(r.fecha===h) hoyPorJob[r.job_id]=r;
     if(r.tipo_reporte==='inicial') tieneIni[r.job_id]=r;
+    (fechasPorJob[r.job_id] ||= new Set()).add(r.fecha);
     if(!ultimoPorJob[r.job_id] || r.fecha>ultimoPorJob[r.job_id].fecha) ultimoPorJob[r.job_id]=r;
   });
 
@@ -856,6 +871,7 @@ async function vTecReporte(){
 
   const hechos=J.filter(x=>hoyPorJob[x.id]).length;
   const pct=J.length?Math.round(hechos*100/J.length):0;
+  const atrasos=J.reduce((a,x)=>a+diasFaltantes(x, fechasPorJob[x.id]||new Set()).filter(f=>f!==h).length,0);
 
   setTimeout(()=>{
     const lv=$('#lev'); if(lv) lv.onclick=levantamientoInicial;
@@ -880,6 +896,14 @@ async function vTecReporte(){
       <div class="meta" style="margin-top:4px">Última visita: ${desde}${ult&&ult.usuarios?.nombre?' · '+esc(ult.usuarios.nombre):''}</div>
       ${ult&&(ult.situacion||[]).length?`<div class="row" style="margin-top:6px;gap:5px">${(ult.situacion||[]).slice(0,3).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}</div>`:''}
       ${ult&&ult.siguiente_trabajo?`<div class="ok" style="margin:9px 0 0;padding:10px"><b>Lo que sigue:</b> ${esc(ult.siguiente_trabajo)}</div>`:''}
+      ${(()=>{
+        const faltas=diasFaltantes(j, fechasPorJob[j.id]||new Set()).filter(f=>f!==h);
+        if(!faltas.length) return '';
+        return `<div class="meta" style="margin-top:10px;color:var(--rojo)">DÍAS ATRASADOS · ${faltas.length}</div>
+          <div class="chips" style="margin-top:4px">${faltas.slice(-10).map(f=>
+            `<button type="button" data-rg="${j.id}" data-f="${f}"
+              style="border-color:var(--rojo-b);background:var(--rojo-l);color:var(--rojo-d)">${f.slice(8)} ${MESCORTO[+f.slice(5,7)-1]}</button>`).join('')}</div>`;
+      })()}
       <div class="row" style="margin-top:11px">
         <button class="btn ghost sm" data-vj="${j.id}">Ver trabajo</button>
         <span style="flex:1"></span>
@@ -902,6 +926,10 @@ async function vTecReporte(){
       <div class="barra"><i style="width:${pct}%;background:${faltan.length?'var(--rojo)':'var(--azul)'}"></i></div>
       <div class="p">${faltan.length?faltan.length+' trabajo'+(faltan.length===1?'':'s')+' sin reportar hoy':'Todos los trabajos reportados. Buen día.'}</div>
     </div>
+    ${atrasos?`<div class="alerta" style="margin-bottom:12px">
+      <div class="n">${atrasos}</div>
+      <div class="t">día${atrasos===1?'':'s'} atrasado${atrasos===1?'':'s'} de días anteriores · toca la fecha en rojo dentro de cada trabajo</div>
+    </div>`:''}
     <button class="btn ghost wide no-print" id="lev" style="margin-bottom:16px">+ Reporte inicial de trabajo nuevo</button>`;
 
   if(!J.length) return out+`<div class="empty"><div class="disp">Todavía no hay trabajos</div>
@@ -1053,7 +1081,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v12 · scope of work</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v13 · reportes por día</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3006,7 +3034,12 @@ async function formJob(id, pre){
         <div class="g2">${c('adjuster','Adjuster')}${c('adjuster_tel','Tel. adjuster','tel')}</div>
       </div>
 
-      ${c('fecha_perdida','Fecha de la pérdida','date')}
+      <div class="g2">
+        <div><label>Fecha de inicio del trabajo</label>
+          <input id="f_fecha_inicio" type="date" value="${esc((j.fecha_inicio||hoy()).slice(0,10))}"></div>
+        ${c('fecha_perdida','Fecha de la pérdida','date')}
+      </div>
+      <div class="sub" style="margin-top:4px">Desde esta fecha se piden los reportes diarios y arranca el calendario del trabajo.</div>
       <div class="eyebrow">Técnico encargado</div>
       <label>¿Quién lleva este trabajo?</label>
       <select id="f_tecnico_id"><option value="">— sin asignar —</option>
@@ -3115,6 +3148,7 @@ async function formJob(id, pre){
     p.tecnico_id=$('#f_tecnico_id').value||null;
     p.estatus = id ? $('#f_estatus').value : 'activo';
     p.fecha_perdida=$('#f_fecha_perdida').value||null;
+    p.fecha_inicio=$('#f_fecha_inicio').value||hoy();
     p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
     p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
     if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
@@ -3282,6 +3316,15 @@ async function abrirJob(id){
 
       <div class="eyebrow">Historial completo del trabajo</div>
       ${bloqueLinea(j,R,P.concat(SV),N,A)}
+
+      ${(()=>{
+        const set=new Set(R.map(x=>x.fecha));
+        const faltas=diasFaltantes(j,set);
+        return faltas.length?`<div class="alerta" style="margin-bottom:12px">
+          <div class="n">${faltas.length}</div>
+          <div class="t">día${faltas.length===1?'':'s'} sin reporte desde que abrió el trabajo${faltas.length<=8?' · '+faltas.map(f=>f.slice(8)+' '+MESCORTO[+f.slice(5,7)-1]).join(', '):''}</div>
+        </div>`:'';
+      })()}
 
       <div class="eyebrow">Calendario del trabajo</div>
       ${bloqueCalendario(j,R,P.concat(SV),A,true)}
