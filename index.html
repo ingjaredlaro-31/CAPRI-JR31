@@ -296,11 +296,12 @@ async function contarNotif(){
   NOTIF=count||0; return NOTIF;
 }
 
-async function avisarReporte(job, esNuevo, servicios, fecha){
+async function avisarReporte(job, esNuevo, servicios, fecha, tipoRep){
   const prop = job.propiedades?.nombre || job.managements?.nombre || job.cliente;
+  const eti = tipoRep==='inicial' ? 'Reporte INICIAL · ' : (esNuevo?'Reporte de seguimiento · ':'Reporte corregido · ');
   await sb.from('notificaciones').insert({
     tipo:'reporte',
-    titulo: (esNuevo?'Nuevo reporte · ':'Reporte corregido · ')+prop,
+    titulo: eti+prop,
     texto: `${U.nombre} · ${job.folio}${job.unidad?' · Unit '+job.unidad:''} · ${fmt(fecha)}`
            + (servicios&&servicios.length?' · '+servicios.join(', '):''),
     job_id: job.id,
@@ -1063,6 +1064,7 @@ async function formReporte(jobId,fecha){
 let G = null;
 
 async function reporteGuiado(jobId, fecha){
+  const {count:previos}=await sb.from('reportes').select('*',{count:'exact',head:true}).eq('job_id',jobId);
   const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
@@ -1071,8 +1073,9 @@ async function reporteGuiado(jobId, fecha){
     sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r = prev || {};
+  const tipoAuto = r.tipo_reporte || ((previos||0)===0 || (previos===1 && prev) ? 'inicial' : 'seguimiento');
   G = {
-    job:j, fecha, paso:0, prev:!!prev,
+    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
     d:{
       hora_entrada:r.hora_entrada||new Date().toTimeString().slice(0,5),
@@ -1099,20 +1102,22 @@ async function reporteGuiado(jobId, fecha){
 
 function pasosGuiado(){
   const d=G.d, esRest=G.job.departamento==='restoration';
-  G.pasos=[
-    {t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'},
-    {t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'},
-    {t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'},
-    {t:'¿Se hizo water extraction?', s:'¿Sacaste agua hoy?', tipo:'sino', k:'agua_extraida'},
-    {t:'¿Hiciste deep clean o wipe down?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'},
-    {t:'¿Hiciste demo?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'},
-    {t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'},
-    {t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true},
-    {t:'¿En qué áreas trabajaste?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'},
-    {t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'},
-    {t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'},
-    {t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'},
-  ];
+  const ini = G.tipo==='inicial';
+  G.pasos=[{t:'¿Qué tipo de reporte es?', s:'El inicial es la primera visita al trabajo', tipo:'tipo'}];
+  G.pasos.push({t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'});
+  G.pasos.push({t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'});
+  if(ini){
+    G.pasos.push({t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'});
+    G.pasos.push({t:'¿Se hizo water extraction?', s:'¿Sacaste agua hoy?', tipo:'sino', k:'agua_extraida'});
+  }
+  G.pasos.push({t:ini?'¿Hiciste deep clean o wipe down?':'¿Hiciste wipe down hoy?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'});
+  G.pasos.push({t:ini?'¿Hiciste demo?':'¿Hiciste demo hoy?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'});
+  G.pasos.push({t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'});
+  G.pasos.push({t:ini?'¿Qué servicio se hizo?':'¿Qué se hizo hoy?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
+  G.pasos.push({t:ini?'¿En qué áreas trabajaste?':'¿En qué áreas trabajaste hoy?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'});
+  G.pasos.push({t:ini?'¿Qué material removiste?':'¿Removiste material hoy?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'});
+  if(ini) G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
+  G.pasos.push({t:ini?'Equipo instalado':'Equipo en sitio', s:'Cuántos packs y descripción', tipo:'equipo'});
   if(esRest){
     G.pasos.push({t:'Conteo de equipo', s:'Lo que entró y lo que salió hoy', tipo:'conteo'});
     G.pasos.push({t:'Lecturas de humedad', s:'Opcional — agrega las que tomaste', tipo:'lecturas'});
@@ -1135,7 +1140,15 @@ function pintaGuiado(){
   const prop=G.job.propiedades?.nombre||G.job.managements?.nombre||G.job.cliente;
   let cuerpo='';
 
-  if(p.tipo==='horas') cuerpo=`
+  if(p.tipo==='tipo') cuerpo=`
+    <div class="si-no" style="margin-top:10px;flex-direction:column">
+      <button data-t="inicial" class="${G.tipo==='inicial'?'on':''}" style="padding:17px">Reporte inicial</button>
+      <button data-t="seguimiento" class="${G.tipo==='seguimiento'?'on':''}" style="padding:17px">Reporte de seguimiento</button>
+    </div>
+    <div class="sub" style="margin-top:10px">${G.tipo==='inicial'
+      ? 'Primera visita: se levanta todo — unidad ocupada, water extraction, áreas, material removido y containment.'
+      : 'Visita de seguimiento: moisture check, equipo, lo que se hizo hoy y qué sigue.'}</div>`;
+  else if(p.tipo==='horas') cuerpo=`
     <label>Hora de llegada</label><input id="g1" type="time" value="${esc(d.hora_entrada)}" style="font-size:22px">
     <label>Hora de salida (si ya sabes)</label><input id="g2" type="time" value="${esc(d.hora_salida)}" style="font-size:22px">`;
   else if(p.tipo==='sino') cuerpo=`
@@ -1178,6 +1191,7 @@ function pintaGuiado(){
     const SN=v=>v?'SÍ':'NO';
     const f=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${esc(v||'—')}</td></tr>`;
     cuerpo=`<table class="frm">
+      ${f('TIPO DE REPORTE',G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO')}
       ${f('HORA',d.hora_entrada+(d.hora_salida?' → '+d.hora_salida:''))}
       ${f('AFTER HOURS',SN(d.after_hours))}
       ${f('OCCUPIED',d.ocupada==='ocupada'?'SÍ':'NO')}
@@ -1196,7 +1210,7 @@ function pintaGuiado(){
   }
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
-    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(G.job.folio)} · PASO ${G.paso+1} DE ${n}</div>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(G.job.folio)} · ${G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO'} · PASO ${G.paso+1} DE ${n}</div>
     <div class="disp" style="font-size:20px;line-height:1">${esc(prop)}</div>
     <div style="font-size:13px;color:#C3D6F7">${G.job.unidad?'Unit '+esc(G.job.unidad):''}</div></div>
     <button class="x" id="gx">✕</button></div>
@@ -1225,6 +1239,8 @@ function pintaGuiado(){
     G.paso++; pintaGuiado();
   };
 
+  if(p.tipo==='tipo') document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{
+    G.tipo=b.dataset.t; pasosGuiado(); pintaGuiado(); });
   if(p.tipo==='sino') document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{
     G.d[p.k]=b.dataset.b==='1'; pintaGuiado(); });
   if(p.tipo==='ocup') document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{
@@ -1291,7 +1307,7 @@ function guardaPaso(){
 
 async function enviarGuiado(){
   const d=G.d, jobId=G.job.id, fecha=G.fecha;
-  const p={job_id:jobId, tecnico_id:U.id, fecha,
+  const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:G.tipo,
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -1306,7 +1322,7 @@ async function enviarGuiado(){
   const yaHabia=G.prev;
   const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
-  try{ await avisarReporte(G.job, !yaHabia, d.servicios, fecha); }catch(e){}
+  try{ await avisarReporte(G.job, !yaHabia, d.servicios, fecha, G.tipo); }catch(e){}
   if(d.material_removido.length){
     const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
     const tengo=(ya||[]).map(x=>x.nombre);
@@ -1350,10 +1366,11 @@ function verReporteCampo(r, j){
 
       <div style="text-align:center;padding:6px 0 14px">
         <div class="mono" style="font-size:11px;letter-spacing:.18em;color:var(--gris)">CAPRI RESTORATION SERVICES INC</div>
-        <div class="disp" style="font-size:24px">Daily Work Report</div>
+        <div class="disp" style="font-size:24px">${r.tipo_reporte==='inicial'?'Initial Work Report':'Follow-up Work Report'}</div>
       </div>
 
       <table class="frm">
+        ${fila('REPORT TYPE', r.tipo_reporte==='inicial'?'INITIAL':'FOLLOW-UP')}
         ${fila('START WORK DATE', dLarga(r.fecha))}
         ${fila('HORA', h12(r.hora_entrada))}
         ${r.hora_salida?fila('HORA DE SALIDA', h12(r.hora_salida)):''}
@@ -2647,6 +2664,7 @@ async function abrirJob(id){
         <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
         <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
         <div class="row" style="margin-top:6px;gap:5px">
+          <span class="chip ${r.tipo_reporte==='inicial'?'rojo':''}">${r.tipo_reporte==='inicial'?'INICIAL':'SEGUIMIENTO'}</span>
           ${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}
           ${r.after_hours?'<span class="chip ambar">AFTER HOURS</span>':''}
           ${r.ocupada==='ocupada'?'<span class="chip rojo">OCUPADA</span>':''}
