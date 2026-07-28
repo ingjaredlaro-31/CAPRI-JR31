@@ -693,6 +693,8 @@ async function vTecTrabajos(){
   const {data:mias}=await sb.from('asignaciones').select('job_id').eq('tecnico_id',U.id).gte('fecha',hace(60));
   const mios=new Set((mias||[]).map(x=>x.job_id));
   const J=data||[];
+  const {data:rh}=await sb.from('reportes').select('job_id').eq('fecha',hoy());
+  const repHoyIds=new Set((rh||[]).map(x=>x.job_id));
 
   const activos = J.filter(x=>x.departamento===miDep && x.estatus!=='reconstruccion');
   const reparando = J.filter(x=>x.departamento===miDep && x.estatus==='reconstruccion');
@@ -714,6 +716,7 @@ async function vTecTrabajos(){
       <div class="tit">${esc(prop)}</div>
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.direccion||'')}</div>
       <div class="row" style="margin-top:7px">
+        ${repHoyIds.has(j.id)?'<span class="chip azul">REPORTADO HOY</span>':'<span class="chip rojo">SIN REPORTE HOY</span>'}
         <span class="chip">${esc(j.tipo)}</span>
         <span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>
         ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
@@ -748,6 +751,10 @@ async function verJobTecnico(id){
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+      ${!repHoy?`<div class="alerta" style="margin-bottom:14px">
+        <div class="disp" style="font-size:21px;color:var(--rojo)">Falta tu reporte de hoy</div>
+        <div class="t">${fmt(hoy())} · sin este reporte, oficina no sabe cómo dejaste el trabajo y mañana nadie sabe qué sigue.</div>
+      </div>`:`<div class="ok" style="margin-bottom:14px">Ya dejaste tu reporte de hoy en este trabajo.</div>`}
       <div class="row" style="margin-bottom:10px">
         <a class="btn ghost" style="flex:1" target="_blank" rel="noopener"
           href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Cómo llegar</a>
@@ -3388,7 +3395,7 @@ async function vSchedule(){
     titulo=MESES[ref.getMonth()]+' '+ref.getFullYear();
   }
   const [{data:asig},{data:reps},{data:tecs},{data:jobs}] = await Promise.all([
-    sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').gte('fecha',d1).lte('fecha',d2).order('fecha'),
+    sb.from('asignaciones').select('*, jobs(*, propiedades(nombre)), usuarios(nombre,telefono)').gte('fecha',d1).lte('fecha',d2).order('fecha'),
     sb.from('reportes').select('job_id,tecnico_id,fecha').gte('fecha',d1).lte('fecha',d2),
     sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
     sb.from('jobs').select('id,folio,cliente,departamento').eq('departamento',DEP).neq('estatus','facturado')
@@ -3454,8 +3461,12 @@ async function vSchedule(){
       cuerpo+=`<div class="d ${f===hoy()?'hoy':''}" data-ird="${f}">
         <div class="h"><b>${DSEM[k]} ${dd.getDate()}</b>
           ${lista.length?`<span class="chip ${falt?'rojo':'azul'}">${lista.length} visita${lista.length>1?'s':''}${falt?' · '+falt+' sin reporte':''}</span>`:'<span class="chip">libre</span>'}</div>
-        ${lista.map(a=>`<div class="sub" style="margin-top:5px;color:var(--tinta)">
-          ${a.hora?'<b class="mono">'+esc(a.hora)+'</b> · ':''}${esc(a.jobs.cliente)} <span class="meta">${esc(a.usuarios?.nombre||'')}</span></div>`).join('')}
+        ${lista.map(a=>{
+          const ok=hechos.has(a.tecnico_id+'|'+a.job_id+'|'+a.fecha);
+          return `<div class="sub" style="margin-top:5px;color:${ok?'var(--tinta)':'var(--rojo-d)'}">
+          ${a.hora?'<b class="mono">'+esc(a.hora)+'</b> · ':''}${esc(a.jobs.propiedades?.nombre||a.jobs.cliente)}
+          <span class="meta">${esc(a.usuarios?.nombre||'')}</span>
+          ${ok?'':'<b> · sin reporte</b>'}</div>`;}).join('')}
       </div>`;
     }
     cuerpo+='</div>';
@@ -3473,8 +3484,11 @@ async function vSchedule(){
         ${a.hora?`<div class="meta" style="margin-top:3px">Llegada ${esc(a.hora)}</div>`:''}
         ${a.notas?`<div class="sub" style="margin-top:5px;color:var(--tinta)">${esc(a.notas)}</div>`:''}
         <div class="row" style="margin-top:10px">
-          ${ok?'<span class="chip azul">REPORTE RECIBIDO</span>':'<span class="chip rojo">FALTA REPORTE</span>'}
+          ${ok?'<span class="chip azul">REPORTE RECIBIDO</span>'
+            :`<span class="chip rojo">NO REPORTADO POR ${esc((a.usuarios?.nombre||'EL TÉCNICO').split('·')[0].trim().toUpperCase())}</span>`}
           <span style="flex:1"></span>
+          ${!ok?`<a class="btn ghost sm" target="_blank" rel="noopener"
+            href="https://wa.me/?text=${encodeURIComponent('Hola '+(a.usuarios?.nombre||'')+', falta tu reporte del '+fmt(a.fecha)+' del job '+a.jobs.folio+' — '+(a.jobs.propiedades?.nombre||a.jobs.cliente))}">Recordar</a>`:''}
           <button class="btn ghost sm" data-job="${a.job_id}">Abrir job</button>
           ${EDIT()?`<button class="btn ghost sm" data-del="${a.id}">Quitar</button>`:''}
         </div></div>`;
