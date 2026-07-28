@@ -1125,7 +1125,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v17 · estimados</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v18 · estimados ok</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3782,9 +3782,15 @@ const soloNum = t => (t||'').replace(/[^0-9]/g,'');
 let ETAB='pendientes';
 
 async function vEstimados(){
-  const {data,error}=await sb.from('estimados').select('*, jobs(folio)').order('created_at',{ascending:false}).limit(200);
+  const {data,error}=await sb.from('estimados').select('*').order('created_at',{ascending:false}).limit(200);
   if(error) return `<div class="empty"><div class="disp">No se pudieron cargar</div><p>${esc(error.message)}</p></div>`;
   const E=data||[];
+  const jids=[...new Set(E.map(x=>x.job_id).filter(Boolean))];
+  const folios={};
+  if(jids.length){
+    const {data:jj}=await sb.from('jobs').select('id,folio,cliente').in('id',jids);
+    (jj||[]).forEach(x=>folios[x.id]={folio:x.folio,cliente:x.cliente});
+  }
   const env=E.filter(e=>e.estatus==='enviado');
   const acc=E.filter(e=>e.estatus==='aceptado');
   const bor=E.filter(e=>e.estatus==='borrador');
@@ -3802,7 +3808,7 @@ async function vEstimados(){
   const tarjeta=e=>{
     const col = e.estatus==='aceptado'?'':e.estatus==='rechazado'?'gris':e.estatus==='enviado'?'ambar':'gris';
     const chip = e.estatus==='enviado'?`<span class="chip ambar">${e.fecha_envio?dias(e.fecha_envio,hoy())+' DÍAS SIN RESPUESTA':'ENVIADO'}</span>`
-      : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(e.jobs?.folio||'')}</span>`
+      : e.estatus==='aceptado'?`<span class="chip azul">ACEPTADO → ${esc(folios[e.job_id]?.folio||'JOB')}</span>`
       : e.estatus==='rechazado'?'<span class="chip">RECHAZADO</span>':'<span class="chip">BORRADOR</span>';
     const nr=(e.renglones||[]).length, na=(e.archivos||[]).length;
     return `<div class="card ${col}" data-ver="${e.id}" style="cursor:pointer">
@@ -3838,8 +3844,13 @@ async function vEstimados(){
 }
 
 async function abrirEstimado(id){
-  const {data:e}=await sb.from('estimados').select('*, jobs(folio,cliente)').eq('id',id).single();
+  const {data:e}=await sb.from('estimados').select('*').eq('id',id).single();
   const x=e;
+  let jobLig=null;
+  if(e.job_id){
+    const {data:jj}=await sb.from('jobs').select('folio,cliente').eq('id',e.job_id).maybeSingle();
+    jobLig=jj||null;
+  }
   const R=e.renglones||[], A=e.archivos||[];
   const sub=sumaRen(R), imp=Number(e.impuesto||0);
   const tot=Number(e.monto||0) || (sub+imp);
@@ -3892,7 +3903,7 @@ async function abrirEstimado(id){
         :'<div class="sub">Sin archivos adjuntos.</div>'}
 
       ${e.notas?`<div class="eyebrow">Notas</div><p class="sub" style="color:var(--tinta)">${esc(e.notas)}</p>`:''}
-      ${e.jobs?.folio?`<div class="ok" style="margin-top:14px">Ya convertido en el job <b>${esc(e.jobs.folio)}</b> — ${esc(e.jobs.cliente)}</div>`:''}
+      ${jobLig?`<div class="ok" style="margin-top:14px">Ya convertido en el job <b>${esc(jobLig.folio)}</b> — ${esc(jobLig.cliente)}</div>`:''}
 
       <div style="height:16px"></div>
       ${EDIT()?`<div class="row no-print">
