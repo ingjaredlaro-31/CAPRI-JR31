@@ -139,6 +139,33 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .kpi .p{font-size:15.5px;color:var(--gris);margin-top:2px}
 .kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
 .kpi.m{border-left:4px solid var(--ambar)}
+.jobcard{background:#fff;border:1px solid var(--linea);border-left:6px solid var(--azul);border-radius:0 14px 14px 0;
+  padding:0;margin-bottom:14px;overflow:hidden;cursor:pointer;box-shadow:0 2px 6px rgba(11,13,17,.06);
+  transition:box-shadow .18s,transform .18s}
+.jobcard:hover{box-shadow:0 8px 24px rgba(11,13,17,.12);transform:translateY(-2px)}
+.jobcard.rojo{border-left-color:var(--rojo)}
+.jobcard.ambar{border-left-color:var(--ambar)}
+.jobcard.verde{border-left-color:#1FA35A}
+.jc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:13px 18px;background:#F7F8FA;border-bottom:1px solid var(--linea2)}
+.jc-body{padding:16px 18px 18px}
+.jc-tit{font-family:var(--disp);font-weight:800;font-size:32px;line-height:1;letter-spacing:.005em}
+.jc-dir{font-size:17px;color:var(--tinta);margin-top:5px}
+.jc-meta{font-family:var(--mono);font-size:13.5px;color:var(--gris);margin-top:6px}
+.jc-etapa{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px}
+.jc-etapa .nom{font-family:var(--disp);font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.01em}
+.jc-etapa .pc{font-family:var(--mono);font-size:19px;font-weight:600}
+.jc-barra{height:14px;background:var(--linea2);border-radius:7px;overflow:hidden;margin-top:8px}
+.jc-barra i{display:block;height:100%;border-radius:7px;transition:width .4s}
+.jc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.jc-chip{font-family:var(--mono);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+  padding:7px 12px;border-radius:7px;border:1.5px solid var(--linea);color:var(--gris);background:#fff;white-space:nowrap}
+.jc-chip.azul{color:var(--azul-d);border-color:var(--azul);background:var(--azul-l)}
+.jc-chip.rojo{color:var(--rojo-d);border-color:var(--rojo);background:var(--rojo-l)}
+.jc-chip.ambar{color:var(--ambar-d);border-color:var(--ambar);background:var(--ambar-l)}
+.jc-chip.verde{color:#0F6B38;border-color:#1FA35A;background:#E7F6ED}
+.jc-chip.negro{color:#fff;border-color:var(--tinta);background:var(--tinta)}
+.tabs .c{font-family:var(--mono);font-size:22px;display:block;font-weight:600;margin-top:2px}
 .dinero{background:linear-gradient(160deg,#141922 0%,var(--tinta) 65%);color:#fff;border-radius:14px;
   padding:20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 18px rgba(11,13,17,.18)}
 .dinero .franja2{position:absolute;left:0;right:0;bottom:0;height:4px;display:flex}
@@ -1347,7 +1374,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v30 · control de dinero</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v31 · tarjetas de jobs</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3288,28 +3315,36 @@ async function vJobs(){
     const e=etapa(j);
     const tc=e.P.reduce((a,x)=>a+Number(x.costo||0),0), tb=e.P.reduce((a,x)=>a+Number(x.cobro||0),0);
     const revisar=e.P.filter(x=>x.estatus==='terminada'&&!x.revisado).length;
-    return `<div class="card ${DEP==='cleaning'?'rojo':''}" data-job="${j.id}" style="cursor:pointer">
-      <div class="row" style="justify-content:space-between">
-        <span class="folio">${esc(j.folio)}</span>
-        <div class="row" style="gap:5px">
-          <span class="chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${(j.origen||'').slice(0,4).toUpperCase()}</span>
-          <span class="chip ${j.estatus==='facturado'?'azul':''}">${esc(j.estatus)}</span>
+    const ingreso=Number(j.invoice_monto||0)||Number(j.monto_cobrar||0)||tb;
+    const gana=ingreso ? ingreso - tc - Number(j.pago_tecnico||0) - Number(j.otros_gastos||0) : null;
+    const col = j.estatus==='facturado' ? 'verde' : (e.pct>=67?'azul':e.pct>=34?'ambar':'rojo');
+    const colBar = j.estatus==='facturado' ? '#1FA35A' : (e.pct>=67?'var(--azul)':e.pct>=34?'var(--ambar)':'var(--rojo)');
+    const colTxt = j.estatus==='facturado' ? '#0F6B38' : (e.pct>=67?'var(--azul-d)':e.pct>=34?'var(--ambar-d)':'var(--rojo-d)');
+    return `<div class="jobcard ${col}" data-job="${j.id}">
+      <div class="jc-top">
+        <span class="folio" style="font-size:15px">${esc(j.folio)}</span>
+        <div class="row" style="gap:7px">
+          <span class="jc-chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${esc((j.origen||'—').toUpperCase())}</span>
+          <span class="jc-chip ${j.estatus==='facturado'?'verde':j.estatus==='terminado'?'azul':'negro'}">${esc(j.estatus.toUpperCase())}</span>
         </div></div>
-      <div class="tit">${esc(j.propiedades?.nombre||j.cliente)}</div>
-      <div class="sub">${esc(j.direccion||'')}${j.unidad?' · Unit '+esc(j.unidad):''}</div>
-      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
+      <div class="jc-body">
+        <div class="jc-tit">${esc(j.propiedades?.nombre||j.cliente)}</div>
+        <div class="jc-dir">${esc(j.direccion||'')}${j.unidad?' · <b>Unit '+esc(j.unidad)+'</b>':''}</div>
+        <div class="jc-meta">${esc(antiguedad(j).txt.toUpperCase())}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre.toUpperCase()):' · SIN TÉCNICO'}</div>
 
-      <div class="row" style="margin-top:9px;justify-content:space-between;align-items:baseline">
-        <span class="disp" style="font-size:17px;color:var(--azul-d)">${esc(e.nombre)}</span>
-        <span class="mono" style="font-size:13px;color:var(--gris)">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
-      <div class="barra" style="margin-top:6px;height:8px"><i style="width:${e.pct}%;background:${e.pct===100?'var(--azul)':'var(--ambar)'}"></i></div>
+        <div class="jc-etapa">
+          <span class="nom" style="color:${colTxt}">${esc(e.nombre)}</span>
+          <span class="pc" style="color:${colTxt}">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
+        <div class="jc-barra"><i style="width:${e.pct}%;background:${colBar}"></i></div>
 
-      <div class="row" style="margin-top:9px">
-        <span class="chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
-        ${e.P.length?`<span class="chip">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:''}
-        ${revisar?`<span class="chip rojo">${revisar} POR REVISAR</span>`:''}
-        ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
-        ${tb?`<span class="chip ${tb-tc>0?'azul':'rojo'}">MARGEN ${cf(tb-tc)}</span>`:''}
+        <div class="jc-chips">
+          <span class="jc-chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
+          ${e.P.length?`<span class="jc-chip ${e.P.every(x=>x.estatus==='terminada')?'verde':'ambar'}">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:'<span class="jc-chip">SIN REPARACIONES</span>'}
+          ${revisar?`<span class="jc-chip rojo">${revisar} POR REVISAR</span>`:''}
+          ${(j.areas||[]).length?`<span class="jc-chip">${(j.areas||[]).length} ÁREAS</span>`:''}
+          ${j.invoice_num?`<span class="jc-chip ${j.invoice_pagado?'verde':'ambar'}">${j.invoice_pagado?'PAGADO':'POR COBRAR'} ${cf(j.invoice_monto)}</span>`:''}
+          ${gana!==null?`<span class="jc-chip ${gana>0?'verde':'rojo'}">GANANCIA ${cf(gana)}</span>`:''}
+        </div>
       </div></div>`;
   };
 
