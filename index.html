@@ -67,10 +67,10 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .side button:hover{background:#141922;color:#E7EBEE}
   .side button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
   .side button.on{background:var(--azul);color:#fff;border-left-color:#5B8DEF}
+  body.tec.clean .side button.on{background:var(--rojo);border-left-color:#F5A0A4}
   .wrap{flex:1;min-width:0;max-width:100%}
   nav{display:none}
-  body.tec nav{display:flex;max-width:760px;left:50%;transform:translateX(-50%);border:1px solid var(--linea);border-bottom:0;border-radius:12px 12px 0 0}
-  body.tec main{padding-bottom:104px;max-width:820px}
+  body.tec main{max-width:960px}
   main{padding:18px 22px 40px}
   .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 }
@@ -138,14 +138,17 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
 .kpi.m{border-left:4px solid var(--ambar)}
 .etapas{position:relative;padding-left:6px}
-.etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:16px}
+.etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding:10px 12px 18px 0;border-radius:10px;
+  transition:background .15s}
+.etapa .mano:hover{opacity:.75}
+.etapa:hover{background:#fff}
 .etapa:last-child{padding-bottom:0}
-.etapa::before{content:'';position:absolute;left:13px;top:28px;bottom:-2px;width:2px;background:var(--linea)}
+.etapa::before{content:'';position:absolute;left:15px;top:42px;bottom:0;width:2px;background:var(--linea)}
 .etapa:last-child::before{display:none}
 .etapa.done::before{background:var(--azul)}
-.etapa .bolita{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
-  justify-content:center;font-family:var(--mono);font-size:13px;font-weight:600;position:relative;z-index:1;
-  background:#fff;border:2px solid var(--linea);color:var(--gris)}
+.etapa .bolita{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:15px;font-weight:600;position:relative;z-index:1;
+  background:#fff;border:2px solid var(--linea);color:var(--gris);transition:all .15s}
 .etapa.done .bolita{background:var(--azul);border-color:var(--azul);color:#fff}
 .etapa.hoy .bolita{border-color:var(--ambar);color:var(--ambar-d);box-shadow:0 0 0 4px var(--ambar-l)}
 .etapa .txt{flex:1;min-width:0;padding-top:2px}
@@ -711,6 +714,7 @@ async function vTecInicio(){
 
   setTimeout(()=>{
     engancharRep();
+    document.querySelectorAll('[data-vj2]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj2));
     const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
     document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
   },0);
@@ -764,9 +768,29 @@ async function vTecInicio(){
       <a class="btn ghost wide no-print" id="glink" target="_blank" rel="noopener" href="#" style="margin-bottom:6px">Abrir ruta en Google Maps</a>`;
   }
 
-  out += `<div class="eyebrow">Trabajos de hoy · ${fmt(h)}</div>`;
-  out += a.length ? a.map(x=>tarjetaTec(x,hechos.has(x.job_id),tarde)).join('')
-    : `<div class="empty"><div class="disp">Sin trabajos hoy</div><p>Cuando oficina te asigne un job aparece aquí con su ruta.</p></div>`;
+  out += `<div class="eyebrow">Mis trabajos asignados · ${misJobs.length}</div>`;
+  out += misJobs.length ? misJobs.map((x,i)=>{
+      const j=x.job, rep=hechos.has(j.id);
+      const dir=[j.direccion,j.unidad?('Unit '+j.unidad):null,j.ciudad].filter(Boolean).join(', ');
+      return `<div class="card ${j.departamento==='cleaning'?'rojo':''}">
+        <div class="row" style="justify-content:space-between">
+          <span class="folio">${esc(j.folio)}</span>
+          <div class="row" style="gap:5px">
+            <span class="chip">${esc(j.tipo)}</span>
+            ${rep?'<span class="chip azul">REPORTADO HOY</span>':'<span class="chip rojo">FALTA REPORTE</span>'}
+          </div></div>
+        <div class="tit">${esc(j.propiedades?.nombre||j.managements?.nombre||j.cliente)}</div>
+        <div class="sub">${esc(dir)}</div>
+        <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}${x.hora?' · llegada '+esc(x.hora):''}</div>
+        <div class="row" style="margin-top:11px">
+          <a class="btn ghost sm" target="_blank" rel="noopener"
+            href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Ruta</a>
+          <button class="btn ghost sm" data-vj2="${j.id}">Ver trabajo</button>
+          <span style="flex:1"></span>
+          <button class="btn sm" data-rep="${j.id}" data-f="${h}">${rep?'Corregir':'Reportar hoy'}</button>
+        </div></div>`;
+    }).join('')
+    : `<div class="empty"><div class="disp">Sin trabajos asignados</div><p>Cuando oficina te asigne uno aparece aquí con su ruta y su reporte.</p></div>`;
 
   if(faltantes.length){
     out += `<div class="eyebrow">Reportes que debes · ${faltantes.length}</div>`;
@@ -937,6 +961,56 @@ async function verJobTecnico(id){
   });
 }
 
+/* ==================== MARCAR QUE NO FUE ==================== */
+async function marcarNoFui(jobId, fecha){
+  const [{data:j},{data:mot},{data:prev}] = await Promise.all([
+    sb.from('jobs').select('folio,cliente,unidad, propiedades(nombre), managements(nombre)').eq('id',jobId).single(),
+    sb.from('motivos_catalogo').select('nombre').order('orden'),
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle()
+  ]);
+  const MOT=(mot||[]).map(x=>x.nombre);
+  let sel = prev?.motivo_no || '';
+  const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
+
+  const pinta=()=>{
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio)} · ${fmt(fecha)}</div>
+      <div class="disp" style="font-size:21px;line-height:1">${esc(prop)}</div>
+      <div style="font-size:13px;color:#C3D6F7">${j.unidad?'Unit '+esc(j.unidad):''}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <div class="disp" style="font-size:27px;line-height:1.05;margin-top:6px">¿Por qué no fuiste?</div>
+        <div class="sub" style="margin-bottom:12px">Marca el motivo. Esto queda registrado para oficina.</div>
+        <div class="chips" id="mt">${MOT.map(x=>
+          `<button type="button" data-m="${esc(x)}" class="${sel===x?'on':''}" style="font-size:15px;padding:11px 15px">${esc(x)}</button>`).join('')}</div>
+        <label>Detalle · opcional</label>
+        <textarea id="det" placeholder="Toqué tres veces, nadie abrió. Le marqué al manager y no contestó.">${esc(prev?.notas||'')}</textarea>
+        <div style="height:18px"></div>
+        <button class="btn wide" id="ok">Guardar · no se visitó</button>
+        <div style="height:12px"></div>
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+    $('#c1').onclick=$('#c2').onclick=cerrar;
+    $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ sel=b.dataset.m; pinta(); });
+    $('#ok').onclick=async()=>{
+      if(!sel) return toast('Escoge el motivo.');
+      const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:'seguimiento',
+        asistio:false, motivo_no:sel, trabajo_realizado:'No se visitó · '+sel,
+        notas:$('#det').value.trim()||null, servicios:[], areas:[], material_removido:[],
+        lecturas:[], fotos:[]};
+      const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
+      if(error) return toast('No se guardó: '+error.message);
+      await sb.from('notificaciones').insert({
+        tipo:'nofui', titulo:'No se visitó · '+prop,
+        texto:`${U.nombre} · ${j.folio}${j.unidad?' · Unit '+j.unidad:''} · ${fmt(fecha)} · ${sel}`,
+        job_id:jobId, de_usuario:U.nombre, para_rol:'admin'});
+      cerrar(); toast('Registrado'); render();
+    };
+  };
+  pinta();
+}
+
 /* ==================== TÉCNICO · REPORTE DIARIO ==================== */
 function inicioJob(j){ return (j.fecha_inicio||j.created_at||hoy()).slice(0,10); }
 function antiguedad(j){
@@ -990,11 +1064,14 @@ async function vTecReporte(){
 
   const hechos=J.filter(x=>hoyPorJob[x.id]).length;
   const pct=J.length?Math.round(hechos*100/J.length):0;
+  const nEnviados=R.filter(x=>x.asistio!==false).length;
+  const nNoFui=R.filter(x=>x.asistio===false).length;
   const atrasos=J.reduce((a,x)=>a+diasFaltantes(x, fechasPorJob[x.id]||new Set()).filter(f=>f!==h).length,0);
 
   setTimeout(()=>{
     const lv=$('#lev'); if(lv) lv.onclick=levantamientoInicial;
     document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rg,b.dataset.f||hoy()));
+    document.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>marcarNoFui(b.dataset.nf,b.dataset.f||hoy()));
     document.querySelectorAll('[data-vj]').forEach(b=>b.onclick=e=>{e.stopPropagation();verJobTecnico(b.dataset.vj);});
   },0);
 
@@ -1008,7 +1085,7 @@ async function vTecReporte(){
         <span class="folio">${esc(j.folio)}</span>
         <div class="row" style="gap:5px">
           ${j.tecnico_id===U.id?'<span class="chip azul">MI TRABAJO</span>':(asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':'')}
-          ${rHoy?'<span class="chip azul">REPORTADO</span>':'<span class="chip rojo">FALTA HOY</span>'}
+          ${rHoy?(rHoy.asistio===false?'<span class="chip ambar">NO SE VISITÓ</span>':'<span class="chip azul">REPORTADO</span>'):'<span class="chip rojo">FALTA HOY</span>'}
         </div></div>
       <div class="tit">${esc(prop)}</div>
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.tipo)}</div>
@@ -1022,11 +1099,14 @@ async function vTecReporte(){
         return `<div class="meta" style="margin-top:10px;color:var(--rojo)">DÍAS ATRASADOS · ${faltas.length}</div>
           <div class="chips" style="margin-top:4px">${faltas.slice(-10).map(f=>
             `<button type="button" data-rg="${j.id}" data-f="${f}"
-              style="border-color:var(--rojo-b);background:var(--rojo-l);color:var(--rojo-d)">${f.slice(8)} ${MESCORTO[+f.slice(5,7)-1]}</button>`).join('')}</div>`;
+              style="border-color:var(--rojo-b);background:var(--rojo-l);color:var(--rojo-d)">${f.slice(8)} ${MESCORTO[+f.slice(5,7)-1]}</button>
+             <button type="button" data-nf="${j.id}" data-f="${f}"
+              style="border-style:dashed;color:var(--gris);font-size:13px;padding:7px 10px">no fui</button>`).join('')}</div>`;
       })()}
       <div class="row" style="margin-top:11px">
         <button class="btn ghost sm" data-vj="${j.id}">Ver trabajo</button>
         <span style="flex:1"></span>
+        ${rHoy?'':`<button class="btn ghost" data-nf="${j.id}" data-f="${h}">No fui</button>`}
         <button class="btn" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir mi reporte':'Reporte de seguimiento'}</button>
       </div></div>`;
   };
@@ -1045,6 +1125,13 @@ async function vTecReporte(){
       </div>
       <div class="barra"><i style="width:${pct}%;background:${faltan.length?'var(--rojo)':'var(--azul)'}"></i></div>
       <div class="p">${faltan.length?faltan.length+' trabajo'+(faltan.length===1?'':'s')+' sin reportar hoy':'Todos los trabajos reportados. Buen día.'}</div>
+    </div>
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi a"><div class="l">Reportes enviados</div><div class="v">${nEnviados}</div><div class="p">en estos trabajos</div></div>
+      <div class="kpi ${atrasos?'r':'a'}"><div class="l">Me faltan</div>
+        <div class="v" style="color:${atrasos?'var(--rojo)':'var(--azul)'}">${atrasos}</div><div class="p">días sin cerrar</div></div>
+      <div class="kpi m"><div class="l">No fui</div><div class="v">${nNoFui}</div><div class="p">días con motivo</div></div>
+      <div class="kpi"><div class="l">Trabajos</div><div class="v">${J.length}</div><div class="p">activos</div></div>
     </div>
     ${atrasos?`<div class="alerta" style="margin-bottom:12px">
       <div class="n">${atrasos}</div>
@@ -1182,16 +1269,17 @@ function shell(html){
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
   $('#root').innerHTML = `
-    ${esTec?'':`<div class="side">
+    <div class="side">
       <div class="head" data-v="${inicio}">
         <div class="logo-img" style="width:52px;height:52px;margin:0 0 9px"></div>
         <div class="m">CAPRI RESTORATION</div><div class="j">JR31</div>
-        <div class="m" style="margin-top:5px;color:#5B8DEF">${esc(U.rol.toUpperCase())}</div>
+        <div class="m" style="margin-top:5px;color:${azulRojo?'#F5A0A4':'#5B8DEF'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):U.rol.toUpperCase())}</div>
       </div>
-      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC('resumen')}Inicio</button></div>
+      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}Inicio</button></div>
       ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
+      <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}Avisos${NOTIF?` (${NOTIF})`:''}</button>
       <button data-v="salir" style="margin-top:22px;color:#6B7280">Salir</button>
-    </div>`}
+    </div>
     <div class="wrap">
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
@@ -1205,12 +1293,13 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v21 · reloj y mapa</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v24 · etapas y no fui</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
     </div>`;
   document.body.classList.toggle('tec', esTec);
+  document.body.classList.toggle('clean', azulRojo);
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
     if(b.dataset.v==='salir') return salir();
     V=b.dataset.v; render();
@@ -1361,7 +1450,9 @@ async function vTecHist(){
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(r.jobs?.folio||'')}</span><span class="chip">${fmt(r.fecha)}</span></div>
       <div class="tit">${esc(r.jobs?.cliente||'')}</div>
       <div class="meta">${esc(r.hora_entrada||'—')} → ${esc(r.hora_salida||'—')} · ${(r.fotos||[]).length} fotos</div>
-      <div class="row" style="margin-top:5px;gap:4px">${(r.servicios||[]).slice(0,3).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>
+      <div class="row" style="margin-top:5px;gap:4px">
+        ${r.asistio===false?`<span class="chip ambar">NO FUI · ${esc(r.motivo_no||'')}</span>`
+          :(r.servicios||[]).slice(0,3).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>
       <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-vh="${r.id}">Ver formato</button></div>
     </div>`).join('');
 }
@@ -2441,8 +2532,9 @@ function bloqueCalendario(j,R,P,A,click){
   const f=fechasClave(j,R,P,A);
   const ini=new Date((f.apertura||hoy())+'T12:00:00');
   const fin=new Date((f.cierre||hoy())+'T12:00:00');
-  const fechasR=new Set(R.map(x=>x.fecha));
-  const inicialF=R.filter(x=>x.tipo_reporte==='inicial').map(x=>x.fecha);
+  const fechasR=new Set(R.filter(x=>x.asistio!==false).map(x=>x.fecha));
+  const noFue=new Set(R.filter(x=>x.asistio===false).map(x=>x.fecha));
+  const inicialF=R.filter(x=>x.tipo_reporte==='inicial'&&x.asistio!==false).map(x=>x.fecha);
   const asigF=new Set((A||[]).map(x=>x.fecha));
   const repF=new Set(P.filter(x=>x.fecha_fin).map(x=>x.fecha_fin));
 
@@ -2462,6 +2554,7 @@ function bloqueCalendario(j,R,P,A,click){
       if(fe===f.apertura){ bg='var(--tinta)'; co='#fff'; bd='2px solid var(--ambar)'; tit='día que comenzó el trabajo'; }
       if(repF.has(fe)){ bg='#5CA96B'; co='#fff'; bd='none'; tit='reparación'; }
       if(fechasR.has(fe)){ bg='var(--azul)'; co='#fff'; bd='none'; tit='reporte'; }
+      if(noFue.has(fe)){ bg='var(--ambar-l)'; co='var(--ambar-d)'; bd='1px solid var(--ambar-b)'; tit='no se visitó'; }
       if(inicialF.includes(fe)){ bg='var(--rojo)'; co='#fff'; bd='none'; tit='inicial'; }
       if(!fechasR.has(fe) && asigF.has(fe) && fe<=hoy()){ bg='var(--rojo-l)'; co='var(--rojo-d)'; bd='1px solid var(--rojo-b)'; tit='faltó'; }
       if(fe===f.cierre){ bd='3px solid var(--tinta)'; tit='cierre'; }
@@ -2480,6 +2573,7 @@ function bloqueCalendario(j,R,P,A,click){
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--rojo)"></i> reporte inicial</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--azul)"></i> reporte diario</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#5CA96B"></i> reparación terminada</span>
+    <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--ambar-l);border:1px solid var(--ambar-b)"></i> no se visitó</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--rojo-l);border:1px solid var(--rojo-b)"></i> faltó reporte</span>
     ${click?'<span style="width:100%;margin-top:4px">Toca cualquier día para hacer o corregir el reporte de esa fecha.</span>':''}
   </div>`;
@@ -3529,7 +3623,7 @@ async function abrirJob(id){
         const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
           estimado:estEnv?cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0):'sin estimado todavía',
           reparando:P.length?P.filter(x=>x.estatus==='aprobada').length+' de '+P.length+' partidas listas':'sin partidas'};
-        const listo=k=> (k in auto) ? (auto[k]||manuales.includes(k)) : manuales.includes(k);
+        const listo=k=> manuales.includes('-'+k) ? false : (manuales.includes(k) || !!auto[k]);
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
         const pc=Math.round(hechas*100/ETAPAS.length);
         const idxAct=ETAPAS.findIndex(e=>!listo(e.k));
@@ -3543,12 +3637,20 @@ async function abrirJob(id){
         </div>
         <div class="etapas">${ETAPAS.map((e,i)=>{
           const ok=listo(e.k), esAuto=(e.k in auto), act=(i===idxAct);
+          const forzada=manuales.includes(e.k) && esAuto && !auto[e.k];
+          const quitada=manuales.includes('-'+e.k);
+          const cl=EDIT()?'mano':'';
           return `<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
-            <div class="bolita ${(!esAuto&&EDIT())?'mano':''}" ${(!esAuto&&EDIT())?`data-et="${e.k}"`:''}>${ok?'✓':i+1}</div>
-            <div class="txt ${(!esAuto&&EDIT())?'mano':''}" ${(!esAuto&&EDIT())?`data-et="${e.k}"`:''}>
+            <div class="bolita ${cl}" ${EDIT()?`data-et="${e.k}"`:''} title="${EDIT()?(ok?'toca para desmarcar':'toca para marcar'):''}">${ok?'✓':i+1}</div>
+            <div class="txt ${cl}" ${EDIT()?`data-et="${e.k}"`:''}>
               <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span></div>
-            ${esAuto?'<span class="auto">AUTO</span>':(EDIT()?'':'')}
-          </div>`;}).join('')}</div>`;
+            <div class="row" style="gap:5px;align-self:center">
+              ${forzada?'<span class="auto" style="color:var(--azul-d);border-color:var(--azul-b)">A MANO</span>':''}
+              ${quitada?'<span class="auto" style="color:var(--rojo-d);border-color:var(--rojo-b)">QUITADA</span>':''}
+              ${esAuto?'<span class="auto">AUTO</span>':''}
+            </div>
+          </div>`;}).join('')}
+        ${EDIT()?'<div class="sub" style="margin-top:12px">Toca cualquier etapa para marcarla o desmarcarla. Las AUTO se llenan solas con los reportes, estimados y partidas, pero puedes forzarlas.</div>':''}`;
       })()}
 
       <div class="eyebrow">Notas y comentarios</div>
@@ -3573,7 +3675,8 @@ async function abrirJob(id){
         <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
         <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
         <div class="row" style="margin-top:6px;gap:5px">
-          <span class="chip ${r.tipo_reporte==='inicial'?'rojo':''}">${r.tipo_reporte==='inicial'?'INICIAL':'SEGUIMIENTO'}</span>
+          ${r.asistio===false?`<span class="chip ambar">NO SE VISITÓ · ${esc(r.motivo_no||'')}</span>`
+            :`<span class="chip ${r.tipo_reporte==='inicial'?'rojo':''}">${r.tipo_reporte==='inicial'?'INICIAL':'SEGUIMIENTO'}</span>`}
           ${(r.situacion||[]).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}
           ${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}
           ${r.after_hours?'<span class="chip ambar">AFTER HOURS</span>':''}
@@ -3619,8 +3722,10 @@ async function abrirJob(id){
     cerrar(); abrirJob(id);
   };
   document.querySelectorAll('[data-et]').forEach(b=>b.onclick=async()=>{
-    const k=b.dataset.et; let lista=(j.docs||[]).slice();
-    lista = lista.includes(k) ? lista.filter(x=>x!==k) : lista.concat([k]);
+    const k=b.dataset.et;
+    const estaba=b.closest('.etapa').classList.contains('done');
+    let lista=(j.docs||[]).filter(x=>x!==k && x!=='-'+k);
+    lista.push(estaba ? '-'+k : k);
     const {error}=await sb.from('jobs').update({docs:lista}).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
     cerrar(); abrirJob(id);
