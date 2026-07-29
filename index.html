@@ -366,7 +366,8 @@ async function enviarLevantamiento(){
     sqft_plastico:d.sqft_plastico?Number(d.sqft_plastico):null, zipper:d.zipper,
     packs_equipo:d.packs_equipo, equipo_desc:d.equipo_desc||null,
     deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
-    lecturas:d.lecturas, fotos:d.fotos,
+    lecturas:d.lecturas, fotos:d.fotos, medidas:d.medidas,
+    cobro_tecnico:d.cobro_tecnico===''?null:Number(d.cobro_tecnico),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null,
     estatus:'pendiente'
   };
@@ -463,7 +464,8 @@ async function abrirLevantamiento(id){
         ${f('PAD / BASEBOARDS', SN(x.removio_pad_base))}
         ${f('SERVICE/WORK', (x.servicios||[]).join('  ·  '))}
         ${f('ÁREAS', (x.areas||[]).length+' · '+(x.areas||[]).join(', '))}
-        ${f('MATERIAL REMOVIDO', (x.material_removido||[]).join(', '))}
+        ${f('MATERIAL REMOVIDO', (x.material_removido||[]).map(m=>m+((x.medidas||{})[m]?' — '+x.medidas[m]:'')).join('  ·  '))}
+        ${x.cobro_tecnico?f('COBRO DEL TÉCNICO', cf(x.cobro_tecnico)):''}
         ${f('SQFT PLASTIC', x.sqft_plastico)}
         ${f('ZIPPER', x.zipper)}
         ${f('PACKS', x.packs_equipo)}
@@ -682,7 +684,7 @@ async function nuevoTrabajoTecnico(){
 }
 
 /* ==================== TÉCNICO · INICIO ==================== */
-let TTAB='activos';
+let TTAB='activos', JTAB='activos';
 
 async function vTecInicio(){
   const h=hoy();
@@ -1293,7 +1295,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v26 · qué reparar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v28 · jobs con avance</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1710,7 +1712,7 @@ async function levantamientoInicial(){
       unidad:'', cliente:'', contacto:'', contacto_tel:'', tipo:TIPOS[dep][0], causa:'',
       after_hours:false, ocupada:'vacia', agua_extraida:false, wipe_down:false,
       demo:false, removio_pad_base:false,
-      servicios:[], areas:[], material_removido:[], situacion:[],
+      servicios:[], areas:[], material_removido:[], situacion:[], medidas:{}, cobro_tecnico:'',
       sqft_plastico:'', zipper:'no zipper', packs_equipo:0, equipo_desc:'',
       deshu_inst:0, air_inst:0, scrub_inst:0, deshu_ret:0, air_ret:0, scrub_ret:0,
       lecturas:[], fotos:[], siguiente_trabajo:'', notas:''
@@ -1755,6 +1757,8 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
       deshu_inst:r.deshu_inst||0, air_inst:r.air_inst||0, scrub_inst:r.scrub_inst||0,
       deshu_ret:r.deshu_ret||0, air_ret:r.air_ret||0, scrub_ret:r.scrub_ret||0,
       situacion:(r.situacion||[]).slice(),
+      medidas: Object.assign({}, r.medidas||{}),
+      cobro_tecnico: r.cobro_tecnico ?? '',
       lecturas:(r.lecturas||[]).slice(), fotos:(r.fotos||[]).slice(),
       siguiente_trabajo:r.siguiente_trabajo||'', notas:r.notas||''
     }
@@ -1788,6 +1792,8 @@ function pasosGuiado(){
       {t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true},
       {t:'¿En qué áreas?', s:'Marca todas las áreas afectadas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true},
       {t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'},
+      ...(d.material_removido.length?[{t:'Medidas de lo removido', s:'Obligatorio · sin medidas no se puede cotizar', tipo:'medidas'}]:[]),
+      {t:'¿Cuánto cobras por hoy?', s:'Mano de obra y reparaciones de este día', tipo:'cobro'},
       {t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'},
       {t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'}
     ];
@@ -1813,7 +1819,9 @@ function pasosGuiado(){
     G.pasos.push({t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
     G.pasos.push({t:'¿En qué áreas trabajaste?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'});
     G.pasos.push({t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'});
+    if(d.material_removido.length) G.pasos.push({t:'Medidas de lo removido', s:'Obligatorio · sin medidas no se puede cotizar', tipo:'medidas'});
     G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
+    G.pasos.push({t:'¿Cuánto cobras por hoy?', s:'Mano de obra y reparaciones de este día', tipo:'cobro'});
     G.pasos.push({t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'});
   } else {
     G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Explica qué encontraste y qué se hizo · obligatorio', tipo:'explica', reqTexto:true});
@@ -1920,6 +1928,16 @@ function pintaGuiado(){
     <div class="sub" style="margin-top:8px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} lista${d.fotos.length===1?'':'s'}</div>`;
   else if(p.tipo==='explica') cuerpo=`
     <textarea id="g1" style="min-height:150px;font-size:17px" placeholder="Ej. La unidad sigue mojada en la cocina, el drywall marcó 22%. Dejé los air movers trabajando. El manager dice que todavía no aprueban el estimado.">${esc(d.notas)}</textarea>`;
+  else if(p.tipo==='medidas') cuerpo=`
+    <div class="sub" style="margin-bottom:10px">Anota la medida de cada material. Ej. <b>1 ft x 1 ft</b>, <b>48 sqft</b>, <b>32 ft lineales</b>, <b>2 piezas</b>.</div>
+    ${d.material_removido.map((m,i)=>`
+      <label>${esc(m)}</label>
+      <input id="med${i}" value="${esc(d.medidas[m]||'')}" placeholder="1 ft x 1 ft" style="font-size:17px">`).join('')}`;
+  else if(p.tipo==='cobro') cuerpo=`
+    <label>Monto que cobras por el trabajo de hoy</label>
+    <input class="num" id="g1" type="number" step="0.01" value="${d.cobro_tecnico}" placeholder="0.00"
+      style="font-family:var(--mono);font-size:26px;text-align:left">
+    <div class="sub" style="margin-top:8px">Incluye mano de obra y las reparaciones que hiciste tú. Si hoy no cobras nada, déjalo en cero.</div>`;
   else if(p.tipo==='cierre') cuerpo=`
     <label>Next work to do</label><input id="g1" placeholder="Moisture check Monday" value="${esc(d.siguiente_trabajo)}">
     <label>Extra notes</label><textarea id="g2" placeholder="Drywall removal 1x1, pending…">${esc(d.notas)}</textarea>`;
@@ -1994,6 +2012,10 @@ function pintaGuiado(){
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
+    if(pa.tipo==='medidas'){
+      const falta=G.d.material_removido.find(m=>!(G.d.medidas[m]||'').trim());
+      if(falta) return toast('Falta la medida de '+falta);
+    }
     if(pa.tipo==='ubicacion'){
       if(G.d.mg_id && !G.d.prop_id) return toast('Escoge la propiedad.');
       if(!G.d.mg_id && (!G.d.propiedad_texto || !G.d.direccion)) return toast('Pon el nombre del lugar y la dirección.');
@@ -2024,6 +2046,7 @@ function pintaGuiado(){
     qs('#gc [data-c]').forEach(b=>b.onclick=()=>{
       const v=b.dataset.c, arr=G.d[p.k], i=arr.indexOf(v);
       if(i>=0) arr.splice(i,1); else arr.push(v);
+      if(p.k==='material_removido'){ const paso=G.paso; pasosGuiado(); G.paso=Math.min(paso,G.pasos.length-1); }
       pintaGuiado();
     });
     q1('#gc [data-add]').onclick=async()=>{
@@ -2075,6 +2098,10 @@ function guardaPaso(){
     else { const x=G.PR.find(y=>y.id===d.prop_id);
       if(x){ d.propiedad_texto=x.nombre; d.direccion=x.direccion||''; d.ciudad=x.ciudad||'San Diego'; d.zip=x.zip||''; } }
   }
+  if(p.tipo==='medidas'){
+    d.material_removido.forEach((m,i)=>{ const val=v('med'+i); if(val!==null) d.medidas[m]=val.trim(); });
+  }
+  if(p.tipo==='cobro'){ d.cobro_tecnico=v('g1')||''; }
   if(p.tipo==='explica'){ d.notas=v('g1')||''; }
   if(p.tipo==='cierre'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||d.notas||''; }
   if(p.tipo==='conteo'){
@@ -2093,6 +2120,7 @@ function guardaPaso(){
 async function enviarGuiado(){
   const d=G.d, jobId=G.job.id, fecha=G.fecha;
   const p={job_id:jobId, tecnico_id:G.tid||U.id, fecha, tipo_reporte:G.tipo, situacion:d.situacion,
+    medidas:d.medidas, cobro_tecnico:d.cobro_tecnico===''?null:Number(d.cobro_tecnico),
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -2175,7 +2203,8 @@ function verReporteCampo(r, j){
         ${fila('SERVICE/WORK', serv.join('  ·  '))}
         ${fila('HOW MANY AREAS ?', areas.length ? areas.length+(areas.length===1?' AREA':' AREAS') : '—')}
         ${fila('AREAS', areas.join(', '))}
-        ${fila('MATERIAL REMOVED', mats.join(', '))}
+        ${fila('MATERIAL REMOVED', mats.map(m=>m+((r.medidas||{})[m]?' — '+r.medidas[m]:'')).join('  ·  '))}
+        ${r.cobro_tecnico?fila('LABOR CHARGE', cf(r.cobro_tecnico)):''}
         ${fila('SQFT PLASTIC INSTALLED', r.sqft_plastico ?? '')}
         ${fila('ZIPPER', r.zipper)}
         ${fila('PACK EQUIP INSTALLED', r.packs_equipo ? r.packs_equipo+' PACK' : '')}
@@ -3164,23 +3193,83 @@ async function formContacto(id, mgId, props){
 
 /* ==================== JOBS ==================== */
 async function vJobs(){
-  const {data}=await sb.from('jobs').select('*, managements(nombre), usuarios(nombre)').eq('departamento',DEP).order('created_at',{ascending:false}).limit(120);
+  const [{data:jobs},{data:reps},{data:parts},{data:ests}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre), usuarios(nombre), propiedades(nombre)')
+      .eq('departamento',DEP).order('created_at',{ascending:false}).limit(150),
+    sb.from('reportes').select('job_id,fecha'),
+    sb.from('partidas').select('job_id,estatus,revisado,costo,cobro'),
+    sb.from('estimados').select('job_id,estatus,monto')
+  ]);
+  const J=jobs||[];
+  const nRep={}, part={}, est={};
+  (reps||[]).forEach(x=>nRep[x.job_id]=(nRep[x.job_id]||0)+1);
+  (parts||[]).forEach(x=>(part[x.job_id] ||= []).push(x));
+  (ests||[]).forEach(x=>(est[x.job_id] ||= []).push(x));
+
+  const etapa=j=>{
+    const man=j.docs||[];
+    const P=part[j.id]||[], E=est[j.id]||[];
+    const auto={
+      inicial:(nRep[j.id]||0)>0, reportes:(nRep[j.id]||0)>0,
+      estimado:E.some(x=>['enviado','aceptado'].includes(x.estatus)),
+      reparando:P.some(x=>['asignada','proceso'].includes(x.estatus)) || (P.length>0 && P.every(x=>x.estatus==='terminada')),
+      aceptado:E.some(x=>x.estatus==='aceptado')
+    };
+    const listo=k=> man.includes('-'+k) ? false : (man.includes(k) || !!auto[k]);
+    const hechas=ETAPAS.filter(e=>listo(e.k)).length;
+    const idx=ETAPAS.findIndex(e=>!listo(e.k));
+    return {pct:Math.round(hechas*100/ETAPAS.length), hechas,
+      nombre: idx<0?'Completo':ETAPAS[idx].t, tieneEst:auto.estimado, E, P};
+  };
+
+  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus));
+  const facturados=J.filter(x=>x.estatus==='facturado');
+  const terminados=J.filter(x=>x.estatus==='terminado');
+  const lista = JTAB==='activos'?activos : JTAB==='terminados'?terminados : JTAB==='facturados'?facturados : J;
+
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
+    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{JTAB=b.dataset.t;render();});
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
+
+  const tarjeta=j=>{
+    const e=etapa(j);
+    const tc=e.P.reduce((a,x)=>a+Number(x.costo||0),0), tb=e.P.reduce((a,x)=>a+Number(x.cobro||0),0);
+    const revisar=e.P.filter(x=>x.estatus==='terminada'&&!x.revisado).length;
+    return `<div class="card ${DEP==='cleaning'?'rojo':''}" data-job="${j.id}" style="cursor:pointer">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(j.folio)}</span>
+        <div class="row" style="gap:5px">
+          <span class="chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${(j.origen||'').slice(0,4).toUpperCase()}</span>
+          <span class="chip ${j.estatus==='facturado'?'azul':''}">${esc(j.estatus)}</span>
+        </div></div>
+      <div class="tit">${esc(j.propiedades?.nombre||j.cliente)}</div>
+      <div class="sub">${esc(j.direccion||'')}${j.unidad?' · Unit '+esc(j.unidad):''}</div>
+      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
+
+      <div class="row" style="margin-top:9px;justify-content:space-between;align-items:baseline">
+        <span class="disp" style="font-size:17px;color:var(--azul-d)">${esc(e.nombre)}</span>
+        <span class="mono" style="font-size:13px;color:var(--gris)">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
+      <div class="barra" style="margin-top:6px;height:8px"><i style="width:${e.pct}%;background:${e.pct===100?'var(--azul)':'var(--ambar)'}"></i></div>
+
+      <div class="row" style="margin-top:9px">
+        <span class="chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
+        ${e.P.length?`<span class="chip">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:''}
+        ${revisar?`<span class="chip rojo">${revisar} POR REVISAR</span>`:''}
+        ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
+        ${tb?`<span class="chip ${tb-tc>0?'azul':'rojo'}">MARGEN ${cf(tb-tc)}</span>`:''}
+      </div></div>`;
+  };
+
   return selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button>':''}
-    <div class="eyebrow">Jobs de ${DEP}</div>`+
-    ((data||[]).map(j=>`<div class="card ${DEP==='cleaning'?'rojo':''}">
-      <div class="row" style="justify-content:space-between"><span class="folio">${esc(j.folio)}</span>
-        <div class="row" style="gap:5px"><span class="chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${(j.origen||'').slice(0,4).toUpperCase()}</span><span class="chip">${esc(j.estatus)}</span></div></div>
-      <div class="tit">${esc(j.cliente)}</div>
-      <div class="sub">${esc(j.direccion)}${j.unidad?' · Unit '+esc(j.unidad):''}${j.ciudad?', '+esc(j.ciudad):''}</div>
-      <div class="meta" style="margin-top:3px">${esc(j.tipo)}${j.managements?.nombre?' · '+esc(j.managements.nombre):''}</div>
-      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
-      <div class="row" style="margin-top:7px">${j.unidad?`<span class="chip">UNIT ${esc(j.unidad)}</span>`:''}<span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}</div>
-      ${j.notas?`<div class="texto clamp" style="margin-top:7px;font-size:14.5px">${esc(j.notas)}</div>`:''}
-      <div class="row" style="margin-top:9px"><button class="btn ghost sm" data-job="${j.id}">Abrir</button></div>
-    </div>`).join('') || `<div class="empty"><div class="disp">Sin jobs</div><p>Registra el primero para poder programar visitas.</p></div>`);
+    <div class="tabs" style="margin-top:14px">
+      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--ambar-d)">${activos.length}</span></button>
+      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${terminados.length}</span></button>
+      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--azul)">${facturados.length}</span></button>
+      <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${J.length}</span></button>
+    </div>
+    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">Nada en esta lista</div>
+      <p>${J.length?'Tienes '+J.length+' jobs en total. Cambia de pestaña.':'Registra el primero.'}</p></div>`}`;
 }
 
 async function nuevoFolio(dep){
@@ -3661,7 +3750,7 @@ async function abrirJob(id){
         const repTodas=P.length>0 && P.every(x=>x.estatus==='terminada');
         const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas, aceptado:estAcep};
         const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
-          estimado:estEnv?cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0):'sin estimado todavía',
+          estimado:estEnv?('SÍ TIENE ESTIMADO · '+cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0)):'NO TIENE ESTIMADO',
           reparando:P.length?P.filter(x=>x.estatus==='terminada').length+' de '+P.length+' partidas listas':'sin partidas'};
         const listo=k=> manuales.includes('-'+k) ? false : (manuales.includes(k) || !!auto[k]);
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
@@ -3723,7 +3812,8 @@ async function abrirJob(id){
           ${r.ocupada==='ocupada'?'<span class="chip rojo">OCUPADA</span>':''}
         </div>
         ${(r.areas||[]).length?`<div class="meta" style="margin-top:6px">AREAS · ${(r.areas||[]).join(', ')}</div>`:''}
-        ${(r.material_removido||[]).length?`<div class="meta" style="color:var(--rojo-d)">REMOVIDO · ${(r.material_removido||[]).join(', ')}</div>`:''}
+        ${(r.material_removido||[]).length?`<div class="meta" style="color:var(--rojo-d)">REMOVIDO · ${(r.material_removido||[]).map(m=>esc(m)+((r.medidas||{})[m]?' ('+esc(r.medidas[m])+')':'')).join(' · ')}</div>`:''}
+        ${r.cobro_tecnico?`<div class="meta" style="color:var(--azul-d)">COBRO DEL TÉCNICO · ${cf(r.cobro_tecnico)}</div>`:''}
         ${(r.sqft_plastico||r.packs_equipo)?`<div class="meta">${r.sqft_plastico?r.sqft_plastico+' sqft plastic · ':''}${esc(r.zipper||'')}${r.packs_equipo?' · '+r.packs_equipo+' pack':''}</div>`:''}
         ${r.equipo_desc?`<div class="sub" style="color:var(--tinta);margin-top:4px">${esc(r.equipo_desc)}</div>`:''}
         ${(r.lecturas||[]).length?`<div class="meta" style="margin-top:5px">MOISTURE · ${(r.lecturas||[]).map(l=>`${esc(l.area)} ${esc(l.mc)}%`).join(' · ')}</div>`:''}
@@ -3766,9 +3856,14 @@ async function abrirJob(id){
     const estaba=b.closest('.etapa').classList.contains('done');
     let lista=(j.docs||[]).filter(x=>x!==k && x!=='-'+k);
     lista.push(estaba ? '-'+k : k);
-    const {error}=await sb.from('jobs').update({docs:lista}).eq('id',id);
+    const up={docs:lista};
+    if(k==='subido' && !estaba){
+      if(confirm('¿Cerrar el trabajo y pasarlo a FACTURADOS?')) up.estatus='facturado';
+    }
+    if(k==='subido' && estaba && j.estatus==='facturado') up.estatus='terminado';
+    const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
-    cerrar(); abrirJob(id);
+    cerrar(); toast(up.estatus==='facturado'?'Trabajo cerrado y facturado':'Guardado'); abrirJob(id);
   });
   document.querySelectorAll('[data-rc]').forEach(c=>c.onchange=async()=>{
     await sb.from('recordatorios').update({hecho:c.checked}).eq('id',c.dataset.rc);
