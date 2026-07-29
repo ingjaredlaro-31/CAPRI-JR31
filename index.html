@@ -25,10 +25,10 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
-body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:17.5px;line-height:1.6;min-height:100dvh}
+body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:18.5px;line-height:1.62;min-height:100dvh}
 h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-weight:700}
 .mono{font-family:var(--mono)}
-button,input,select,textarea{font-family:inherit;font-size:17px}
+button,input,select,textarea{font-family:inherit;font-size:18px}
 a{color:var(--azul)}
 
 .top{background:var(--azul);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
@@ -75,19 +75,19 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 }
 
-.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--gris);text-transform:uppercase;
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.18em;color:var(--gris);text-transform:uppercase;
   margin:26px 0 10px;display:flex;align-items:center;gap:10px}
 .eyebrow::after{content:'';flex:1;height:1px;background:var(--linea)}
 .eyebrow:first-child{margin-top:2px}
 .card{background:#fff;border:1px solid var(--linea);border-left:4px solid var(--azul);border-radius:0 10px 10px 0;
   padding:15px 16px;margin-bottom:11px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .card.rojo{border-left-color:var(--rojo)} .card.ambar{border-left-color:var(--ambar)} .card.gris{border-left-color:#9AA3AF}
-.folio{font-family:var(--mono);font-size:12.5px;color:var(--azul)}
-.meta{font-family:var(--mono);font-size:13.5px;color:var(--gris)}
-.tit{font-family:var(--disp);font-size:24px;line-height:1.12;margin:5px 0 3px;letter-spacing:.005em}
-.sub{font-size:15px;color:var(--gris)}
+.folio{font-family:var(--mono);font-size:14px;color:var(--azul)}
+.meta{font-family:var(--mono);font-size:14.5px;color:var(--gris)}
+.tit{font-family:var(--disp);font-size:26px;line-height:1.12;margin:5px 0 3px;letter-spacing:.005em}
+.sub{font-size:16px;color:var(--gris)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.chip{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;
+.chip{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;
   border:1px solid var(--linea);border-radius:5px;color:var(--gris);background:#F3F4F6;white-space:nowrap}
 .chip.azul{color:var(--azul-d);border-color:var(--azul-b);background:var(--azul-l)}
 .chip.rojo{color:var(--rojo-d);border-color:var(--rojo-b);background:var(--rojo-l)}
@@ -100,15 +100,17 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
 .btn.rojo{background:var(--rojo)}
 .btn.wide{width:100%;padding:13px}
 .btn.sm{padding:7px 12px;font-size:15px}
-label{display:block;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:14px 0 6px}
+label{display:block;font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:14px 0 6px}
 input,select,textarea{width:100%;background:#fff;border:1px solid #C9CFD6;border-radius:6px;color:var(--tinta);padding:11px 12px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);outline-offset:1px}
 textarea{min-height:80px;resize:vertical}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .num{text-align:center;font-family:var(--mono)}
+.card select,.card input{font-size:17px;padding:10px 12px}
+.card .meta{letter-spacing:.06em}
 .empty{text-align:center;color:var(--gris);padding:36px 16px;font-size:16px}
-.empty .disp{font-size:25px;color:var(--tinta);margin-bottom:6px}
+.empty .disp{font-size:27px;color:var(--tinta);margin-bottom:6px}
 .stat{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:14px 15px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .stat .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris)}
 .stat .v{font-family:var(--disp);font-size:34px;line-height:1.05}
@@ -132,9 +134,9 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:6px}
 @media(min-width:900px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .kpi{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(11,13,17,.04)}
-.kpi .l{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gris);text-transform:uppercase}
-.kpi .v{font-family:var(--disp);font-weight:800;font-size:42px;line-height:1;margin-top:5px}
-.kpi .p{font-size:14.5px;color:var(--gris);margin-top:2px}
+.kpi .l{font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--gris);text-transform:uppercase}
+.kpi .v{font-family:var(--disp);font-weight:800;font-size:44px;line-height:1;margin-top:5px}
+.kpi .p{font-size:15.5px;color:var(--gris);margin-top:2px}
 .kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
 .kpi.m{border-left:4px solid var(--ambar)}
 .etapas{position:relative;padding-left:6px}
@@ -143,18 +145,18 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .etapa .mano:hover{opacity:.75}
 .etapa:hover{background:#fff}
 .etapa:last-child{padding-bottom:0}
-.etapa::before{content:'';position:absolute;left:15px;top:42px;bottom:0;width:2px;background:var(--linea)}
+.etapa::before{content:'';position:absolute;left:17px;top:46px;bottom:0;width:2px;background:var(--linea)}
 .etapa:last-child::before{display:none}
 .etapa.done::before{background:var(--azul)}
-.etapa .bolita{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
+.etapa .bolita{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
   justify-content:center;font-family:var(--mono);font-size:15px;font-weight:600;position:relative;z-index:1;
   background:#fff;border:2px solid var(--linea);color:var(--gris);transition:all .15s}
 .etapa.done .bolita{background:var(--azul);border-color:var(--azul);color:#fff}
 .etapa.hoy .bolita{border-color:var(--ambar);color:var(--ambar-d);box-shadow:0 0 0 4px var(--ambar-l)}
 .etapa .txt{flex:1;min-width:0;padding-top:2px}
-.etapa .txt b{display:block;font-family:var(--disp);font-size:19px;text-transform:uppercase;line-height:1.1}
+.etapa .txt b{display:block;font-family:var(--disp);font-size:22px;text-transform:uppercase;line-height:1.1}
 .etapa.done .txt b{color:var(--azul-d)}
-.etapa .txt span{font-size:14px;color:var(--gris)}
+.etapa .txt span{font-size:15.5px;color:var(--gris)}
 .etapa .mano{cursor:pointer}
 .etapa .auto{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--gris);
   border:1px solid var(--linea);border-radius:4px;padding:2px 6px;align-self:center}
@@ -168,7 +170,7 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fila:active{transform:translateY(1px)}
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
-.fila .t b{display:block;font-family:var(--disp);font-size:20px;font-weight:700;text-transform:uppercase}
+.fila .t b{display:block;font-family:var(--disp);font-size:22px;font-weight:700;text-transform:uppercase}
 .marca-agua{position:relative;overflow:hidden}
 .marca-agua::before{content:'';position:absolute;top:50%;left:50%;width:150%;padding-bottom:150%;
   transform:translate(-50%,-50%);background:var(--logobg) center/contain no-repeat;
@@ -209,11 +211,11 @@ main > *{position:relative;z-index:1}
 .leaflet-container{font-family:var(--body)}
 .frm{width:100%;border-collapse:collapse;margin-top:4px}
 .frm td{border-bottom:1px solid var(--linea);padding:10px 4px;vertical-align:top}
-.frm td.k{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--gris);text-transform:uppercase;width:52%}
-.frm td.v{font-family:var(--disp);font-size:19px;font-weight:700;text-align:right;text-transform:uppercase}
+.frm td.k{font-family:var(--mono);font-size:13.5px;letter-spacing:.06em;color:var(--gris);text-transform:uppercase;width:52%}
+.frm td.v{font-family:var(--disp);font-size:21px;font-weight:700;text-align:right;text-transform:uppercase}
 .frm tr.blk td{display:block;text-align:left;width:auto;border:0;padding-bottom:2px}
 .frm tr.blk td.v{font-family:var(--body);font-size:16px;font-weight:400;text-transform:none;border-bottom:1px solid var(--linea);padding-bottom:10px}
-.texto{font-size:15.5px;line-height:1.65;color:var(--tinta);white-space:pre-wrap}
+.texto{font-size:16.5px;line-height:1.7;color:var(--tinta);white-space:pre-wrap}
 .clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .vermas{background:none;border:0;color:var(--azul);font-family:var(--mono);font-size:12.5px;
   letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:6px 0}
@@ -1295,7 +1297,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v28 · jobs con avance</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v29 · facturación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3699,7 +3701,7 @@ async function abrirJob(id){
         </div>`;
       })()}
 
-      <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='terminada').length} de ${P.length} terminadas</div>
+      <div class="eyebrow" id="sec_reparaciones">Reconstrucción · ${P.filter(p=>p.estatus==='terminada').length} de ${P.length} terminadas</div>
       <div id="parts">${P.map(p=>{
         const [t,c]=ESTAT_PART[p.estatus];
         const col = p.estatus==='terminada'?'':(p.estatus==='pendiente')?'rojo':'ambar';
@@ -3741,6 +3743,8 @@ async function abrirJob(id){
       ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar reparación</button>':''}`:''}
 
       ${(()=>{
+        const DEST={estimado:'estimados', aceptado:'estimados', invoice:'invoice', subido:'invoice',
+          reportes:'reportes', inicial:'reportes', reparando:'reparaciones'};
         const manuales=j.docs||[];
         const nRep=R.length;
         const tieneIni=R.some(x=>x.tipo_reporte==='inicial') || nRep>0;
@@ -3771,8 +3775,9 @@ async function abrirJob(id){
           const cl=EDIT()?'mano':'';
           return `<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
             <div class="bolita ${cl}" ${EDIT()?`data-et="${e.k}"`:''} title="${EDIT()?(ok?'toca para desmarcar':'toca para marcar'):''}">${ok?'✓':i+1}</div>
-            <div class="txt ${cl}" ${EDIT()?`data-et="${e.k}"`:''}>
-              <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span></div>
+            <div class="txt mano" ${DEST[e.k]?`data-go="${DEST[e.k]}"`:(EDIT()?`data-et="${e.k}"`:'')}>
+              <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span>
+              ${DEST[e.k]?`<span class="meta" style="color:var(--azul);display:block;margin-top:2px">toca para ir ›</span>`:''}</div>
             <div class="row" style="gap:5px;align-self:center">
               ${forzada?'<span class="auto" style="color:var(--azul-d);border-color:var(--azul-b)">A MANO</span>':''}
               ${quitada?'<span class="auto" style="color:var(--rojo-d);border-color:var(--rojo-b)">QUITADA</span>':''}
@@ -3781,6 +3786,32 @@ async function abrirJob(id){
           </div>`;}).join('')}
         ${EDIT()?'<div class="sub" style="margin-top:12px">Toca cualquier etapa para marcarla o desmarcarla. Las AUTO se llenan solas con los reportes, estimados y partidas, pero puedes forzarlas.</div>':''}`;
       })()}
+
+      <div class="eyebrow" id="sec_invoice">Facturación</div>
+      ${j.invoice_num||j.invoice_monto?`<div class="card" style="border-left-color:${j.invoice_pagado?'var(--azul)':'var(--ambar)'}">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="meta">INVOICE</div>
+            <div class="disp" style="font-size:26px">${esc(j.invoice_num||'sin número')}</div>
+            <div class="meta" style="margin-top:4px">${j.invoice_fecha?'emitido '+fmt(j.invoice_fecha):'sin fecha'}${j.invoice_plataforma?' · '+esc(j.invoice_plataforma):''}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="meta">MONTO A LA PROPIEDAD</div>
+            <div class="disp" style="font-size:34px;color:var(--azul)">${cf(j.invoice_monto)}</div>
+            <span class="chip ${j.invoice_pagado?'azul':'ambar'}">${j.invoice_pagado?'PAGADO':'POR COBRAR'}</span>
+          </div>
+        </div>
+        ${(()=>{ const tc=P.reduce((a,x)=>a+Number(x.costo||0),0);
+          const m=Number(j.invoice_monto||0)-tc;
+          return (j.invoice_monto&&tc)?`<div class="row" style="justify-content:space-between;border-top:1px solid var(--linea2);margin-top:11px;padding-top:11px">
+            <span class="sub">Costo de reparaciones ${cf(tc)}</span>
+            <span class="chip ${m>0?'azul':'rojo'}">UTILIDAD ${cf(m)}</span></div>`:'';})()}
+        ${j.invoice_notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)">${esc(j.invoice_notas)}</div>`:''}
+        ${EDIT()?'<div class="row no-print" style="margin-top:11px"><button class="btn ghost sm" id="edinv">Editar invoice</button></div>':''}
+      </div>`:(EDIT()?`<div class="card" style="border-left-color:var(--linea)">
+        <div class="sub">Todavía no has registrado el invoice de este trabajo.</div>
+        <div class="row no-print" style="margin-top:10px"><button class="btn sm" id="edinv">Registrar invoice</button></div>
+      </div>`:'<div class="sub">Sin invoice registrado.</div>')}
 
       <div class="eyebrow">Notas y comentarios</div>
       <div>${N.map(n=>`<div class="card" style="border-left-color:var(--linea)">
@@ -3799,7 +3830,7 @@ async function abrirJob(id){
         </div>`;}).join('')||'<div class="sub">Sin recordatorios.</div>'}</div>
       ${EDIT()?'<div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>':''}
 
-      <div class="eyebrow">Reportes recibidos · ${R.length}</div>
+      <div class="eyebrow" id="sec_reportes">Reportes recibidos · ${R.length}</div>
       ${R.slice().reverse().map(r=>`<div class="card">
         <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
         <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
@@ -3841,6 +3872,7 @@ async function abrirJob(id){
     vmj.textContent = ab ? 'Ver todo el scope ▾' : 'Ver menos ▴';
   };
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
+  const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -3851,6 +3883,13 @@ async function abrirJob(id){
     await sb.from('recordatorios').insert({job_id:id,texto:t,fecha_venc:$('#rf').value||null});
     cerrar(); abrirJob(id);
   };
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+    const d=b.dataset.go;
+    if(d==='estimados'){ cerrar(); V='estimados'; render(); return; }
+    if(d==='invoice'){ formInvoice(id); return; }
+    const dest=document.getElementById(d==='reportes'?'sec_reportes':'sec_reparaciones');
+    if(dest) dest.scrollIntoView({behavior:'smooth',block:'start'});
+  });
   document.querySelectorAll('[data-et]').forEach(b=>b.onclick=async()=>{
     const k=b.dataset.et;
     const estaba=b.closest('.etapa').classList.contains('done');
@@ -3934,6 +3973,59 @@ async function abrirJob(id){
   const ap=$('#ap'); if(ap) ap.onclick=()=>{ cerrar(); formPartida(id); };
   document.querySelectorAll('[data-sug]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,null,b.dataset.sug); });
   document.querySelectorAll('[data-ep2]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,b.dataset.ep2); });
+}
+
+async function formInvoice(id){
+  const {data:j}=await sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',id).single();
+  const {data:P}=await sb.from('partidas').select('costo,cobro').eq('job_id',id);
+  const sugerido=(P||[]).reduce((a,x)=>a+Number(x.cobro||0),0);
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:12px;color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp" style="font-size:23px;line-height:1">Invoice del trabajo</div>
+    <div style="font-size:14px;color:#C3D6F7">${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+esc(j.unidad):''}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Código / número de invoice</label>
+      <input id="i_num" value="${esc(j.invoice_num||'')}" placeholder="INV-2026-0148" style="font-family:var(--mono);font-size:21px">
+
+      <label>Monto facturado a la propiedad</label>
+      <input class="num" id="i_monto" type="number" step="0.01" value="${j.invoice_monto??''}"
+        placeholder="0.00" style="font-family:var(--mono);font-size:26px;text-align:left">
+      ${sugerido?`<div class="sub" style="margin-top:6px">Suma de los cobros de las reparaciones: <b>${cf(sugerido)}</b>
+        <button class="vermas" id="usar">usar este monto</button></div>`:''}
+
+      <div class="g2">
+        <div><label>Fecha del invoice</label><input id="i_fecha" type="date" value="${esc(j.invoice_fecha||hoy())}"></div>
+        <div><label>Plataforma donde se subió</label>
+          <input id="i_plat" value="${esc(j.invoice_plataforma||j.managements?.nombre||'')}" placeholder="Portal de Greystar"></div>
+      </div>
+
+      <label><input type="checkbox" id="i_pag" ${j.invoice_pagado?'checked':''} style="width:auto"> Ya está pagado</label>
+      <label>Notas de cobranza</label>
+      <textarea id="i_nt" placeholder="Se subió al portal el 29 de julio, net 30">${esc(j.invoice_notas||'')}</textarea>
+
+      <div style="height:18px"></div>
+      <button class="btn wide" id="sv">Guardar invoice</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(id);};
+  const us=$('#usar'); if(us) us.onclick=()=>{ $('#i_monto').value=sugerido; };
+  $('#sv').onclick=async()=>{
+    const num=$('#i_num').value.trim()||null;
+    const up={invoice_num:num,
+      invoice_monto:$('#i_monto').value===''?null:Number($('#i_monto').value),
+      invoice_fecha:$('#i_fecha').value||null,
+      invoice_plataforma:$('#i_plat').value.trim()||null,
+      invoice_pagado:$('#i_pag').checked,
+      invoice_notas:$('#i_nt').value.trim()||null};
+    let docs=(j.docs||[]).filter(x=>x!=='-invoice');
+    if(num && !docs.includes('invoice')) docs.push('invoice');
+    up.docs=docs;
+    const {error}=await sb.from('jobs').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Invoice guardado'); abrirJob(id);
+  };
 }
 
 async function editarScope(id, actual){
