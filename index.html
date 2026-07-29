@@ -139,6 +139,20 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .kpi .p{font-size:15.5px;color:var(--gris);margin-top:2px}
 .kpi.r{border-left:4px solid var(--rojo)} .kpi.a{border-left:4px solid var(--azul)}
 .kpi.m{border-left:4px solid var(--ambar)}
+.dinero{background:linear-gradient(160deg,#141922 0%,var(--tinta) 65%);color:#fff;border-radius:14px;
+  padding:20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 18px rgba(11,13,17,.18)}
+.dinero .franja2{position:absolute;left:0;right:0;bottom:0;height:4px;display:flex}
+.dinero .franja2 i{flex:1}
+.dinero .franja2 i:first-child{background:var(--azul)}
+.dinero .franja2 i:last-child{background:var(--rojo)}
+.dinero > *{position:relative;z-index:1}
+.dinero .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:#9AA3AF;text-transform:uppercase}
+.dinero .grande{font-family:var(--disp);font-weight:800;font-size:56px;line-height:.98;letter-spacing:-.01em}
+.dinero .med{font-family:var(--disp);font-weight:700;font-size:30px;line-height:1}
+.dinero .gr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+@media(min-width:640px){.dinero .gr{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.dinero .celda{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:11px;padding:13px 14px}
+.dinero .pct{font-family:var(--mono);font-size:15px;color:#C3D6F7}
 .etapas{position:relative;padding-left:6px}
 .etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding:10px 12px 18px 0;border-radius:10px;
   transition:background .15s}
@@ -927,6 +941,42 @@ async function verJobTecnico(id){
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas</div>
       <div class="chips">${(j.areas||[]).map(x=>`<button type="button" class="on" style="cursor:default">${esc(x)}</button>`).join('')}</div>`:''}
 
+      ${(()=>{
+        const cobroPart=P.reduce((a,x)=>a+Number(x.cobro||0),0);
+        const costoPart=P.reduce((a,x)=>a+Number(x.costo||0),0);
+        const tecRep=R.reduce((a,x)=>a+Number(x.cobro_tecnico||0),0);
+        const estMonto=EST.filter(x=>['enviado','aceptado'].includes(x.estatus))
+          .reduce((a,x)=>Math.max(a,Number(x.monto||0)),0);
+        const ingreso = Number(j.invoice_monto||0) || Number(j.monto_cobrar||0) || cobroPart || estMonto;
+        const pagoTec = j.pago_tecnico!=null ? Number(j.pago_tecnico) : tecRep;
+        const otros = Number(j.otros_gastos||0);
+        const gastos = pagoTec + costoPart + otros;
+        const gana = ingreso - gastos;
+        const mg = ingreso ? Math.round(gana*100/ingreso) : 0;
+        const fuente = j.invoice_monto?'del invoice':(j.monto_cobrar?'capturado a mano':(cobroPart?'suma de reparaciones':(estMonto?'del estimado':'sin definir')));
+        return `<div class="dinero">
+          <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="lbl">Ganancia de este trabajo</div>
+              <div class="grande" style="color:${gana>=0?'#7FB3FF':'#FF8A8A'}">${cf(gana)}</div>
+              <div class="pct">${ingreso?mg+'% de margen · ingreso '+cf(ingreso)+' ('+fuente+')':'falta capturar el monto a cobrar'}</div>
+            </div>
+            ${EDIT()?`<button class="btn ghost sm no-print" id="edfin" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)">Editar</button>`:''}
+          </div>
+          <div class="gr">
+            <div class="celda"><div class="lbl">Ingreso</div><div class="med">${cf(ingreso)}</div>
+              <div class="pct" style="font-size:13px">${esc(fuente)}</div></div>
+            <div class="celda"><div class="lbl">Pago al técnico</div><div class="med">${cf(pagoTec)}</div>
+              <div class="pct" style="font-size:13px">${j.pago_tecnico!=null?'fijado a mano':(tecRep?'suma de sus reportes':'sin cobros')}</div></div>
+            <div class="celda"><div class="lbl">Contratistas</div><div class="med">${cf(costoPart)}</div>
+              <div class="pct" style="font-size:13px">${P.length} reparación${P.length===1?'':'es'}</div></div>
+            <div class="celda"><div class="lbl">Otros gastos</div><div class="med">${cf(otros)}</div>
+              <div class="pct" style="font-size:13px">${esc(j.gastos_notas||'equipo, materiales')}</div></div>
+          </div>
+          <div class="franja2"><i></i><i></i></div>
+        </div>`;
+      })()}
+
       <div class="eyebrow">Fechas clave</div>
       ${bloqueFechas(j,R,P,AS)}
 
@@ -1297,7 +1347,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v29 · facturación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v30 · control de dinero</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3873,6 +3923,7 @@ async function abrirJob(id){
   };
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
+  const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -3973,6 +4024,72 @@ async function abrirJob(id){
   const ap=$('#ap'); if(ap) ap.onclick=()=>{ cerrar(); formPartida(id); };
   document.querySelectorAll('[data-sug]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,null,b.dataset.sug); });
   document.querySelectorAll('[data-ep2]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,b.dataset.ep2); });
+}
+
+async function formFinanzas(id){
+  const [{data:j},{data:P},{data:R},{data:EST}] = await Promise.all([
+    sb.from('jobs').select('*').eq('id',id).single(),
+    sb.from('partidas').select('costo,cobro').eq('job_id',id),
+    sb.from('reportes').select('cobro_tecnico, usuarios(nombre)').eq('job_id',id),
+    sb.from('estimados').select('monto,estatus').eq('job_id',id)
+  ]);
+  const cobroPart=(P||[]).reduce((a,x)=>a+Number(x.cobro||0),0);
+  const costoPart=(P||[]).reduce((a,x)=>a+Number(x.costo||0),0);
+  const tecRep=(R||[]).reduce((a,x)=>a+Number(x.cobro_tecnico||0),0);
+  const estMonto=(EST||[]).filter(x=>['enviado','aceptado'].includes(x.estatus))
+    .reduce((a,x)=>Math.max(a,Number(x.monto||0)),0);
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:12px;color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp" style="font-size:23px;line-height:1">Control financiero</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      <label>Monto a cobrar por el trabajo</label>
+      <input class="num" id="f_mc" type="number" step="0.01" value="${j.monto_cobrar??''}"
+        placeholder="0.00" style="font-family:var(--mono);font-size:26px;text-align:left">
+      <div class="sub" style="margin-top:6px">
+        ${j.invoice_monto?`Ya hay invoice por <b>${cf(j.invoice_monto)}</b>, ese manda sobre este campo.`:''}
+        ${cobroPart?`<br>Suma de reparaciones: <b>${cf(cobroPart)}</b> <button class="vermas" data-usar="${cobroPart}">usar</button>`:''}
+        ${estMonto?`<br>Estimado: <b>${cf(estMonto)}</b> <button class="vermas" data-usar="${estMonto}">usar</button>`:''}
+      </div>
+
+      <label>Pago al técnico</label>
+      <input class="num" id="f_pt" type="number" step="0.01" value="${j.pago_tecnico??''}"
+        placeholder="${tecRep||'0.00'}" style="font-family:var(--mono);font-size:22px;text-align:left">
+      <div class="sub" style="margin-top:6px">Si lo dejas vacío se usa lo que el técnico reportó: <b>${cf(tecRep)}</b>
+        ${tecRep?`<button class="vermas" data-pt="${tecRep}">fijar ese monto</button>`:''}</div>
+
+      <label>Otros gastos · equipo, materiales, renta</label>
+      <input class="num" id="f_og" type="number" step="0.01" value="${j.otros_gastos??''}"
+        placeholder="0.00" style="font-family:var(--mono);font-size:22px;text-align:left">
+      <label>En qué se gastó</label>
+      <input id="f_gn" value="${esc(j.gastos_notas||'')}" placeholder="Renta de 2 deshus 4 días, plástico y cinta">
+
+      <div class="card" style="border-left-color:var(--azul);margin-top:16px">
+        <div class="row" style="justify-content:space-between"><span class="sub">Costo de contratistas</span>
+          <span class="mono">${cf(costoPart)}</span></div>
+        <div class="sub" style="margin-top:5px">Se calcula solo de las reparaciones. Para cambiarlo, edita cada partida.</div>
+      </div>
+
+      <div style="height:18px"></div>
+      <button class="btn wide" id="sv">Guardar control</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(id);};
+  $('#sheet').querySelectorAll('[data-usar]').forEach(b=>b.onclick=()=>{ $('#f_mc').value=b.dataset.usar; });
+  $('#sheet').querySelectorAll('[data-pt]').forEach(b=>b.onclick=()=>{ $('#f_pt').value=b.dataset.pt; });
+  $('#sv').onclick=async()=>{
+    const up={
+      monto_cobrar:$('#f_mc').value===''?null:Number($('#f_mc').value),
+      pago_tecnico:$('#f_pt').value===''?null:Number($('#f_pt').value),
+      otros_gastos:$('#f_og').value===''?null:Number($('#f_og').value),
+      gastos_notas:$('#f_gn').value.trim()||null};
+    const {error}=await sb.from('jobs').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Control financiero guardado'); abrirJob(id);
+  };
 }
 
 async function formInvoice(id){
