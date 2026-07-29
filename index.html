@@ -1397,7 +1397,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v32 · modo oscuro</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v33 · calendario</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2666,6 +2666,7 @@ function bloqueCalendario(j,R,P,A,click){
   const fin=new Date((f.cierre||hoy())+'T12:00:00');
   const fechasR=new Set(R.filter(x=>x.asistio!==false).map(x=>x.fecha));
   const noFue=new Set(R.filter(x=>x.asistio===false).map(x=>x.fecha));
+  const motivos={}; R.filter(x=>x.asistio===false).forEach(x=>motivos[x.fecha]=x.motivo_no||'');
   const inicialF=R.filter(x=>x.tipo_reporte==='inicial'&&x.asistio!==false).map(x=>x.fecha);
   const asigF=new Set((A||[]).map(x=>x.fecha));
   const repF=new Set(P.filter(x=>x.fecha_fin).map(x=>x.fecha_fin));
@@ -2673,6 +2674,20 @@ function bloqueCalendario(j,R,P,A,click){
   let meses=[], cur=new Date(ini.getFullYear(),ini.getMonth(),1);
   while(cur<=fin && meses.length<8){ meses.push(new Date(cur)); cur.setMonth(cur.getMonth()+1); }
   if(!meses.length) meses=[new Date()];
+
+  const totalDias = f.apertura ? dias(f.apertura, f.cierre||hoy())+1 : 0;
+  const conRep=[...fechasR].filter(x=>x>=f.apertura).length;
+  const conNoFue=[...noFue].filter(x=>x>=f.apertura).length;
+  const faltantes=Math.max(0, totalDias - conRep - conNoFue);
+
+  const resumen=`<div class="kpis" style="margin-bottom:14px">
+    <div class="kpi a"><div class="l">Días reportados</div><div class="v" style="font-size:34px;color:var(--azul)">${conRep}</div><div class="p">de ${totalDias} días</div></div>
+    <div class="kpi ${faltantes?'r':''}"><div class="l">Sin reporte</div>
+      <div class="v" style="font-size:34px;color:${faltantes?'var(--rojo)':'var(--tinta)'}">${faltantes}</div><div class="p">días en blanco</div></div>
+    <div class="kpi m"><div class="l">No se visitó</div><div class="v" style="font-size:34px">${conNoFue}</div><div class="p">con motivo</div></div>
+    <div class="kpi"><div class="l">Cumplimiento</div>
+      <div class="v" style="font-size:34px">${totalDias?Math.round((conRep+conNoFue)*100/totalDias):0}%</div><div class="p">días cerrados</div></div>
+  </div>`;
 
   const html=meses.map(m=>{
     const y=m.getFullYear(), mo=m.getMonth();
@@ -2683,13 +2698,23 @@ function bloqueCalendario(j,R,P,A,click){
     for(let n=1;n<=ult;n++){
       const fe=`${y}-${String(mo+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`;
       let bg='var(--sup)', co='var(--gris)', bd='1px solid var(--linea)', tit='';
-      if(fe===f.apertura){ bg='var(--tinta)'; co='#fff'; bd='2px solid var(--ambar)'; tit='día que comenzó el trabajo'; }
-      if(repF.has(fe)){ bg='#5CA96B'; co='#fff'; bd='none'; tit='reparación'; }
-      if(fechasR.has(fe)){ bg='var(--azul)'; co='#fff'; bd='none'; tit='reporte'; }
-      if(noFue.has(fe)){ bg='var(--ambar-l)'; co='var(--ambar-d)'; bd='1px solid var(--ambar-b)'; tit='no se visitó'; }
-      if(inicialF.includes(fe)){ bg='var(--rojo)'; co='#fff'; bd='none'; tit='inicial'; }
-      if(!fechasR.has(fe) && asigF.has(fe) && fe<=hoy()){ bg='var(--rojo-l)'; co='var(--rojo-d)'; bd='1px solid var(--rojo-b)'; tit='faltó'; }
-      if(fe===f.cierre){ bd='3px solid var(--tinta)'; tit='cierre'; }
+      const dentro = f.apertura && fe>=f.apertura && fe<=(f.cierre||hoy());
+      // 1) días dentro del trabajo sin nada registrado → faltó
+      if(dentro && !fechasR.has(fe) && !noFue.has(fe)){
+        bg='var(--rojo-l)'; co='var(--rojo-d)'; bd='1.5px solid var(--rojo-b)'; tit='faltó el reporte de este día';
+      }
+      // 2) reparación terminada
+      if(repF.has(fe)){ bg='#5CA96B'; co='#fff'; bd='none'; tit='reparación terminada'; }
+      // 3) reporte enviado
+      if(fechasR.has(fe)){ bg='var(--azul)'; co='#fff'; bd='none'; tit='reporte enviado'; }
+      // 4) no se visitó, con motivo
+      if(noFue.has(fe)){ bg='var(--ambar-l)'; co='var(--ambar-d)'; bd='1.5px solid var(--ambar-b)'; tit='no se visitó · '+(motivos[fe]||'con motivo'); }
+      // 5) el reporte inicial
+      if(inicialF.includes(fe)){ bg='var(--rojo)'; co='#fff'; bd='none'; tit='reporte inicial'; }
+      // 6) marcas del arranque y del cierre
+      if(fe===f.apertura && !fechasR.has(fe) && !noFue.has(fe)){ bg='var(--tinta)'; co='#fff'; bd='2px solid var(--ambar)'; tit='día que comenzó el trabajo'; }
+      if(fe===f.apertura && (fechasR.has(fe)||noFue.has(fe))) bd='2px solid var(--ambar)';
+      if(fe===f.cierre){ bd='3px solid var(--tinta)'; tit='día de cierre'; }
       const tocable = click && fe<=hoy();
       cel+=`<div class="d" title="${tit||(tocable?'toca para reportar este día':'')}"
         ${tocable?`data-cal="${fe}"`:''}
@@ -2700,7 +2725,7 @@ function bloqueCalendario(j,R,P,A,click){
       <div class="eyebrow" style="margin:0 0 6px">${MESES[mo]} ${y}</div>${cel}</div>`;
   }).join('');
 
-  return html+`<div class="row" style="font-size:13px;color:var(--gris);gap:12px;flex-wrap:wrap">
+  return resumen+html+`<div class="row" style="font-size:14px;color:var(--gris);gap:12px;flex-wrap:wrap">
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--tinta);border:2px solid var(--ambar)"></i> comenzó el trabajo</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--rojo)"></i> reporte inicial</span>
     <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--azul)"></i> reporte diario</span>
