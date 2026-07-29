@@ -783,7 +783,6 @@ async function vTecInicio(){
     engancharRep();
     document.querySelectorAll('[data-vj2]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj2));
     const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
-    document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
   },0);
   if(misJobs.length) POST=()=>dibujarMapaRuta(misJobs, true);
 
@@ -823,7 +822,7 @@ async function vTecInicio(){
     </div>
     <div class="kpis" style="margin-bottom:12px">
     <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>Dejar mi reporte diario</b><span class="sub">${debeT?'debes '+debeT+' reporte'+(debeT===1?'':'s'):'todo al corriente'}</span></div></div>
-    <div class="fila a" id="miruta" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
+    <div class="fila a" data-ir="mapa" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
     <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
     <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
   </div>`;
@@ -1397,7 +1396,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v33 · calendario</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v34 · navegación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3040,7 +3039,6 @@ async function vResumen(){
   const engResumen=()=>{
     engancharDep();
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
-    document.querySelectorAll('[data-ir]').forEach(b=>b.onclick=()=>{V=b.dataset.ir;render();});
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
   };
 
@@ -3066,7 +3064,7 @@ async function vResumen(){
   POST=engResumen;
 
   return selectorDep()+ heroHTML(cl, activos.length, A.length) + `
-    <button class="btn wide no-print" id="irmapa" style="margin-bottom:14px">Ver mapa y rutas · ${conDir.length} trabajos ubicados</button>
+    <button class="btn wide no-print" data-ir="mapa" style="margin-bottom:14px">Ver mapa y rutas · ${conDir.length} trabajos ubicados</button>
 
     <div class="kpis">
       <div class="kpi a"><div class="l">Jobs activos</div><div class="v">${activos.length}</div><div class="p">de ${J.length} en total</div></div>
@@ -4941,6 +4939,19 @@ async function formContratista(id){
 /* ============================ ARRANQUE ============================ */
 window.addEventListener('resize',()=>{ if(U && U.rol!=='tecnico' && V==='dia') render(); });
 aplicarTema();
+
+/* Navegación global: funciona sin importar cuándo se pinte la pantalla */
+document.addEventListener('click', e=>{
+  if(!U) return;
+  const ir = e.target.closest('[data-ir]');
+  if(ir){
+    e.preventDefault();
+    const d=ir.dataset.ir;
+    if(d==='salir') return salir();
+    V=d; render();
+  }
+});
+
 const g=sessionStorage.getItem('jr31');
 if(g){ U=JSON.parse(g); PUERTA=U.rol; DEP=U.departamento==='ambos'?'restoration':U.departamento;
   V = U.rol==='tecnico' ? 'dia' : 'resumen'; render(); } else portada();
