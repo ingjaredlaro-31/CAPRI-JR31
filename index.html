@@ -1293,7 +1293,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v25 · costos de partidas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v26 · qué reparar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3594,6 +3594,22 @@ async function abrirJob(id){
           </div>`:''}</div>`;}).join('')||'<div class="sub">Sin servicios registrados todavía.</div>'}
       ${EDIT()?'<button class="btn ghost wide no-print" id="asv">+ Agregar servicio</button>':''}
 
+      ${(()=>{
+        const sug=sugerenciasRep(j,R,P);
+        if(!sug.length) return '';
+        return `<div class="eyebrow">Se necesita reparar · ${sug.length} sugerencia${sug.length===1?'':'s'}</div>
+        <div class="card ambar">
+          <div class="sub" style="color:var(--tinta)">Según el material que se removió, esto es lo que hay que reponer:</div>
+          <div style="margin-top:10px">${sug.map(x=>`
+            <div class="row" style="justify-content:space-between;border-top:1px solid var(--linea2);padding-top:9px;margin-top:9px">
+              <div style="flex:1;min-width:0">
+                <div class="disp" style="font-size:18px">${esc(x.rep)}</div>
+                <div class="meta">porque se removió ${esc(x.por)}</div></div>
+              ${EDIT()?`<button class="btn sm" data-sug="${esc(x.rep)}">Agregar</button>`:''}
+            </div>`).join('')}</div>
+        </div>`;
+      })()}
+
       <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='terminada').length} de ${P.length} terminadas</div>
       <div id="parts">${P.map(p=>{
         const [t,c]=ESTAT_PART[p.estatus];
@@ -3603,7 +3619,11 @@ async function abrirJob(id){
             <span class="disp" style="font-size:17px">${esc(p.nombre)}</span><span class="chip ${c}">${t}</span></div>
           <div class="sub">${esc(p.detalle||'')} ${p.cantidad?'· '+esc(p.cantidad):''}</div>
           <div class="meta" style="margin-top:3px">${esc(p.contratistas?.nombre||'sin contratista asignado')}</div>
-          ${EDIT()?`<div class="row no-print" style="margin-top:8px">
+          ${EDIT()?`<div class="row no-print" style="margin-top:9px">
+            <button class="btn ghost sm" data-ep2="${p.id}">Editar</button>
+            <span style="flex:1"></span>
+          </div>
+          <div class="row no-print" style="margin-top:8px">
             <select data-pc="${p.id}" style="flex:1;padding:6px"><option value="">— contratista —</option>
               ${(cons||[]).map(c2=>`<option value="${c2.id}" ${p.contratista_id===c2.id?'selected':''}>${esc(c2.nombre)}</option>`).join('')}</select>
             <select data-pe="${p.id}" style="flex:1;padding:6px">
@@ -3629,7 +3649,7 @@ async function abrirJob(id){
             <div class="p">${tb?Math.round((tb-tc)*100/tb)+'% del cobro':'sin cobro'}</div></div>
           <div class="kpi"><div class="l">Partidas</div><div class="v" style="font-size:26px">${P.filter(x=>x.estatus==='terminada').length}/${P.length}</div><div class="p">terminadas</div></div>
         </div>`:'';})():''}
-      ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>':''}`:''}
+      ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar reparación</button>':''}`:''}
 
       ${(()=>{
         const manuales=j.docs||[];
@@ -3816,12 +3836,9 @@ async function abrirJob(id){
     await sb.from('partidas').insert({job_id:id,nombre,detalle:d,clase:'servicio',estatus:'asignada'});
     cerrar(); abrirJob(id);
   };
-  const ap=$('#ap'); if(ap) ap.onclick=async()=>{
-    const n=prompt('¿Qué se tiene que reparar? (ej. Drywall cocina)'); if(!n) return;
-    const d=prompt('Detalle o cantidad (opcional)')||'';
-    await sb.from('partidas').insert({job_id:id,nombre:n,detalle:d,clase:'reparacion',estatus:'pendiente'});
-    cerrar(); abrirJob(id);
-  };
+  const ap=$('#ap'); if(ap) ap.onclick=()=>{ cerrar(); formPartida(id); };
+  document.querySelectorAll('[data-sug]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,null,b.dataset.sug); });
+  document.querySelectorAll('[data-ep2]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,b.dataset.ep2); });
 }
 
 async function editarScope(id, actual){
@@ -3842,6 +3859,125 @@ async function editarScope(id, actual){
     if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Scope guardado'); abrirJob(id);
   };
+}
+
+/* ==================== QUÉ SE NECESITA REPARAR ==================== */
+const REP_SUGERIDA = {
+  'Drywall':['Drywall repair','Drywall texture','Paint'],
+  'Baseboards':['Baseboards replacement','Paint'],
+  'Carpet':['Carpet relay','New carpet install'],
+  'Carpet pad':['Carpet pad replacement'],
+  'Vinyl / laminate':['Vinyl / laminate install'],
+  'Tile':['Tile install','Grout'],
+  'Hardwood':['Hardwood repair'],
+  'Cabinets':['Cabinets install'],
+  'Countertop':['Countertop install'],
+  'Vanity':['Vanity install'],
+  'Door':['Door replacement'],
+  'Insulation':['Insulation replacement'],
+  'Ceiling':['Ceiling repair','Paint'],
+  'Closet shelving':['Closet shelving install']
+};
+
+function sugerenciasRep(job, reportes, partidas){
+  const removido = new Set([...(job.removido||[])]);
+  (reportes||[]).forEach(r=>(r.material_removido||[]).forEach(m=>removido.add(m)));
+  const yaHay = (partidas||[]).map(p=>(p.nombre||'').toLowerCase());
+  const out=[];
+  removido.forEach(m=>{
+    (REP_SUGERIDA[m]||[]).forEach(rep=>{
+      if(!out.some(x=>x.rep===rep) && !yaHay.some(n=>n.includes(rep.toLowerCase())))
+        out.push({rep, por:m});
+    });
+  });
+  return out;
+}
+
+async function formPartida(jobId, partidaId, prefill){
+  const [{data:cat},{data:cons},{data:job},{data:acat}] = await Promise.all([
+    sb.from('reparaciones_catalogo').select('nombre').order('orden'),
+    sb.from('contratistas').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('jobs').select('areas').eq('id',jobId).single(),
+    sb.from('areas_catalogo').select('nombre').order('orden')
+  ]);
+  let p={nombre:prefill||'', detalle:'', cantidad:'', estatus:'pendiente', contratista_id:'', costo:'', cobro:''};
+  if(partidaId){ const {data}=await sb.from('partidas').select('*').eq('id',partidaId).single(); p=data; }
+  const CAT=[...new Set((cat||[]).map(x=>x.nombre).concat(p.nombre?[p.nombre]:[]))];
+  const AR=[...new Set(((job&&job.areas)||[]).concat((acat||[]).map(x=>x.nombre)))];
+  let sel=p.nombre, areasSel=(p.detalle||'').split(',').map(x=>x.trim()).filter(Boolean);
+
+  const pinta=()=>{
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div class="disp" style="font-size:21px">${partidaId?'Editar reparación':'Qué se necesita reparar'}</div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <div class="eyebrow" style="margin-top:0">Tipo de reparación</div>
+        <div class="chips" id="ct">${CAT.map(x=>
+          `<button type="button" data-c="${esc(x)}" class="${sel===x?'on':''}">${esc(x)}</button>`).join('')}
+          <button type="button" class="add" data-add="1">+ otra</button></div>
+
+        <div class="eyebrow">Áreas</div>
+        <div class="chips" id="ar">${AR.map(x=>
+          `<button type="button" data-a="${esc(x)}" class="${areasSel.includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>
+
+        <label>Cantidad / medida</label>
+        <input id="cn" value="${esc(p.cantidad||'')}" placeholder="48 sqft · 32 ft lineales · 2 piezas">
+
+        <label>Contratista</label>
+        <select id="co"><option value="">— sin asignar —</option>
+          ${(cons||[]).map(c=>`<option value="${c.id}" ${p.contratista_id===c.id?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select>
+
+        <label>Estatus</label>
+        <select id="es">${Object.keys(ESTAT_PART).map(k=>
+          `<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
+
+        <div class="g2">
+          <div><label>Costo · lo que cobra</label><input class="num" id="cs" type="number" step="0.01" value="${p.costo??''}"></div>
+          <div><label>Cobro · lo que facturamos</label><input class="num" id="cb" type="number" step="0.01" value="${p.cobro??''}"></div>
+        </div>
+
+        <div style="height:16px"></div>
+        <button class="btn wide" id="sv">${partidaId?'Guardar cambios':'Agregar reparación'}</button>
+        <div style="height:12px"></div>
+        ${partidaId?`<button class="btn ghost wide" id="dl" style="color:var(--rojo)">Borrar reparación</button><div style="height:12px"></div>`:''}
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+    $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(jobId);};
+    $('#sheet').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{sel=b.dataset.c;pinta();});
+    $('#sheet').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.a, i=areasSel.indexOf(v);
+      if(i>=0) areasSel.splice(i,1); else areasSel.push(v);
+      pinta();
+    });
+    $('#sheet').querySelector('[data-add]').onclick=()=>{
+      const n=prompt('Nombre de la reparación:'); if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!CAT.includes(v)){ CAT.push(v); sb.from('reparaciones_catalogo').insert({nombre:v}); }
+      sel=v; pinta();
+    };
+    const dl=$('#dl'); if(dl) dl.onclick=async()=>{
+      if(!confirm('¿Borrar esta reparación?')) return;
+      await sb.from('partidas').delete().eq('id',partidaId);
+      cerrar(); toast('Reparación borrada'); abrirJob(jobId);
+    };
+    $('#sv').onclick=async()=>{
+      if(!sel) return toast('Escoge el tipo de reparación.');
+      const est=$('#es').value;
+      const dat={job_id:jobId, nombre:sel, detalle:areasSel.join(', ')||null,
+        cantidad:$('#cn').value.trim()||null, contratista_id:$('#co').value||null,
+        estatus:est, clase:'reparacion',
+        costo:$('#cs').value===''?null:Number($('#cs').value),
+        cobro:$('#cb').value===''?null:Number($('#cb').value)};
+      if(est==='proceso') dat.fecha_inicio=hoy();
+      if(est==='terminada') dat.fecha_fin=hoy();
+      const q = partidaId ? sb.from('partidas').update(dat).eq('id',partidaId) : sb.from('partidas').insert(dat);
+      const {error}=await q;
+      if(error) return toast('No se guardó: '+error.message);
+      cerrar(); toast('Reparación guardada'); abrirJob(jobId);
+    };
+  };
+  pinta();
 }
 
 /* ==================== SCHEDULE ==================== */
