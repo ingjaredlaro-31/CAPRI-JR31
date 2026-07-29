@@ -3,6 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0A0E15">
+<script>
+  // Aplica el tema antes de pintar, para que no salga el destello blanco
+  (function(){
+    var osc = true;
+    try{ osc = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){}
+    document.documentElement.style.background = osc ? '#0A0E15' : '#F7F8FA';
+    document.addEventListener('DOMContentLoaded', function(){
+      if(osc) document.body.classList.add('dark');
+    });
+    if(document.body && osc) document.body.classList.add('dark');
+  })();
+</script>
 <title>Capri Restoration Services Inc · Administrador Central · JR31</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,26 +38,57 @@
   --mono:'JetBrains Mono',ui-monospace,monospace;
 }
 body.dark{
-  --tinta:#E7EBEE; --gris:#8A94A6; --linea:#283041; --linea2:#1D2431;
-  --fondo:#0E1117; --blanco:#161B24; --sup:#161B24; --sup2:#1B212C; --borde-in:#31394A;
-  --azul:#3D7BF5; --azul-d:#A8C6FF; --azul-l:rgba(61,123,245,.16); --azul-b:#2A4E96;
-  --rojo:#E8505B; --rojo-d:#FFAAB0; --rojo-l:rgba(232,80,91,.15); --rojo-b:#8A3038;
-  --ambar:#E0A32B; --ambar-d:#F7D48E; --ambar-l:rgba(224,163,43,.15); --ambar-b:#7C5A17;
+  --tinta:#E9EDF4; --gris:#8E9BB2; --linea:#222B3C; --linea2:#19212E;
+  --fondo:#0A0E15; --blanco:#121824; --sup:#121824; --sup2:#171F2D; --borde-in:#2A3446;
+  --azul:#4A85FF; --azul-d:#AFCBFF; --azul-l:rgba(74,133,255,.14); --azul-b:#2E579E;
+  --rojo:#F0555F; --rojo-d:#FFB3B8; --rojo-l:rgba(240,85,95,.13); --rojo-b:#8C343B;
+  --ambar:#E8AC3A; --ambar-d:#F9DCA2; --ambar-l:rgba(232,172,58,.13); --ambar-b:#83621C;
 }
-body.dark .top{background:#111725;box-shadow:0 2px 10px rgba(0,0,0,.4)}
-body.dark .hero,body.dark .dinero{background:linear-gradient(160deg,#1A2130 0%,#111725 65%);box-shadow:0 4px 18px rgba(0,0,0,.4)}
-body.dark .side{background:#0A0D14}
-body.dark .side button:hover{background:#141A26}
+body.dark .top{background:#0E1523;border-bottom:1px solid #1C2534;box-shadow:none}
+body.dark .hero,body.dark .dinero{background:linear-gradient(155deg,#182234 0%,#0E1523 70%);
+  border:1px solid #1E293C;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+body.dark .side{background:#070A11;border-right:1px solid #161E2B}
+body.dark .side button:hover{background:#111827}
+body.dark .side .head{border-bottom-color:#161E2B}
 body.dark footer{border-top-color:var(--linea)}
-body.dark .barra,body.dark .jc-barra{background:#232B3A}
+body.dark .barra,body.dark .jc-barra{background:#1D2534}
 body.dark .frm td{border-bottom-color:var(--linea)}
-body.dark .splash,body.dark .portada{background:#0A0D14}
+body.dark .splash,body.dark .portada{background:#070A11}
 body.dark .thumbs img,body.dark .mapa{border-color:var(--linea)}
-body.dark main::before{opacity:.09}
-body.dark .marca-agua::before,body.dark .hero::before,body.dark .side .head::before{opacity:.16}
+body.dark main::before{opacity:.07}
+body.dark .marca-agua::before,body.dark .hero::before,body.dark .side .head::before{opacity:.14}
+/* profundidad por superficie, no por sombra */
+body.dark .card,body.dark .fila,body.dark .kpi,body.dark .stat,body.dark .jobcard,body.dark .tabs{
+  box-shadow:none;border-color:#1F2836}
+body.dark .fila:hover{background:#171F2D;box-shadow:none}
+body.dark .jobcard:hover{background:#151C29;box-shadow:0 8px 26px rgba(0,0,0,.4)}
+body.dark .jc-top{background:#0E1523;border-bottom-color:#1C2534}
+body.dark .etapa:hover{background:#151C29}
+body.dark .tabs button.on{background:rgba(74,133,255,.13)}
+body.dark .tabs button:hover{background:#171F2D}
+body.dark nav{background:rgba(14,21,35,.96);border-top-color:#1C2534;box-shadow:0 -2px 16px rgba(0,0,0,.5)}
+body.dark .chip{background:#19212E}
+body.dark .clima{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.09)}
+body.dark .btn{box-shadow:none}
+body.dark .btn.ghost{background:#171F2D;border-color:#2A3446;color:var(--tinta)}
+body.dark .btn.ghost:hover{background:#1D2634}
+body.dark input,body.dark select,body.dark textarea{background:#0E1523;border-color:#2A3446;color:var(--tinta)}
+body.dark input::placeholder,body.dark textarea::placeholder{color:#5C6880}
+body.dark input:focus,body.dark select:focus,body.dark textarea:focus{outline-color:var(--azul)}
+body.dark .mes .d{background:#0E1523;border-color:#212A3A}
+body.dark .sem .d{background:#0E1523}
+body.dark .lect button{background:#0E1523}
+body.dark .fabm button{background:#171F2D;border-color:#2A3446;color:var(--tinta)}
+body.dark .toast{background:#1D2634;border:1px solid #2A3446}
+body.dark .homebtn,body.dark .temabtn{background:rgba(255,255,255,.09)}
+body.dark .login .cab,body.dark .portada{background:#070A11;border-color:#161E2B}
+body.dark .puerta{background:#121824;border-color:#1F2836}
+body.dark .puerta:hover{background:#171F2D}
+body.dark .dinero .celda{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.09)}
 .temabtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;
   font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:#0A0E15}
 html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
 body{background:var(--fondo);color:var(--tinta);font-family:var(--body);font-size:18.5px;line-height:1.62;min-height:100dvh}
 h1,h2,h3,.disp{font-family:var(--disp);text-transform:uppercase;margin:0;font-weight:700}
@@ -339,7 +384,7 @@ main > *{position:relative;z-index:1}
   letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:8px 0}
 .login-page{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 18px;min-height:100dvh;background:var(--fondo)}
 .login{width:100%;max-width:420px}
-.login .box{background:var(--sup);border:1px solid var(--linea);border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(11,13,17,.07)}
+.login .box{background:var(--sup);border:1px solid var(--linea);border-radius:14px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 .login .cab{background:var(--tinta);padding:30px 20px;text-align:center}
 .login .pie{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#9AA3AF;margin-top:16px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:99;background:var(--tinta);color:#fff;padding:11px 18px;border-radius:6px;font-size:14px;z-index:200}
@@ -1386,7 +1431,7 @@ function shell(html){
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
-        <button class="temabtn" id="tema" title="Cambiar tema" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
+        <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
@@ -1396,7 +1441,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v34 · navegación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v36 · oscuro sin destello</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2811,7 +2856,7 @@ async function abrirPropiedad(id){
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
 let POST=null;
 let OSCURO=false;
-try{ OSCURO = localStorage.getItem('jr31_tema')==='oscuro'; }catch(e){}
+try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
 function aplicarTema(){ document.body.classList.toggle('dark', OSCURO); }
 function cambiarTema(){
   OSCURO=!OSCURO;
