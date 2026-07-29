@@ -1510,7 +1510,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v40 · acento oro</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v41 · estimados ligados</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4041,6 +4041,16 @@ async function abrirJob(id){
         ${EDIT()?'<div class="sub" style="margin-top:12px">Toca cualquier etapa para marcarla o desmarcarla. Las AUTO se llenan solas con los reportes, estimados y partidas, pero puedes forzarlas.</div>':''}`;
       })()}
 
+      <div class="eyebrow">Estimados de este trabajo · ${EST.length}</div>
+      ${EST.length?EST.map(x=>`<div class="fila ${x.estatus==='aceptado'?'a':'m'}" data-vest="${x.id}">
+        <div class="t"><b>${esc(x.folio)}</b><span class="sub">${cf(x.monto)} · ${esc(x.estatus)}${x.fecha_envio?' · enviado '+fmt(x.fecha_envio):''}</span></div>
+        <span class="chip ${x.estatus==='aceptado'?'azul':'ambar'}">${esc(x.estatus.toUpperCase())}</span></div>`).join('')
+        :`<div class="card" style="border-left-color:var(--rojo)">
+          <div class="sub" style="color:var(--tinta)">Este trabajo no tiene estimado ligado.</div>
+          ${EDIT()?'<div class="row no-print" style="margin-top:10px"><button class="btn sm" id="nuevoest">Crear estimado para este trabajo</button></div>':''}
+        </div>`}
+      ${EST.length&&EDIT()?'<button class="btn ghost wide no-print" id="nuevoest2">+ Otro estimado para este trabajo</button>':''}
+
       <div class="eyebrow" id="sec_invoice">Facturación</div>
       ${j.invoice_num||j.invoice_monto?`<div class="card" style="border-left-color:${j.invoice_pagado?'var(--azul)':'var(--ambar)'}">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
@@ -4128,6 +4138,10 @@ async function abrirJob(id){
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
+  const ne1=$('#nuevoest'), ne2=$('#nuevoest2');
+  if(ne1) ne1.onclick=()=>{ cerrar(); formEstimado(null,id); };
+  if(ne2) ne2.onclick=()=>{ cerrar(); formEstimado(null,id); };
+  document.querySelectorAll('[data-vest]').forEach(b=>b.onclick=()=>{ cerrar(); abrirEstimado(b.dataset.vest); });
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -4676,15 +4690,17 @@ const soloNum = t => (t||'').replace(/[^0-9]/g,'');
 let ETAB='pendientes';
 
 async function vEstimados(){
-  const {data,error}=await sb.from('estimados').select('*').order('created_at',{ascending:false}).limit(200);
+  const [{data,error},{data:jobsA}] = await Promise.all([
+    sb.from('estimados').select('*').order('created_at',{ascending:false}).limit(200),
+    sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus, propiedades(nombre)')
+      .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false})
+  ]);
   if(error) return `<div class="empty"><div class="disp">No se pudieron cargar</div><p>${esc(error.message)}</p></div>`;
   const E=data||[];
-  const jids=[...new Set(E.map(x=>x.job_id).filter(Boolean))];
   const folios={};
-  if(jids.length){
-    const {data:jj}=await sb.from('jobs').select('id,folio,cliente').in('id',jids);
-    (jj||[]).forEach(x=>folios[x.id]={folio:x.folio,cliente:x.cliente});
-  }
+  (jobsA||[]).forEach(x=>folios[x.id]={folio:x.folio,cliente:x.propiedades?.nombre||x.cliente,unidad:x.unidad});
+  const conEst=new Set(E.map(x=>x.job_id).filter(Boolean));
+  const SINEST=(jobsA||[]).filter(x=>!conEst.has(x.id));
   const env=E.filter(e=>e.estatus==='enviado');
   const acc=E.filter(e=>e.estatus==='aceptado');
   const bor=E.filter(e=>e.estatus==='borrador');
@@ -4697,6 +4713,7 @@ async function vEstimados(){
     const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ETAB=b.dataset.t;render();});
     document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEstimado(b.dataset.ver));
+    document.querySelectorAll('[data-nejob]').forEach(b=>b.onclick=()=>formEstimado(null,b.dataset.nejob));
   },0);
 
   const tarjeta=e=>{
@@ -4709,7 +4726,10 @@ async function vEstimados(){
       <div class="row" style="justify-content:space-between"><span class="folio">${esc(e.folio)}</span>
         <span class="meta">${esc(e.departamento||'')} · ${fmt(e.fecha_envio)}</span></div>
       <div class="tit">${esc(e.cliente)}</div>
-      <div class="sub">${esc(e.descripcion||'sin descripción')}</div>
+      <div class="meta" style="margin-top:2px">${e.job_id&&folios[e.job_id]
+        ? 'TRABAJO '+esc(folios[e.job_id].folio)+(folios[e.job_id].unidad?' · UNIT '+esc(folios[e.job_id].unidad):'')
+        : '<span style="color:var(--rojo-d)">SIN TRABAJO LIGADO</span>'}</div>
+      <div class="sub" style="margin-top:4px">${esc(e.descripcion||'sin descripción')}</div>
       <div class="row" style="margin-top:7px;justify-content:space-between">
         <span class="disp" style="font-size:24px">${cf(e.monto)}</span>${chip}</div>
       <div class="meta" style="margin-top:5px">${nr} partida${nr===1?'':'s'}${na?' · '+na+' archivo'+(na===1?'':'s'):''} · toca para abrir</div>
@@ -4726,6 +4746,12 @@ async function vEstimados(){
         <div class="meta">${acc.length} convertidos</div></div>
     </div>
     ${EDIT()?'<button class="btn wide no-print" id="ne">+ Nuevo estimado</button>':''}
+    ${SINEST.length?`<div class="eyebrow">Trabajos sin estimado · ${SINEST.length}</div>
+      <div class="sub" style="margin-bottom:8px">Toca uno para crearle su estimado de una vez.</div>
+      ${SINEST.map(j=>`<div class="fila m" data-nejob="${j.id}">
+        <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}</b>
+        <span class="sub">${esc(j.folio)}${j.unidad?' · Unit '+esc(j.unidad):''} · ${esc(j.tipo||'')}</span></div>
+        <span class="chip rojo">CREAR ESTIMADO</span></div>`).join('')}`:''}
     <div class="tabs" style="margin-top:14px">
       <button data-t="pendientes" class="${ETAB==='pendientes'?'on':''}">Pendientes<span class="c" style="color:var(--ambar-d)">${env.length}</span></button>
       <button data-t="aceptados" class="${ETAB==='aceptados'?'on':''}">Aceptados<span class="c" style="color:var(--azul)">${acc.length}</span></button>
@@ -4835,9 +4861,20 @@ async function abrirEstimado(id){
 }
 
 let EFOT=[];
-async function formEstimado(id){
+async function formEstimado(id, jobPre){
   let e={departamento:DEP,estatus:'borrador',monto:0,renglones:[],archivos:[]};
   if(id){const {data}=await sb.from('estimados').select('*').eq('id',id).single(); e=data;}
+  if(jobPre) e.job_id=jobPre;
+  const [{data:jobsAll},{data:estAll}] = await Promise.all([
+    sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus, propiedades(nombre)')
+      .not('estatus','in','("facturado")').order('created_at',{ascending:false}).limit(200),
+    sb.from('estimados').select('job_id').not('job_id','is',null)
+  ]);
+  const conEst=new Set((estAll||[]).map(x=>x.job_id));
+  const JOBS=jobsAll||[];
+  const etiqueta=j=>`${j.folio} · ${(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+j.unidad:''}`;
+  const sinEst=JOBS.filter(x=>!conEst.has(x.id) || x.id===e.job_id);
+  const yaEst=JOBS.filter(x=>conEst.has(x.id) && x.id!==e.job_id);
   if(!id){
     const anio=new Date().getFullYear();
     const {count}=await sb.from('estimados').select('*',{count:'exact',head:true});
@@ -4850,6 +4887,18 @@ async function formEstimado(id){
     <div class="disp" style="font-size:21px">${id?'Editar estimado':'Nuevo estimado'}</div><button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+      <div class="eyebrow" style="margin-top:0">¿Para qué trabajo es?</div>
+      <label>Trabajo · los de arriba todavía no tienen estimado</label>
+      <select id="e_job">
+        <option value="">— sin trabajo ligado —</option>
+        ${sinEst.length?`<optgroup label="SIN ESTIMADO">${sinEst.map(j=>
+          `<option value="${j.id}" ${e.job_id===j.id?'selected':''}>${esc(etiqueta(j))}</option>`).join('')}</optgroup>`:''}
+        ${yaEst.length?`<optgroup label="YA TIENEN ESTIMADO">${yaEst.map(j=>
+          `<option value="${j.id}">${esc(etiqueta(j))}</option>`).join('')}</optgroup>`:''}
+      </select>
+      <div class="sub" id="e_avjob" style="margin-top:6px"></div>
+
+      <div class="eyebrow">Datos del estimado</div>
       <label>Departamento</label>
       <select id="e_departamento">${['restoration','cleaning'].map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       ${c('folio','Folio')}${c('cliente','Cliente')}${c('telefono','Teléfono','tel')}${c('direccion','Dirección')}
@@ -4884,6 +4933,16 @@ async function formEstimado(id){
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar estimado</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
+
+  const selJob=$('#e_job');
+  const tomarJob=()=>{
+    const j=JOBS.find(x=>x.id===selJob.value);
+    if(!j){ $('#e_avjob').textContent='Puedes dejarlo sin ligar, pero entonces el trabajo va a seguir marcado como SIN ESTIMADO.'; return; }
+    $('#e_avjob').innerHTML='Se va a ligar al trabajo <b>'+esc(j.folio)+'</b>. Al aceptarse, ese job queda con estimado.';
+    if(!$('#e_cliente').value) $('#e_cliente').value=j.propiedades?.nombre||j.cliente||'';
+    $('#e_departamento').value=j.departamento;
+  };
+  selJob.onchange=tomarJob; tomarJob();
 
   const ren=$('#ren');
   const recalc=()=>{
@@ -4940,7 +4999,8 @@ async function formEstimado(id){
     const sub=sumaRen(renglones), imp=Number($('#e_impuesto').value)||0;
     let monto=Number($('#e_monto').value)||0;
     if(!monto) monto=sub+imp;
-    const p={departamento:$('#e_departamento').value,estatus:$('#e_estatus').value,
+    const p={job_id:$('#e_job').value||null,
+      departamento:$('#e_departamento').value,estatus:$('#e_estatus').value,
       folio:$('#e_folio').value.trim(),cliente:$('#e_cliente').value.trim(),
       telefono:$('#e_telefono').value.trim()||null,direccion:$('#e_direccion').value.trim()||null,
       descripcion:$('#e_descripcion').value.trim()||null,notas:$('#e_notas').value.trim()||null,
