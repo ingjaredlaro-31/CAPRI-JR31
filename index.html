@@ -340,7 +340,7 @@ const DOCS_VIEJO = {
   aseguranza:['Autorización firmada del cliente','Fotos de antes','Lecturas de humedad completas','Estimado enviado al adjuster','Aprobación del adjuster','Certificado de secado','Fotos de después','Factura al carrier'],
   particular:['Estimado firmado por el cliente','Anticipo recibido','Fotos de antes','Fotos de después','Pago final recibido']
 };
-const ESTAT_PART = {pendiente:['PENDIENTE','rojo'],asignada:['ASIGNADA','ambar'],proceso:['EN PROCESO','ambar'],revision:['POR REVISAR','rojo'],aprobada:['APROBADA','azul']};
+const ESTAT_PART = {pendiente:['SIN ASIGNAR','rojo'],asignada:['ASIGNADA','ambar'],proceso:['EN PROCESO','ambar'],terminada:['TERMINADA','azul']};
 
 let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
 let MODO='mes', MREF=hoy();
@@ -931,9 +931,9 @@ async function verJobTecnico(id){
 
       <div class="eyebrow">Calendario · comenzó ${fmt(inicioJob(j))} · toca un día para reportar</div>
       ${bloqueCalendario(j,R,P,AS,true)}
-      ${P.length?`<div class="eyebrow">Reparaciones · ${P.filter(x=>x.estatus==='aprobada').length} de ${P.length} listas</div>
+      ${P.length?`<div class="eyebrow">Reparaciones · ${P.filter(x=>x.estatus==='terminada').length} de ${P.length} listas</div>
       ${P.map(x=>{const [t,c]=ESTAT_PART[x.estatus];
-        return `<div class="fila ${x.estatus==='aprobada'?'a':'r'}">
+        return `<div class="fila ${x.estatus==='terminada'?'a':'r'}">
           <div class="t"><b>${esc(x.nombre)}</b><span class="sub">${esc(x.contratistas?.nombre||'sin contratista')}</span></div>
           <span class="chip ${c}">${t}</span></div>`;}).join('')}`:''}
       ${R.length?`<div class="eyebrow">Últimos reportes</div>
@@ -1293,7 +1293,7 @@ function shell(html){
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v24 · etapas y no fui</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v25 · costos de partidas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2215,7 +2215,7 @@ async function vControl(){
   const [{data:asig},{data:reps},{data:part},{data:ests}] = await Promise.all([
     sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').eq('fecha',h),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
-    sb.from('partidas').select('*, jobs(folio,cliente,departamento), contratistas(nombre)').in('estatus',['pendiente','asignada','proceso','revision']),
+    sb.from('partidas').select('*, jobs(folio,cliente,departamento), contratistas(nombre)').or('estatus.neq.terminada,revisado.eq.false'),
     sb.from('estimados').select('*').eq('estatus','enviado')
   ]);
   const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
@@ -2223,7 +2223,7 @@ async function vControl(){
   const E=(ests||[]).filter(e=>e.departamento===DEP);
   const hechos=new Set((reps||[]).map(r=>r.tecnico_id+'|'+r.job_id));
   const faltan=A.filter(a=>!hechos.has(a.tecnico_id+'|'+a.job_id));
-  const revisar=P.filter(p=>p.estatus==='revision');
+  const revisar=P.filter(p=>p.estatus==='terminada' && !p.revisado);
   const tarde=new Date().getHours()>=HORA_CORTE;
 
   setTimeout(()=>{
@@ -2231,7 +2231,7 @@ async function vControl(){
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;render();});
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
     document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=async()=>{
-      await sb.from('partidas').update({estatus:'aprobada',fecha_fin:hoy()}).eq('id',b.dataset.apr);
+      await sb.from('partidas').update({revisado:true,fecha_fin:hoy()}).eq('id',b.dataset.apr);
       toast('Partida aprobada'); render();
     });
   },0);
@@ -2262,12 +2262,12 @@ async function vControl(){
       <div class="row" style="margin-top:9px">
         <span class="chip rojo">POR REVISAR</span><span style="flex:1"></span>
         <button class="btn ghost sm" data-job="${p.job_id}">Ver job</button>
-        ${EDIT()?`<button class="btn sm" data-apr="${p.id}">Aprobar</button>`:''}
+        ${EDIT()?`<button class="btn sm" data-apr="${p.id}">Marcar revisado</button>`:''}
       </div></div>`).join('')
     : `<div class="empty"><div class="disp">Nada por revisar</div><p>Cuando un contratista marque una partida terminada, cae aquí.</p></div>`;
 
   const porCon={};
-  P.filter(p=>p.estatus!=='revision').forEach(p=>{
+  P.filter(p=>!(p.estatus==='terminada' && !p.revisado)).forEach(p=>{
     const k=p.contratistas?.nombre||'Sin asignar';
     (porCon[k]||=[]).push(p);
   });
@@ -2281,7 +2281,7 @@ async function vControl(){
           <span class="chip ${c}">${t}</span></div>`;
       }).join('')}
     </div>`).join('')
-    : `<div class="empty"><div class="disp">Sin partidas abiertas</div><p>Todas las reparaciones están aprobadas.</p></div>`;
+    : `<div class="empty"><div class="disp">Sin partidas abiertas</div><p>Todas las reparaciones están terminadas.</p></div>`;
 
   const bloqueEst = E.length ? E.map(e=>`
     <div class="card ambar">
@@ -2467,7 +2467,7 @@ function fechasClave(j,R,P,A){
   const apertura=(j.fecha_inicio||j.created_at||'').slice(0,10);
   const fechasR=R.map(x=>x.fecha).sort();
   const primera=fechasR[0]||null, ultima=fechasR[fechasR.length-1]||null;
-  const aprob=P.filter(x=>x.estatus==='aprobada'&&x.fecha_fin).map(x=>x.fecha_fin).sort();
+  const aprob=P.filter(x=>x.estatus==='terminada'&&x.fecha_fin).map(x=>x.fecha_fin).sort();
   const repInicio=P.filter(x=>x.fecha_inicio).map(x=>x.fecha_inicio).sort()[0]||null;
   const repFin=aprob[aprob.length-1]||null;
   const seco=R.filter(x=>(x.situacion||[]).some(s=>/ya sec/i.test(s))).map(x=>x.fecha).sort()[0]||null;
@@ -2479,7 +2479,7 @@ function fechasClave(j,R,P,A){
 
 function bloqueFechas(j,R,P,A){
   const f=fechasClave(j,R,P,A);
-  const aprob=P.filter(x=>x.estatus==='aprobada').length;
+  const aprob=P.filter(x=>x.estatus==='terminada').length;
   const cel=(l,v,sub,col)=>`<div class="kpi ${col||''}"><div class="l">${l}</div>
     <div class="v" style="font-size:${String(v).length>7?'22px':'26px'}">${esc(v)}</div>
     <div class="p">${esc(sub||'')}</div></div>`;
@@ -2512,7 +2512,7 @@ function bloqueLinea(j,R,P,N,A){
     ev.push({f:a.fecha,t:'Visita programada sin reporte',s:a.usuarios?.nombre||'',c:'x'}); });
   P.forEach(p=>{
     if(p.fecha_inicio) ev.push({f:p.fecha_inicio,t:'Inició '+p.nombre,s:p.contratistas?.nombre||'sin contratista',c:'m'});
-    if(p.fecha_fin) ev.push({f:p.fecha_fin,t:(p.estatus==='aprobada'?'Aprobado ':'Terminado ')+p.nombre,
+    if(p.fecha_fin) ev.push({f:p.fecha_fin,t:(p.estatus==='terminada'?'Terminado ':'Terminado ')+p.nombre,
       s:(p.contratistas?.nombre||'')+(p.detalle?' · '+p.detalle:''),c:'a'});
   });
   (N||[]).forEach(n=>ev.push({f:(n.created_at||'').slice(0,10),t:'Nota de '+(n.autor||'oficina'),s:n.texto,c:'m'}));
@@ -2860,7 +2860,7 @@ async function vResumen(){
   const hechos=new Set((reps||[]).map(r=>r.tecnico_id+'|'+r.job_id));
   const faltan=A.filter(a=>!hechos.has(a.tecnico_id+'|'+a.job_id));
   const P=(part||[]).filter(x=>x.jobs?.departamento===DEP);
-  const revisar=P.filter(x=>x.estatus==='revision');
+  const revisar=P.filter(x=>x.estatus==='terminada' && !x.revisado);
   const sinAsig=P.filter(x=>x.estatus==='pendiente');
   const E=(ests||[]).filter(x=>x.departamento===DEP);
   const env=E.filter(x=>x.estatus==='enviado');
@@ -2868,7 +2868,7 @@ async function vResumen(){
   const acc=E.filter(x=>x.estatus==='aceptado');
   const R=(recs||[]).filter(x=>x.jobs?.departamento===DEP);
   const vencidos=R.filter(x=>x.fecha_venc && x.fecha_venc<h);
-  const aprob=P.filter(x=>x.estatus==='aprobada').length;
+  const aprob=P.filter(x=>x.estatus==='terminada').length;
   const pct=P.length?Math.round(aprob*100/P.length):0;
 
   setTimeout(()=>{
@@ -2919,11 +2919,11 @@ async function vResumen(){
     <div class="eyebrow">Avance de reconstrucción</div>
     <div class="kpi" style="border-left:4px solid var(--azul)">
       <div class="row" style="justify-content:space-between">
-        <span class="disp" style="font-size:19px">${aprob} de ${P.length} partidas aprobadas</span>
+        <span class="disp" style="font-size:19px">${aprob} de ${P.length} partidas terminadas</span>
         <span class="disp" style="font-size:24px;color:var(--azul)">${pct}%</span></div>
       <div class="barra"><i style="width:${pct}%"></i></div>
       <div class="row" style="margin-top:9px">
-        <span class="chip azul">${aprob} aprobadas</span>
+        <span class="chip azul">${aprob} terminadas</span>
         <span class="chip ambar">${P.filter(x=>['asignada','proceso'].includes(x.estatus)).length} en proceso</span>
         <span class="chip rojo">${sinAsig.length} sin asignar</span>
       </div></div>`:''}
@@ -3437,7 +3437,7 @@ async function formJob(id, pre){
     }
     if(!id && EXTR){
       await sb.from('partidas').insert({job_id:jid,nombre:'Water extraction',
-        detalle:$('#f_extraccion_notas').value.trim()||null,clase:'servicio',estatus:'aprobada',fecha_fin:hoy()});
+        detalle:$('#f_extraccion_notas').value.trim()||null,clase:'servicio',estatus:'terminada',fecha_fin:hoy()});
     }
     if(!id && pre && pre.estimado_id){
       await sb.from('estimados').update({estatus:'aceptado',job_id:data.id}).eq('id',pre.estimado_id);
@@ -3582,7 +3582,7 @@ async function abrirJob(id){
       <div class="eyebrow">Servicios del trabajo · ${SV.length}</div>
       ${SV.map(x=>{
         const [t,cl]=ESTAT_PART[x.estatus];
-        const col = x.estatus==='aprobada'?'':(x.estatus==='pendiente'||x.estatus==='revision')?'rojo':'ambar';
+        const col = x.estatus==='terminada'?'':(x.estatus==='pendiente')?'rojo':'ambar';
         return `<div class="card ${col}">
           <div class="row" style="justify-content:space-between">
             <span class="disp" style="font-size:18px">${esc(x.nombre)}</span><span class="chip ${cl}">${t}</span></div>
@@ -3594,10 +3594,10 @@ async function abrirJob(id){
           </div>`:''}</div>`;}).join('')||'<div class="sub">Sin servicios registrados todavía.</div>'}
       ${EDIT()?'<button class="btn ghost wide no-print" id="asv">+ Agregar servicio</button>':''}
 
-      <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='aprobada').length} de ${P.length} aprobadas</div>
+      <div class="eyebrow">Reconstrucción · ${P.filter(p=>p.estatus==='terminada').length} de ${P.length} terminadas</div>
       <div id="parts">${P.map(p=>{
         const [t,c]=ESTAT_PART[p.estatus];
-        const col = p.estatus==='aprobada'?'':(p.estatus==='pendiente'||p.estatus==='revision')?'rojo':'ambar';
+        const col = p.estatus==='terminada'?'':(p.estatus==='pendiente')?'rojo':'ambar';
         return `<div class="card ${col}">
           <div class="row" style="justify-content:space-between">
             <span class="disp" style="font-size:17px">${esc(p.nombre)}</span><span class="chip ${c}">${t}</span></div>
@@ -3608,7 +3608,27 @@ async function abrirJob(id){
               ${(cons||[]).map(c2=>`<option value="${c2.id}" ${p.contratista_id===c2.id?'selected':''}>${esc(c2.nombre)}</option>`).join('')}</select>
             <select data-pe="${p.id}" style="flex:1;padding:6px">
               ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
+          </div>
+          <div class="row no-print" style="margin-top:7px">
+            <div style="flex:1"><div class="meta" style="font-size:10px">COSTO · LO QUE COBRÓ</div>
+              <input class="num" data-pc2="${p.id}" type="number" step="0.01" value="${p.costo??''}" placeholder="0.00" style="padding:7px"></div>
+            <div style="flex:1"><div class="meta" style="font-size:10px">COBRO · LO QUE FACTURAMOS</div>
+              <input class="num" data-pb="${p.id}" type="number" step="0.01" value="${p.cobro??''}" placeholder="0.00" style="padding:7px"></div>
+          </div>`:''}
+          ${(p.costo||p.cobro)?`<div class="row" style="margin-top:7px;justify-content:space-between">
+            <span class="meta">Costo ${cf(p.costo)} · Cobro ${cf(p.cobro)}</span>
+            <span class="chip ${(Number(p.cobro||0)-Number(p.costo||0))>0?'azul':'rojo'}">MARGEN ${cf(Number(p.cobro||0)-Number(p.costo||0))}</span>
           </div>`:''}</div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
+      ${P.length?(()=>{
+        const tc=P.reduce((a,x)=>a+Number(x.costo||0),0), tb=P.reduce((a,x)=>a+Number(x.cobro||0),0);
+        return (tc||tb)?`<div class="kpis" style="margin-top:4px">
+          <div class="kpi"><div class="l">Costo total</div><div class="v" style="font-size:26px">${cf(tc)}</div><div class="p">lo que pagamos</div></div>
+          <div class="kpi a"><div class="l">Cobro total</div><div class="v" style="font-size:26px;color:var(--azul)">${cf(tb)}</div><div class="p">lo que facturamos</div></div>
+          <div class="kpi ${tb-tc>0?'a':'r'}"><div class="l">Margen</div>
+            <div class="v" style="font-size:26px;color:${tb-tc>0?'var(--azul)':'var(--rojo)'}">${cf(tb-tc)}</div>
+            <div class="p">${tb?Math.round((tb-tc)*100/tb)+'% del cobro':'sin cobro'}</div></div>
+          <div class="kpi"><div class="l">Partidas</div><div class="v" style="font-size:26px">${P.filter(x=>x.estatus==='terminada').length}/${P.length}</div><div class="p">terminadas</div></div>
+        </div>`:'';})():''}
       ${EDIT()?'<button class="btn ghost wide no-print" id="ap">+ Agregar partida</button>':''}`:''}
 
       ${(()=>{
@@ -3617,12 +3637,12 @@ async function abrirJob(id){
         const tieneIni=R.some(x=>x.tipo_reporte==='inicial') || nRep>0;
         const estEnv=EST.some(x=>['enviado','aceptado'].includes(x.estatus));
         const estAcep=EST.some(x=>x.estatus==='aceptado');
-        const repProc=P.some(x=>['asignada','proceso','revision'].includes(x.estatus));
-        const repTodas=P.length>0 && P.every(x=>x.estatus==='aprobada');
+        const repProc=P.some(x=>['asignada','proceso'].includes(x.estatus));
+        const repTodas=P.length>0 && P.every(x=>x.estatus==='terminada');
         const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas, aceptado:estAcep};
         const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
           estimado:estEnv?cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0):'sin estimado todavía',
-          reparando:P.length?P.filter(x=>x.estatus==='aprobada').length+' de '+P.length+' partidas listas':'sin partidas'};
+          reparando:P.length?P.filter(x=>x.estatus==='terminada').length+' de '+P.length+' partidas listas':'sin partidas'};
         const listo=k=> manuales.includes('-'+k) ? false : (manuales.includes(k) || !!auto[k]);
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
         const pc=Math.round(hechas*100/ETAPAS.length);
@@ -3737,8 +3757,18 @@ async function abrirJob(id){
     await sb.from('partidas').update({contratista_id:s.value||null,estatus:s.value?'asignada':'pendiente'}).eq('id',s.dataset.pc);
     cerrar(); abrirJob(id);
   });
+  document.querySelectorAll('[data-pc2]').forEach(i=>i.onchange=async()=>{
+    await sb.from('partidas').update({costo:i.value===''?null:Number(i.value)}).eq('id',i.dataset.pc2);
+    toast('Costo guardado');
+  });
+  document.querySelectorAll('[data-pb]').forEach(i=>i.onchange=async()=>{
+    await sb.from('partidas').update({cobro:i.value===''?null:Number(i.value)}).eq('id',i.dataset.pb);
+    toast('Cobro guardado');
+  });
   document.querySelectorAll('[data-pe]').forEach(s=>s.onchange=async()=>{
-    const up={estatus:s.value}; if(s.value==='aprobada') up.fecha_fin=hoy();
+    const up={estatus:s.value};
+    if(s.value==='terminada'){ up.fecha_fin=hoy(); }
+    if(s.value==='proceso' ) { up.fecha_inicio=hoy(); }
     await sb.from('partidas').update(up).eq('id',s.dataset.pe);
     cerrar(); abrirJob(id);
   });
