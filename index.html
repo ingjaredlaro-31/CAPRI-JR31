@@ -44,8 +44,45 @@ body.dark{
   --azul:#4D8DF6; --azul-d:#BBD3FF; --azul-l:rgba(77,141,246,.15); --azul-b:#31599F;
   --rojo:#FF5C67; --rojo-d:#FFC2C6; --rojo-l:rgba(255,92,103,.13); --rojo-b:#93373E;
   --ambar:#E5B15C; --ambar-d:#F7E2B8; --ambar-l:rgba(229,177,92,.13); --ambar-b:#8A6A2A;
-  --oro:#E0B34E;
+  --oro:#E0B34E; --verde:#3DD68C; --verde-d:#A9F0CB; --verde-l:rgba(61,214,140,.12); --verde-b:#1E7A50;
 }
+/* Acento principal en oro (del logo) y verde para lo que ya está listo */
+body.dark .btn{background:linear-gradient(180deg,#E2B85A,#C9962B);color:#0B0D11;font-weight:800}
+body.dark .btn:hover{background:linear-gradient(180deg,#EBC66E,#D2A033)}
+body.dark .btn.rojo{background:linear-gradient(180deg,#FF6E78,#E03D48);color:#fff}
+body.dark .card{border-left-color:#2A3446}
+body.dark .fila{border-left-color:#2A3446}
+body.dark .fila.a{border-left-color:var(--verde)}
+body.dark .fila.m{border-left-color:var(--oro)}
+body.dark .kpi.a{border-left-color:var(--verde)}
+body.dark .kpi.m{border-left-color:var(--oro)}
+body.dark .chip.azul,body.dark .jc-chip.azul{color:var(--verde-d);border-color:var(--verde-b);background:var(--verde-l)}
+body.dark .jc-chip.verde{color:var(--verde-d);border-color:var(--verde-b);background:var(--verde-l)}
+body.dark .chip.ambar,body.dark .jc-chip.ambar{color:#F2DCA6;border-color:#8A6A2A;background:rgba(224,179,78,.13)}
+body.dark .ok{border-left-color:var(--verde);background:var(--verde-l);color:var(--verde-d)}
+body.dark .jobcard{border-left-color:#2A3446}
+body.dark .jobcard.azul{border-left-color:var(--verde)}
+body.dark .jobcard.ambar{border-left-color:var(--oro)}
+body.dark .jobcard.verde{border-left-color:var(--verde)}
+body.dark .folio{color:var(--oro)}
+body.dark .etapa.done .bolita{background:var(--verde);border-color:var(--verde);color:#06281A}
+body.dark .etapa.done::before{background:var(--verde-b)}
+body.dark .etapa.done .txt b{color:var(--verde-d)}
+body.dark .etapa.hoy .bolita{border-color:var(--oro);color:var(--oro);box-shadow:0 0 0 4px rgba(224,179,78,.14)}
+body.dark .barra i{background:var(--oro)!important}
+body.dark .tabs button.on{background:rgba(224,179,78,.12);border-bottom-color:var(--oro);color:var(--oro)}
+body.dark nav button.on{color:var(--oro);border-top-color:var(--oro)}
+body.dark .side button.on{background:linear-gradient(90deg,rgba(224,179,78,.20),transparent);color:var(--oro);border-left-color:var(--oro)}
+body.dark .franja.split i:first-child{background:var(--oro)}
+body.dark .hero .franja2 i:first-child,body.dark .dinero .franja2 i:first-child{background:var(--oro)}
+body.dark .top{background:#0C121E}
+body.dark .kpi .v{color:var(--tinta)}
+body.dark .chips button.on{background:rgba(224,179,78,.15);border-color:var(--oro);color:var(--oro)}
+body.dark .si-no button.on{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
+body.dark .si-no button.on.r{background:linear-gradient(180deg,#FF6E78,#E03D48);border-color:#E03D48;color:#fff}
+body.dark .modos button.on{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
+body.dark .vermas{color:var(--oro)}
+body.dark a{color:var(--oro)}
 body.dark .top{background:#0E1523;border-bottom:1px solid #1C2534;box-shadow:none}
 body.dark .hero,body.dark .dinero{background:linear-gradient(155deg,#182234 0%,#0E1523 70%);
   border:1px solid #1E293C;box-shadow:0 10px 30px rgba(0,0,0,.45)}
@@ -285,8 +322,8 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:22px;font-weight:700;text-transform:uppercase}
 .fondo-tex{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='380'%3E%3Cg fill='%230B0D11' fill-opacity='0.035' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E");background-repeat:repeat}
-body.dark .fondo-tex{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='380'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.045' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E")}
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520'%3E%3Cg fill='%230B0D11' fill-opacity='0.022' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E");background-repeat:repeat}
+body.dark .fondo-tex{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.018' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E")}
 .marca-agua{position:relative;overflow:hidden}
 .marca-agua::before{content:'';position:absolute;top:50%;left:50%;width:150%;padding-bottom:150%;
   transform:translate(-50%,-50%);background:var(--logobg) center/contain no-repeat;
@@ -381,7 +418,26 @@ main > *{position:relative;z-index:1}
 .sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;align-items:flex-start;padding:13px 16px;padding-top:calc(13px + env(safe-area-inset-top));z-index:2}
 .sheet-body{max-width:900px;margin:0 auto;padding:14px 14px 60px}
 .x{background:none;border:0;color:#C3D6F7;font-size:24px;cursor:pointer;line-height:1}
-.portada{background:#070B12;padding:30px 22px 26px;border-radius:14px 14px 0 0;border:1px solid #1A2231;border-bottom:0;position:relative;overflow:hidden}
+.portada{background:#070B12;padding:34px 22px 28px;border-radius:14px 14px 0 0;border:1px solid #1A2231;border-bottom:0;position:relative;overflow:hidden}
+.portada .rot{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;color:#8494AD;text-transform:uppercase}
+.portada .tt{font-family:var(--disp);font-weight:800;font-size:31px;color:#FFFFFF;line-height:.95;
+  margin-top:10px;text-transform:uppercase;letter-spacing:.01em;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+/* Panel de entrada: siempre claro y sólido, no importa el tema */
+.cajaclara{background:#FFFFFF!important;border:1px solid #DDE1E6!important;border-top:0!important;
+  border-radius:0 0 14px 14px;padding:24px 22px 26px;position:relative;z-index:2}
+.cajaclara .eyebrow{color:#6B7280;margin:0 0 14px;justify-content:center}
+.cajaclara .eyebrow::after{display:none}
+.cajaclara label{color:#5B6472;margin-top:16px}
+.cajaclara input{background:#FFFFFF!important;border:1.5px solid #C9CFD6!important;color:#0B0D11!important;
+  font-size:19px;padding:13px 14px}
+.cajaclara input::placeholder{color:#9AA3AF!important}
+.cajaclara .btn{color:#fff!important}
+.cajaclara .volver{color:#6B7280!important}
+.cajaclara .puerta{background:#F7F8FA!important;border:1px solid #DDE1E6!important;border-left-width:5px!important}
+.cajaclara .puerta:hover{background:#EEF2F7!important}
+.cajaclara .puerta .t{color:#0B0D11!important}
+.cajaclara .puerta .s{color:#5B6472!important}
+.cajaclara p{color:var(--rojo)}
 .puerta{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;
   background:var(--sup2);border:1px solid var(--linea);border-left:5px solid var(--azul);border-radius:10px;
   padding:17px 18px;margin-bottom:11px;cursor:pointer;transition:transform .15s,background .15s}
@@ -395,7 +451,7 @@ main > *{position:relative;z-index:1}
   letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:8px 0}
 .login-page{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 18px;min-height:100dvh;background:var(--fondo)}
 .login{width:100%;max-width:420px}
-.login .box{background:var(--sup);border:1px solid var(--linea);border-radius:14px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.login .box{background:transparent;border:0;border-radius:14px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.45)}
 .login .cab{background:#070B12;padding:32px 22px;text-align:center;position:relative;overflow:hidden}
 .login .pie{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#9AA3AF;margin-top:16px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:99;background:var(--tinta);color:#fff;padding:11px 18px;border-radius:6px;font-size:14px;z-index:200}
@@ -1062,7 +1118,7 @@ async function verJobTecnico(id){
           <div class="row" style="justify-content:space-between;align-items:flex-start">
             <div>
               <div class="lbl">Ganancia de este trabajo</div>
-              <div class="grande" style="color:${gana>=0?'#7FB3FF':'#FF8A8A'}">${cf(gana)}</div>
+              <div class="grande" style="color:${gana>=0?'#8FE9BC':'#FFA3A9'}">${cf(gana)}</div>
               <div class="pct">${ingreso?mg+'% de margen · ingreso '+cf(ingreso)+' ('+fuente+')':'falta capturar el monto a cobrar'}</div>
             </div>
             ${EDIT()?`<button class="btn ghost sm no-print" id="edfin" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)">Editar</button>`:''}
@@ -1319,13 +1375,13 @@ function portada(){
   $('#root').innerHTML = `<div class="login-page"><div class="fondo-tex"></div><div class="login">
     <div class="portada marca-agua">
       <div class="logo-img" style="width:118px;height:118px"></div>
-      <div class="mono" style="font-size:10px;letter-spacing:.2em;color:#9AA3AF;text-align:center">${esc(EMPRESA.toUpperCase())}</div>
-      <div class="disp" style="font-weight:800;font-size:29px;color:#fff;line-height:.98;text-align:center;margin-top:7px">Administrador<br>Central</div>
+      <div class="rot" style="text-align:center">${esc(EMPRESA.toUpperCase())}</div>
+      <div class="tt" style="text-align:center">Administrador<br>Central</div>
       <div class="mono" style="font-size:13px;letter-spacing:.5em;color:var(--oro);margin-top:11px;text-align:center;font-weight:600">JR31</div>
     </div>
     <div class="franja split" style="border-radius:0"><i></i><i></i></div>
-    <div style="background:var(--sup);border:1px solid var(--linea);border-top:0;border-radius:0 0 12px 12px;padding:22px">
-      <div class="eyebrow" style="margin-top:0;text-align:center">¿Quién eres?</div>
+    <div class="cajaclara">
+      <div class="eyebrow">¿Quién eres?</div>
       ${Object.entries(PUERTAS).map(([k,v])=>`
         <button class="puerta" data-p="${k}" style="border-left-color:${v.c}">
           <span class="t">${v.t}</span>
@@ -1374,12 +1430,12 @@ function login(msg){
   $('#root').innerHTML = `<div class="login-page"><div class="fondo-tex"></div><div class="login"><div class="box">
     <div class="cab marca-agua">
       <div class="logo-img" style="width:78px;height:78px"></div>
-      <div class="mono" style="font-size:9px;letter-spacing:.2em;color:#9AA3AF">${esc(EMPRESA.toUpperCase())}</div>
-      <div class="disp" style="font-weight:800;font-size:27px;color:#fff;line-height:.98;margin-top:7px">Acceso ${esc(PUERTAS[PUERTA].t)}</div>
+      <div class="rot">${esc(EMPRESA.toUpperCase())}</div>
+      <div class="tt">Acceso<br>${esc(PUERTAS[PUERTA].t)}</div>
       <div class="mono" style="font-size:13px;letter-spacing:.5em;color:var(--oro);margin-top:11px;font-weight:600">JR31</div>
     </div>
     <div class="franja split"><i></i><i></i></div>
-    <div style="padding:26px 26px 30px">
+    <div class="cajaclara">
       <label style="margin-top:0">Usuario</label><input id="u" autocapitalize="none" autocomplete="username">
       <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
       <div style="height:22px"></div>
@@ -1431,7 +1487,7 @@ function shell(html){
       <div class="head" data-v="${inicio}">
         <div class="logo-img" style="width:52px;height:52px;margin:0 0 9px"></div>
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
-        <div class="m" style="margin-top:5px;color:${azulRojo?'#F5A0A4':'#5B8DEF'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):U.rol.toUpperCase())}</div>
+        <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):U.rol.toUpperCase())}</div>
       </div>
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}Inicio</button></div>
       ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
@@ -1454,7 +1510,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v38 · marca de agua</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v40 · acento oro</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
