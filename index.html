@@ -258,8 +258,9 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .jc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:13px 18px;background:var(--sup2);border-bottom:1px solid var(--linea2)}
 .jc-body{padding:16px 18px 18px}
-.jc-tit{font-family:var(--disp);font-weight:800;font-size:32px;line-height:1;letter-spacing:.005em}
-.jc-dir{font-size:17px;color:var(--tinta);margin-top:5px}
+.jc-tit{font-family:var(--disp);font-weight:800;font-size:38px;line-height:.98;letter-spacing:.005em}
+.jc-dir{font-size:19px;color:var(--tinta);margin-top:7px;line-height:1.35}
+.jc-dir b{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--oro,var(--azul))}
 .jc-meta{font-family:var(--mono);font-size:13.5px;color:var(--gris);margin-top:6px}
 .jc-etapa{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px}
 .jc-etapa .nom{font-family:var(--disp);font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.01em}
@@ -273,7 +274,8 @@ footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3
 .jc-chip.rojo{color:var(--rojo-d);border-color:var(--rojo);background:var(--rojo-l)}
 .jc-chip.ambar{color:var(--ambar-d);border-color:var(--ambar);background:var(--ambar-l)}
 .jc-chip.verde{color:#0F6B38;border-color:#1FA35A;background:#E7F6ED}
-.jc-chip.negro{color:#fff;border-color:var(--tinta);background:var(--tinta)}
+.jc-chip.negro{color:var(--tinta);border-color:var(--gris);background:var(--sup2)}
+body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2836}
 .tabs .c{font-family:var(--mono);font-size:22px;display:block;font-weight:600;margin-top:2px}
 .dinero{background:linear-gradient(160deg,#141922 0%,var(--tinta) 65%);color:#fff;border-radius:14px;
   padding:20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 4px 18px rgba(11,13,17,.18)}
@@ -418,7 +420,8 @@ main > *{position:relative;z-index:1}
 .sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;
   align-items:flex-start;padding:16px 18px 18px;padding-top:calc(16px + env(safe-area-inset-top));z-index:3}
 .sheet-head .mono{font-size:13.5px!important;letter-spacing:.14em!important;opacity:.9}
-.sheet-head .disp{font-size:30px!important;line-height:1.02!important;letter-spacing:.005em}
+.sheet-head .disp{font-size:34px!important;line-height:1!important;letter-spacing:.005em}
+.sheet-head b{font-family:var(--mono);font-size:17px;font-weight:600}
 .sheet-head > div:first-child > div:nth-child(3){font-size:15.5px!important;margin-top:4px}
 .sheetnav{position:sticky;top:0;z-index:2;display:flex;gap:8px;padding:10px 18px;
   background:var(--sup2);border-bottom:1px solid var(--linea)}
@@ -534,7 +537,10 @@ const ESTAT_PART = {pendiente:['SIN ASIGNAR','rojo'],asignada:['ASIGNADA','ambar
 let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
 let MODO='mes', MREF=hoy();
 const iso = d => d.toLocaleDateString('en-CA');
-const EDIT = () => U && U.rol==='admin';
+const ES_ADMIN  = () => U && U.rol==='admin';
+const EDIT      = () => U && (U.rol==='admin' || U.rol==='oficina');
+const BORRAR    = () => ES_ADMIN();
+const VE_DINERO = () => ES_ADMIN();
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
@@ -1113,7 +1119,7 @@ async function verJobTecnico(id){
       ${(j.areas||[]).length?`<div class="eyebrow">Áreas</div>
       <div class="chips">${(j.areas||[]).map(x=>`<button type="button" class="on" style="cursor:default">${esc(x)}</button>`).join('')}</div>`:''}
 
-      ${(()=>{
+      ${VE_DINERO()?(()=>{
         const cobroPart=P.reduce((a,x)=>a+Number(x.cobro||0),0);
         const costoPart=P.reduce((a,x)=>a+Number(x.costo||0),0);
         const tecRep=R.reduce((a,x)=>a+Number(x.cobro_tecnico||0),0);
@@ -1133,7 +1139,7 @@ async function verJobTecnico(id){
               <div class="grande" style="color:${gana>=0?'#8FE9BC':'#FFA3A9'}">${cf(gana)}</div>
               <div class="pct">${ingreso?mg+'% de margen · ingreso '+cf(ingreso)+' ('+fuente+')':'falta capturar el monto a cobrar'}</div>
             </div>
-            ${EDIT()?`<button class="btn ghost sm no-print" id="edfin" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)">Editar</button>`:''}
+            ${ES_ADMIN()?`<button class="btn ghost sm no-print" id="edfin" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)">Editar</button>`:''}
           </div>
           <div class="gr">
             <div class="celda"><div class="lbl">Ingreso</div><div class="med">${cf(ingreso)}</div>
@@ -1147,7 +1153,7 @@ async function verJobTecnico(id){
           </div>
           <div class="franja2"><i></i><i></i></div>
         </div>`;
-      })()}
+      })():''}
 
       <div class="eyebrow">Fechas clave</div>
       ${bloqueFechas(j,R,P,AS)}
@@ -1499,7 +1505,7 @@ function shell(html){
       <div class="head" data-v="${inicio}">
         <div class="logo-img" style="width:52px;height:52px;margin:0 0 9px"></div>
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
-        <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):U.rol.toUpperCase())}</div>
+        <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):(U.rol==='oficina'?'OFICINA · SIN CONFIGURACIÓN':'ADMINISTRADOR'))}</div>
       </div>
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}Inicio</button></div>
       ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
@@ -1522,7 +1528,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v42 · navegación en ventanas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v43 · permisos por rol</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3524,7 +3530,7 @@ async function vJobs(){
           ${revisar?`<span class="jc-chip rojo">${revisar} POR REVISAR</span>`:''}
           ${(j.areas||[]).length?`<span class="jc-chip">${(j.areas||[]).length} ÁREAS</span>`:''}
           ${j.invoice_num?`<span class="jc-chip ${j.invoice_pagado?'verde':'ambar'}">${j.invoice_pagado?'PAGADO':'POR COBRAR'} ${cf(j.invoice_monto)}</span>`:''}
-          ${gana!==null?`<span class="jc-chip ${gana>0?'verde':'rojo'}">GANANCIA ${cf(gana)}</span>`:''}
+          ${(gana!==null&&VE_DINERO())?`<span class="jc-chip ${gana>0?'verde':'rojo'}">GANANCIA ${cf(gana)}</span>`:''}
         </div>
       </div></div>`;
   };
@@ -3987,17 +3993,17 @@ async function abrirJob(id){
             <select data-pe="${p.id}" style="flex:1;padding:6px">
               ${Object.keys(ESTAT_PART).map(k=>`<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
           </div>
-          <div class="row no-print" style="margin-top:7px">
+          ${VE_DINERO()?`<div class="row no-print" style="margin-top:7px">
             <div style="flex:1"><div class="meta" style="font-size:10px">COSTO · LO QUE COBRÓ</div>
               <input class="num" data-pc2="${p.id}" type="number" step="0.01" value="${p.costo??''}" placeholder="0.00" style="padding:7px"></div>
             <div style="flex:1"><div class="meta" style="font-size:10px">COBRO · LO QUE FACTURAMOS</div>
               <input class="num" data-pb="${p.id}" type="number" step="0.01" value="${p.cobro??''}" placeholder="0.00" style="padding:7px"></div>
-          </div>`:''}
-          ${(p.costo||p.cobro)?`<div class="row" style="margin-top:7px;justify-content:space-between">
+          </div>`:''}`:''}
+          ${(VE_DINERO()&&(p.costo||p.cobro))?`<div class="row" style="margin-top:7px;justify-content:space-between">
             <span class="meta">Costo ${cf(p.costo)} · Cobro ${cf(p.cobro)}</span>
             <span class="chip ${(Number(p.cobro||0)-Number(p.costo||0))>0?'azul':'rojo'}">MARGEN ${cf(Number(p.cobro||0)-Number(p.costo||0))}</span>
           </div>`:''}</div>`;}).join('')||'<div class="sub">Sin partidas registradas.</div>'}</div>
-      ${P.length?(()=>{
+      ${(P.length&&VE_DINERO())?(()=>{
         const tc=P.reduce((a,x)=>a+Number(x.costo||0),0), tb=P.reduce((a,x)=>a+Number(x.cobro||0),0);
         return (tc||tb)?`<div class="kpis" style="margin-top:4px">
           <div class="kpi"><div class="l">Costo total</div><div class="v" style="font-size:26px">${cf(tc)}</div><div class="p">lo que pagamos</div></div>
@@ -4108,6 +4114,7 @@ async function abrirJob(id){
       ${EDIT()?'<div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>':''}
 
       <div class="eyebrow" id="sec_reportes">Reportes recibidos · ${R.length}</div>
+      ${EDIT()?'<button class="btn ghost wide no-print" id="addrep" style="margin-bottom:12px">+ Capturar reporte por un técnico</button>':''}
       ${R.slice().reverse().map(r=>`<div class="card">
         <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
         <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
@@ -4131,8 +4138,8 @@ async function abrirJob(id){
         <div class="row no-print" style="margin-top:9px">
           <button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button>
           ${EDIT()?`<button class="btn ghost sm" data-er="${r.id}">Editar</button>
-          <button class="btn ghost sm" data-ar="${r.id}">Acusar recibo</button>
-          <span style="flex:1"></span>
+          <button class="btn ghost sm" data-ar="${r.id}">Acusar recibo</button>`:''}
+          ${BORRAR()?`<span style="flex:1"></span>
           <button class="btn ghost sm" data-br="${r.id}" style="color:var(--rojo)">Borrar</button>`:''}
         </div>
       </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
@@ -4151,6 +4158,34 @@ async function abrirJob(id){
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
+  const ar1=$('#addrep');
+  if(ar1) ar1.onclick=async()=>{
+    const {data:tecs}=await sb.from('usuarios').select('id,nombre,departamento')
+      .eq('rol','tecnico').eq('activo',true).order('nombre');
+    const T=(tecs||[]).filter(t=>t.departamento===j.departamento||t.departamento==='ambos');
+    if(!T.length) return toast('No hay técnicos activos en este departamento.');
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${esc(j.folio)}</div>
+      <div class="disp">Capturar reporte</div>
+      <div style="color:#C3D6F7">a nombre de un técnico</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <label>¿De qué técnico es el reporte?</label>
+        <select id="ct">${T.map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join('')}</select>
+        <label>¿De qué día?</label>
+        <input id="cf" type="date" value="${hoy()}" max="${hoy()}" style="font-family:var(--mono);font-size:19px">
+        <div class="sub" style="margin-top:8px">El reporte queda a nombre del técnico, no tuyo. Sirve cuando te lo pasa por teléfono o WhatsApp.</div>
+        <div style="height:18px"></div>
+        <button class="btn wide" id="cok">Empezar el reporte</button>
+        <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+    $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(id);};
+    $('#cok').onclick=()=>{
+      const t=$('#ct').value, f=$('#cf').value||hoy();
+      cerrar(); reporteGuiado(id, f, null, t);
+    };
+  };
   const ne1=$('#nuevoest'), ne2=$('#nuevoest2');
   if(ne1) ne1.onclick=()=>{ cerrar(); formEstimado(null,id); };
   if(ne2) ne2.onclick=()=>{ cerrar(); formEstimado(null,id); };
@@ -4467,15 +4502,15 @@ async function formPartida(jobId, partidaId, prefill){
         <select id="es">${Object.keys(ESTAT_PART).map(k=>
           `<option value="${k}" ${p.estatus===k?'selected':''}>${ESTAT_PART[k][0]}</option>`).join('')}</select>
 
-        <div class="g2">
+        ${VE_DINERO()?`<div class="g2">
           <div><label>Costo · lo que cobra</label><input class="num" id="cs" type="number" step="0.01" value="${p.costo??''}"></div>
           <div><label>Cobro · lo que facturamos</label><input class="num" id="cb" type="number" step="0.01" value="${p.cobro??''}"></div>
-        </div>
+        </div>`:''}
 
         <div style="height:16px"></div>
         <button class="btn wide" id="sv">${partidaId?'Guardar cambios':'Agregar reparación'}</button>
         <div style="height:12px"></div>
-        ${partidaId?`<button class="btn ghost wide" id="dl" style="color:var(--rojo)">Borrar reparación</button><div style="height:12px"></div>`:''}
+        ${partidaId&&BORRAR()?`<button class="btn ghost wide" id="dl" style="color:var(--rojo)">Borrar reparación</button><div style="height:12px"></div>`:''}
         <button class="btn ghost wide" id="c2">Cancelar</button>
       </div></div>`;
     $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(jobId);};
@@ -4502,8 +4537,8 @@ async function formPartida(jobId, partidaId, prefill){
       const dat={job_id:jobId, nombre:sel, detalle:areasSel.join(', ')||null,
         cantidad:$('#cn').value.trim()||null, contratista_id:$('#co').value||null,
         estatus:est, clase:'reparacion',
-        costo:$('#cs').value===''?null:Number($('#cs').value),
-        cobro:$('#cb').value===''?null:Number($('#cb').value)};
+        ...(VE_DINERO()?{costo:$('#cs').value===''?null:Number($('#cs').value),
+          cobro:$('#cb').value===''?null:Number($('#cb').value)}:{})};
       if(est==='proceso') dat.fecha_inicio=hoy();
       if(est==='terminada') dat.fecha_fin=hoy();
       const q = partidaId ? sb.from('partidas').update(dat).eq('id',partidaId) : sb.from('partidas').insert(dat);
@@ -4843,9 +4878,9 @@ async function abrirEstimado(id){
         <button class="btn ghost" style="flex:1" id="ed2">Editar</button>
         <button class="btn ghost" style="flex:1" onclick="window.print()">Imprimir / PDF</button>
       </div>
-      <div class="row no-print" style="margin-top:10px">
+      ${BORRAR()?`<div class="row no-print" style="margin-top:10px">
         <button class="btn ghost wide" id="del2" style="color:var(--rojo)">Borrar estimado</button>
-      </div>
+      </div>`:''}
       ${e.estatus==='enviado'?`<div class="row no-print" style="margin-top:10px">
         <button class="btn ghost" style="flex:1" id="rch">Rechazado</button>
         <button class="btn" style="flex:1" id="acc">Marcar aceptado</button></div>`:''}
