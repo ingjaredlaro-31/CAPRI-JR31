@@ -303,6 +303,7 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 .acc[open] .ac-fl{transform:rotate(180deg)}
 .acc .ac-b{padding:0 12px 12px}
 .acc .ac-b .fila{margin-bottom:8px}
+.acc .ac-b .fila .btn{flex-shrink:0;width:42px;padding:8px 0;font-size:19px;line-height:1}
 .acc .ac-b .fila:last-child{margin-bottom:0}
 .etapas{position:relative;padding-left:6px}
 .etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding:10px 12px 18px 0;border-radius:10px;
@@ -1633,7 +1634,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v48 · ubicaciones</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v49 · alertas resueltas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3069,6 +3070,24 @@ let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
 function aplicarTema(){ document.body.classList.toggle('dark', OSCURO); }
+
+/* Alertas marcadas como resueltas · se ocultan el resto del día */
+function clave_ocultas(){ return 'jr31_ok_'+hoy(); }
+function leerOcultas(){
+  try{ return new Set(JSON.parse(localStorage.getItem(clave_ocultas())||'[]')); }catch(e){ return new Set(); }
+}
+function ocultarAlerta(k){
+  try{
+    const set=leerOcultas(); set.add(k);
+    localStorage.setItem(clave_ocultas(), JSON.stringify([...set]));
+    // limpia las de días anteriores
+    for(let i=0;i<localStorage.length;i++){
+      const kk=localStorage.key(i);
+      if(kk && kk.startsWith('jr31_ok_') && kk!==clave_ocultas()) localStorage.removeItem(kk);
+    }
+  }catch(e){}
+}
+const claveAlerta = a => (a.t+'|'+a.s).slice(0,120);
 function cambiarTema(){
   OSCURO=!OSCURO;
   try{ localStorage.setItem('jr31_tema', OSCURO?'oscuro':'claro'); }catch(e){}
@@ -3361,6 +3380,22 @@ async function vResumen(){
     engancharDep();
     document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
+    document.querySelectorAll('[data-okn]').forEach(b=>b.onclick=async e=>{
+      e.stopPropagation();
+      await sb.from('notificaciones').update({leida:true}).eq('id',b.dataset.okn);
+      toast('Aviso cerrado'); render();
+    });
+    document.querySelectorAll('[data-oka]').forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      ocultarAlerta(b.dataset.oka);
+      toast('Marcado como hecho por hoy'); render();
+    });
+    document.querySelectorAll('[data-todas]').forEach(b=>b.onclick=async e=>{
+      e.stopPropagation();
+      const ids=alertas.filter(x=>x.nid).map(x=>x.nid);
+      if(ids.length) await sb.from('notificaciones').update({leida:true}).in('id',ids);
+      toast('Avisos marcados como vistos'); render();
+    });
   };
 
   const alertas=[];
@@ -3372,8 +3407,8 @@ async function vResumen(){
     job:x.job.id}));
   const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').limit(6);
   (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',t:'Reporte inicial por revisar',s:(x.propiedad_texto||'')+(x.unidad?' · Unit '+x.unidad:'')+' · '+(x.tecnico_nombre||'')}));
-  const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(6);
-  (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id}));
+  const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(20);
+  (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id,nid:x.id}));
   if(new Date().getHours()>=HORA_AVISO)
     faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
   revisar.forEach(x=>alertas.push({g:'Trabajo por revisar',c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
@@ -3428,8 +3463,11 @@ async function vResumen(){
       if(!alertas.length) return `<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`;
       const ORDEN=['Días sin reporte','Reporte de hoy','Trabajo por revisar','Reportes iniciales',
         'Recordatorios','Reparaciones','Estimados','Facturación','Avisos nuevos'];
+      const ocultas=leerOcultas();
+      const vivas=alertas.filter(a=>a.nid || !ocultas.has(claveAlerta(a)));
+      if(!vivas.length) return `<div class="ok">Todo revisado por hoy. Lo que marcaste como hecho vuelve a aparecer mañana si sigue pendiente.</div>`;
       const G={};
-      alertas.forEach(a=>(G[a.g||'Otros'] ||= []).push(a));
+      vivas.forEach(a=>(G[a.g||'Otros'] ||= []).push(a));
       const claves=ORDEN.filter(k=>G[k]).concat(Object.keys(G).filter(k=>!ORDEN.includes(k)));
       return claves.map((k,i)=>{
         const v=G[k];
@@ -3440,10 +3478,15 @@ async function vResumen(){
             <span class="chip ${urg?'rojo':v[0].c==='a'?'azul':'ambar'}">${v.length}</span>
             <span class="ac-fl">▾</span>
           </summary>
-          <div class="ac-b">${v.slice(0,10).map(a=>`
-            <div class="fila ${a.c}" ${a.job?`data-job="${a.job}"`:''}>
-              <div class="t"><b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
+          <div class="ac-b">
+            ${k==='Avisos nuevos'?`<button class="btn ghost sm no-print" data-todas="1" style="margin-bottom:9px">Marcar todos como vistos</button>`:''}
+            ${v.slice(0,10).map(a=>`
+            <div class="fila ${a.c}">
+              <div class="t" ${a.job?`data-job="${a.job}"`:''} style="cursor:${a.job?'pointer':'default'}">
+                <b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
               <span class="chip ${a.c==='r'?'rojo':a.c==='a'?'azul':'ambar'}">${a.c==='r'?'URGENTE':a.c==='a'?'NUEVO':'PENDIENTE'}</span>
+              <button class="btn ghost sm no-print" ${a.nid?`data-okn="${a.nid}"`:`data-oka="${esc(claveAlerta(a))}"`}
+                title="Marcar como resuelto">✓</button>
             </div>`).join('')}
             ${v.length>10?`<div class="sub" style="padding:4px 2px">y ${v.length-10} más…</div>`:''}
           </div>
