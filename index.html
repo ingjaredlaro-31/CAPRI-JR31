@@ -291,6 +291,19 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 @media(min-width:640px){.dinero .gr{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .dinero .celda{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:11px;padding:13px 14px}
 .dinero .pct{font-family:var(--mono);font-size:15px;color:#C3D6F7}
+.acc{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--linea);
+  border-radius:0 12px 12px 0;margin-bottom:10px;overflow:hidden}
+.acc.urg{border-left-color:var(--rojo)}
+.acc summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:15px 16px;
+  user-select:none}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary:hover{background:var(--sup2)}
+.acc .ac-t{flex:1;font-family:var(--disp);font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.01em}
+.acc .ac-fl{font-size:16px;color:var(--gris);transition:transform .2s}
+.acc[open] .ac-fl{transform:rotate(180deg)}
+.acc .ac-b{padding:0 12px 12px}
+.acc .ac-b .fila{margin-bottom:8px}
+.acc .ac-b .fila:last-child{margin-bottom:0}
 .etapas{position:relative;padding-left:6px}
 .etapa{display:flex;gap:14px;align-items:flex-start;position:relative;padding:10px 12px 18px 0;border-radius:10px;
   transition:background .15s}
@@ -495,7 +508,8 @@ body.dark .sheetnav button{background:#171F2D;border-color:#2A3446}
 const SUPABASE_URL = 'https://qcxrxanvyadewglwszxs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_C5X_h9SYo8kVsYoAxtpxxw_xlc2LMAt';
 const EMPRESA = 'Capri Restoration Services Inc';
-const HORA_CORTE = 19;
+const HORA_CORTE = 19;   // después de esta hora el pendiente pasa a ATRASADO
+const HORA_AVISO = 14;   // antes de esta hora, el reporte de hoy todavía no se reclama
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = s => document.querySelector(s);
@@ -1344,11 +1358,13 @@ function diasFaltantes(job, fechasConReporte, maxDias){
   const arranque = (job.fecha_inicio||job.created_at||hoy()).slice(0,10);
   const tope = hace(maxDias||20);
   const desde = arranque > tope ? arranque : tope;
+  const h = hoy();
+  const temprano = new Date().getHours() < HORA_AVISO; // antes de las 2pm el de hoy no cuenta
   const out=[];
-  let d=new Date(desde+'T12:00:00'), fin=new Date(hoy()+'T12:00:00');
+  let d=new Date(desde+'T12:00:00'), fin=new Date(h+'T12:00:00');
   while(d<=fin){
     const f=iso(d);
-    if(!fechasConReporte.has(f)) out.push(f);
+    if(!fechasConReporte.has(f) && !(f===h && temprano)) out.push(f);
     d.setDate(d.getDate()+1);
   }
   return out;
@@ -1617,7 +1633,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v46 · motivos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v47 · alertas agrupadas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3267,25 +3283,26 @@ async function vResumen(){
   const alertas=[];
   const faltantes=await revisarFaltantes();
   faltantes.filter(x=>x.job.departamento===DEP).forEach(x=>alertas.push({
-    c:'r', t:'Sin reporte · '+x.dias+' día'+(x.dias===1?'':'s'),
+    g:'Días sin reporte', c:'r', t:'Sin reporte · '+x.dias+' día'+(x.dias===1?'':'s'),
     s:x.job.folio+(x.job.unidad?' · Unit '+x.job.unidad:'')+' · '+x.prop
       +(x.job.usuarios?.nombre?' · '+x.job.usuarios.nombre:' · sin técnico'),
     job:x.job.id}));
   const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').limit(6);
-  (levs||[]).forEach(x=>alertas.push({c:'r',t:'Reporte inicial por revisar',s:(x.propiedad_texto||'')+(x.unidad?' · Unit '+x.unidad:'')+' · '+(x.tecnico_nombre||'')}));
+  (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',t:'Reporte inicial por revisar',s:(x.propiedad_texto||'')+(x.unidad?' · Unit '+x.unidad:'')+' · '+(x.tecnico_nombre||'')}));
   const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(6);
-  (nsl||[]).forEach(x=>alertas.push({c:'a',t:x.titulo,s:x.texto||'',job:x.job_id}));
-  faltan.forEach(a=>alertas.push({c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
-  revisar.forEach(x=>alertas.push({c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
-  vencidos.forEach(x=>alertas.push({c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
-  sinAsig.forEach(x=>alertas.push({c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+  (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id}));
+  if(new Date().getHours()>=HORA_AVISO)
+    faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
+  revisar.forEach(x=>alertas.push({g:'Trabajo por revisar',c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+  vencidos.forEach(x=>alertas.push({g:'Recordatorios',c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
+  sinAsig.forEach(x=>alertas.push({g:'Reparaciones',c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
   J.filter(x=>['terminado','reconstruccion'].includes(x.estatus)).forEach(x=>{
     const hechos=x.docs||[];
     if(!hechos.includes('subido'))
-      alertas.push({c:'m',t:'Falta subir el invoice',s:x.folio+' · '+(hechos.includes('invoice')?'invoice creado, falta subirlo':'ni siquiera se ha creado el invoice'),job:x.id});
+      alertas.push({g:'Facturación',c:'m',t:'Falta subir el invoice',s:x.folio+' · '+(hechos.includes('invoice')?'invoice creado, falta subirlo':'ni siquiera se ha creado el invoice'),job:x.id});
   });
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
-     .forEach(x=>alertas.push({c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
+     .forEach(x=>alertas.push({g:'Estimados',c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
 
   const cl = await traerClima();
   const conDir = activos.filter(x=>x.direccion);
@@ -3324,12 +3341,32 @@ async function vResumen(){
       <div class="t">trabajo${faltantes.length===1?'':'s'} arrastrando días sin reporte · el más viejo lleva ${Math.max(...faltantes.map(x=>x.dias))} día(s)</div>
     </div>`:''}
     <div class="eyebrow">Requiere tu atención · ${alertas.length}</div>
-    ${alertas.length?alertas.slice(0,12).map(a=>`
-      <div class="fila ${a.c}" ${a.job?`data-job="${a.job}"`:''}>
-        <div class="t"><b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
-        <span class="chip ${a.c==='r'?'rojo':a.c==='a'?'azul':'ambar'}">${a.c==='r'?'URGENTE':a.c==='a'?'NUEVO':'PENDIENTE'}</span>
-      </div>`).join('')
-      :`<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`}
+    ${(()=>{
+      if(!alertas.length) return `<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`;
+      const ORDEN=['Días sin reporte','Reporte de hoy','Trabajo por revisar','Reportes iniciales',
+        'Recordatorios','Reparaciones','Estimados','Facturación','Avisos nuevos'];
+      const G={};
+      alertas.forEach(a=>(G[a.g||'Otros'] ||= []).push(a));
+      const claves=ORDEN.filter(k=>G[k]).concat(Object.keys(G).filter(k=>!ORDEN.includes(k)));
+      return claves.map((k,i)=>{
+        const v=G[k];
+        const urg=v.some(x=>x.c==='r');
+        return `<details class="acc ${urg?'urg':''}" ${i===0?'open':''}>
+          <summary>
+            <span class="ac-t">${esc(k)}</span>
+            <span class="chip ${urg?'rojo':v[0].c==='a'?'azul':'ambar'}">${v.length}</span>
+            <span class="ac-fl">▾</span>
+          </summary>
+          <div class="ac-b">${v.slice(0,10).map(a=>`
+            <div class="fila ${a.c}" ${a.job?`data-job="${a.job}"`:''}>
+              <div class="t"><b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
+              <span class="chip ${a.c==='r'?'rojo':a.c==='a'?'azul':'ambar'}">${a.c==='r'?'URGENTE':a.c==='a'?'NUEVO':'PENDIENTE'}</span>
+            </div>`).join('')}
+            ${v.length>10?`<div class="sub" style="padding:4px 2px">y ${v.length-10} más…</div>`:''}
+          </div>
+        </details>`;
+      }).join('');
+    })()}
 
     <div class="eyebrow">Visitas de hoy · ${A.length}</div>
     ${A.length?A.map(a=>`<div class="fila ${hechos.has(a.tecnico_id+'|'+a.job_id)?'a':'r'}" data-job="${a.job_id}">
