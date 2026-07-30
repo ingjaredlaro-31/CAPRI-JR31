@@ -1633,7 +1633,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v47 · alertas agrupadas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v48 · ubicaciones</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2774,13 +2774,31 @@ function heroHTML(cl, activos, hoyN, etiqueta){
   </div>`;
 }
 
-async function geocodificar(txt){
+function limpiarDir(dir){
+  return (dir||'')
+    .replace(/\b(unit|apt|apto|suite|ste|bldg|building|#)\s*[\w\-]+/gi,'')
+    .replace(/\s{2,}/g,' ').replace(/[,\s]+$/,'').trim();
+}
+
+async function geoUna(txt){
   try{
-    const u='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(txt);
+    const u='https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(txt);
     const r=await fetch(u,{headers:{'Accept':'application/json'}});
+    if(!r.ok) return null;
     const d=await r.json();
     if(d && d[0]) return {lat:+d[0].lat, lng:+d[0].lon};
   }catch(e){}
+  return null;
+}
+
+async function geocodificar(txt, ciudad){
+  const limpio=limpiarDir(txt);
+  const intentos=[...new Set([txt, limpio, limpio+(ciudad?', '+ciudad:''), limpio+', CA'].filter(Boolean))];
+  for(const t of intentos){
+    const g=await geoUna(t);
+    if(g) return g;
+    await new Promise(r=>setTimeout(r,1100));
+  }
   return null;
 }
 
@@ -3062,8 +3080,8 @@ async function coordsDe(j){
   if(j.lat && j.lng) return {lat:+j.lat,lng:+j.lng};
   if(j.propiedades?.lat) return {lat:+j.propiedades.lat,lng:+j.propiedades.lng};
   if(!j.direccion) return null;
-  const g=await geocodificar([j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', '));
-  if(g){ await sb.from('jobs').update({lat:g.lat,lng:g.lng}).eq('id',j.id); await new Promise(r=>setTimeout(r,1100)); }
+  const g=await geocodificar([j.direccion,j.ciudad||'San Diego','CA'].filter(Boolean).join(', '), j.ciudad||'San Diego');
+  if(g){ await sb.from('jobs').update({lat:g.lat,lng:g.lng}).eq('id',j.id); }
   return g;
 }
 
@@ -3119,14 +3137,24 @@ async function dibujarMapaRuta(items, conRuta){
   MAPA=L.map(el,{scrollWheelZoom:false}).setView([SD.lat,SD.lng],10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAPA);
 
-  let pts=[];
+  let pts=[], sinUbicar=[];
   for(const it of items){
     const g=await coordsDe(it.job);
-    if(!g) continue;
+    if(!g){ sinUbicar.push(it.job); continue; }
     pts.push({lat:g.lat,lng:g.lng,dir:[it.job.direccion,it.job.ciudad||'San Diego','CA'].filter(Boolean).join(', '),it});
   }
+  const avisoSin = sinUbicar.length ? `<div class="card rojo" style="margin-top:10px">
+      <div class="disp" style="font-size:19px">${sinUbicar.length} trabajo${sinUbicar.length===1?'':'s'} sin ubicar en el mapa</div>
+      <div class="sub">No se encontró la dirección. Ábrelo y corrígela, o ponle las coordenadas a mano.</div>
+      ${sinUbicar.map(j=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--linea2);padding-top:9px;margin-top:9px">
+        <div style="flex:1;min-width:0"><b class="mono">${esc(j.folio)}</b>
+          <div class="sub">${esc(j.propiedades?.nombre||j.cliente)} · ${esc(j.direccion||'sin dirección')}</div></div>
+        <button class="btn ghost sm" data-fixgeo="${j.id}">Corregir</button></div>`).join('')}
+    </div>` : '';
   if(!pts.length){
-    document.getElementById('rinfo').innerHTML='<span class="sub">Ninguno de estos trabajos tiene dirección ubicable todavía.</span>';
+    document.getElementById('rinfo').innerHTML=
+      '<span class="sub">Ninguno de estos trabajos se pudo ubicar todavía.</span>'+avisoSin;
+    engancharFixGeo();
     return;
   }
   if(conRuta && OPTIMIZAR) pts=ordenarCercania(pts);
@@ -3148,6 +3176,61 @@ async function dibujarMapaRuta(items, conRuta){
   const gl=document.getElementById('glink');
   if(gl) gl.href=linkGoogle(pts);
   if(conRuta) trazarRuta(pts);
+  if(avisoSin){
+    const inf=document.getElementById('rinfo');
+    if(inf) inf.insertAdjacentHTML('beforeend', avisoSin);
+    engancharFixGeo();
+  }
+}
+
+function engancharFixGeo(){
+  document.querySelectorAll('[data-fixgeo]').forEach(b=>b.onclick=()=>ubicarManual(b.dataset.fixgeo));
+}
+
+async function ubicarManual(jobId){
+  const {data:j}=await sb.from('jobs').select('*, propiedades(nombre)').eq('id',jobId).single();
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp">Ubicar en el mapa</div>
+    <div style="color:#C3D6F7">${esc(j.propiedades?.nombre||j.cliente)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Dirección para buscar</label>
+      <input id="g_dir" value="${esc(j.direccion||'')}" placeholder="7346 Parkway Drive">
+      <div class="g2"><div><label>Ciudad</label><input id="g_ciu" value="${esc(j.ciudad||'San Diego')}"></div>
+      <div><label>ZIP</label><input id="g_zip" value="${esc(j.zip||'')}"></div></div>
+      <button class="btn wide" id="buscar" style="margin-top:14px">Buscar ubicación</button>
+      <div id="res" style="margin-top:12px"></div>
+
+      <div class="eyebrow">O ponlas a mano</div>
+      <div class="sub" style="margin-bottom:8px">Abre Google Maps, mantén presionado el punto exacto y copia los números que salen.</div>
+      <div class="g2">
+        <div><label>Latitud</label><input class="num" id="g_lat" value="${j.lat??''}" placeholder="32.7157"></div>
+        <div><label>Longitud</label><input class="num" id="g_lng" value="${j.lng??''}" placeholder="-117.1611"></div>
+      </div>
+      <div style="height:16px"></div>
+      <button class="btn wide" id="sv">Guardar ubicación</button>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();render();};
+  $('#buscar').onclick=async()=>{
+    $('#res').innerHTML='<div class="sub">Buscando…</div>';
+    const g=await geocodificar([$('#g_dir').value,$('#g_ciu').value,$('#g_zip').value,'CA'].filter(Boolean).join(', '), $('#g_ciu').value);
+    if(!g){ $('#res').innerHTML='<div class="alerta"><div class="t">No se encontró. Quita el número de unidad o pon las coordenadas a mano.</div></div>'; return; }
+    $('#g_lat').value=g.lat; $('#g_lng').value=g.lng;
+    $('#res').innerHTML='<div class="ok">Ubicación encontrada. Dale Guardar.</div>';
+  };
+  $('#sv').onclick=async()=>{
+    const lat=Number($('#g_lat').value), lng=Number($('#g_lng').value);
+    if(!lat||!lng) return toast('Faltan las coordenadas.');
+    const up={lat,lng,direccion:$('#g_dir').value.trim()||null,
+      ciudad:$('#g_ciu').value.trim()||null, zip:$('#g_zip').value.trim()||null};
+    const {error}=await sb.from('jobs').update(up).eq('id',jobId);
+    if(error) return toast('No se guardó: '+error.message);
+    if(j.propiedad_id) await sb.from('propiedades').update({lat,lng}).eq('id',j.propiedad_id);
+    cerrar(); toast('Ubicación guardada'); render();
+  };
 }
 
 async function vMapa(){
@@ -3553,7 +3636,7 @@ async function formPropiedad(id, mgId){
     if(!p.nombre) return toast('Ponle nombre a la propiedad.');
     if(p.direccion){
       toast('Buscando ubicación…');
-      const g=await geocodificar([p.direccion,p.ciudad||'San Diego','CA'].filter(Boolean).join(', '));
+      const g=await geocodificar([p.direccion,p.ciudad||'San Diego','CA'].filter(Boolean).join(', '), p.ciudad||'San Diego');
       if(g){ p.lat=g.lat; p.lng=g.lng; }
     }
     const q=id?sb.from('propiedades').update(p).eq('id',id):sb.from('propiedades').insert(p);
