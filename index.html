@@ -1254,6 +1254,20 @@ async function verJobTecnico(id){
 }
 
 /* ==================== MARCAR QUE NO FUE ==================== */
+const MOTIVOS_BASE = [
+  'No había nadie en la unidad',
+  'El cliente no dio acceso',
+  'El manager canceló la visita',
+  'No estaba programada visita ese día',
+  'Ya no se requería la visita',
+  'Día de descanso',
+  'Día festivo',
+  'Falla del vehículo o del equipo',
+  'Estaba en otro trabajo urgente',
+  'Mal clima',
+  'El técnico se reportó enfermo',
+  'Otro motivo'
+];
 async function marcarNoFui(jobId, fecha, tecOverride){
   const TID = tecOverride || U.id;
   const [{data:j},{data:mot},{data:prev}] = await Promise.all([
@@ -1261,7 +1275,7 @@ async function marcarNoFui(jobId, fecha, tecOverride){
     sb.from('motivos_catalogo').select('nombre').order('orden'),
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fecha).maybeSingle()
   ]);
-  const MOT=(mot||[]).map(x=>x.nombre);
+  const MOT=[...new Set(MOTIVOS_BASE.concat((mot||[]).map(x=>x.nombre)))];
   let sel = prev?.motivo_no || '';
   const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
 
@@ -1273,12 +1287,18 @@ async function marcarNoFui(jobId, fecha, tecOverride){
       <button class="x" id="c1">✕</button></div>
       <div class="franja split"><i></i><i></i></div>
       <div class="sheet-body">
-        <div class="disp" style="font-size:27px;line-height:1.05;margin-top:6px">¿Por qué no fuiste?</div>
-        <div class="sub" style="margin-bottom:12px">Marca el motivo. Esto queda registrado para oficina.</div>
+        <div class="disp" style="font-size:29px;line-height:1.05;margin-top:6px">¿Por qué no hubo reporte?</div>
+        <div class="sub" style="margin-bottom:14px">Escoge un motivo. Queda registrado y ese día deja de contar como pendiente.</div>
+
+        <div class="eyebrow" style="margin-top:0">Motivo · escoge uno</div>
         <div class="chips" id="mt">${MOT.map(x=>
-          `<button type="button" data-m="${esc(x)}" class="${sel===x?'on':''}" style="font-size:15px;padding:11px 15px">${esc(x)}</button>`).join('')}</div>
-        <label>Detalle · opcional</label>
-        <textarea id="det" placeholder="Toqué tres veces, nadie abrió. Le marqué al manager y no contestó.">${esc(prev?.notas||'')}</textarea>
+          `<button type="button" data-m="${esc(x)}" class="${sel===x?'on':''}" style="font-size:16px;padding:12px 16px">${esc(x)}</button>`).join('')}
+          <button type="button" class="add" data-otro="1" style="font-size:16px;padding:12px 16px">+ escribir otro</button></div>
+        ${sel?`<div class="ok" style="margin-top:12px">Motivo seleccionado: <b>${esc(sel)}</b></div>`
+             :`<div class="alerta" style="margin-top:12px"><div class="t">Toca uno de los motivos de arriba para poder guardar.</div></div>`}
+
+        <label>Nota corta · opcional</label>
+        <input id="det" value="${esc(prev?.notas||'')}" placeholder="Toqué tres veces y nadie abrió">
         <div style="height:18px"></div>
         <button class="btn wide" id="ok">Guardar · no se visitó</button>
         <div style="height:12px"></div>
@@ -1286,6 +1306,13 @@ async function marcarNoFui(jobId, fecha, tecOverride){
       </div></div>`;
     $('#c1').onclick=$('#c2').onclick=()=>{ cerrar(); if(tecOverride) abrirJob(jobId); };
     $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ sel=b.dataset.m; pinta(); });
+    const bo=$('#sheet').querySelector('[data-otro]');
+    if(bo) bo.onclick=async()=>{
+      const n=prompt('Escribe el motivo:'); if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!MOT.includes(v)){ MOT.push(v); try{ await sb.from('motivos_catalogo').insert({nombre:v}); }catch(e){} }
+      sel=v; pinta();
+    };
     $('#ok').onclick=async()=>{
       if(!sel) return toast('Escoge el motivo.');
       const p={job_id:jobId, tecnico_id:TID, fecha, tipo_reporte:'seguimiento',
@@ -1590,7 +1617,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v45 · justificantes</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v46 · motivos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
