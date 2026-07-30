@@ -1634,7 +1634,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v49 · alertas resueltas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v50 · alertas con detalle</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2585,7 +2585,7 @@ async function vControl(){
   const [{data:asig},{data:reps},{data:part},{data:ests}] = await Promise.all([
     sb.from('asignaciones').select('*, jobs(*), usuarios(nombre)').eq('fecha',h),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
-    sb.from('partidas').select('*, jobs(folio,cliente,departamento), contratistas(nombre)').or('estatus.neq.terminada,revisado.eq.false'),
+    sb.from('partidas').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), contratistas(nombre)').or('estatus.neq.terminada,revisado.eq.false'),
     sb.from('estimados').select('*').eq('estatus','enviado')
   ]);
   const A=(asig||[]).filter(a=>a.jobs?.departamento===DEP);
@@ -2626,9 +2626,9 @@ async function vControl(){
     <div class="card rojo">
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(p.jobs.folio)}</span><span class="meta">${esc(p.contratistas?.nombre||'sin contratista')}</span></div>
-      <div class="tit">${esc(p.nombre)}</div>
-      <div class="sub">${esc(p.detalle||'')} ${p.cantidad?'· '+esc(p.cantidad):''}</div>
-      <div class="sub">${esc(p.jobs.cliente)}</div>
+      <div class="tit">${esc(p.jobs.propiedades?.nombre||p.jobs.cliente)}${p.jobs.unidad?' · Unit '+esc(p.jobs.unidad):''}</div>
+      <div class="sub" style="color:var(--tinta)"><b>${esc(p.nombre)}</b>${p.cantidad?' · '+esc(p.cantidad):''}</div>
+      <div class="sub">${esc(p.detalle||'')}</div>
       <div class="row" style="margin-top:9px">
         <span class="chip rojo">POR REVISAR</span><span style="flex:1"></span>
         <button class="btn ghost sm" data-job="${p.job_id}">Ver job</button>
@@ -3088,6 +3088,7 @@ function ocultarAlerta(k){
   }catch(e){}
 }
 const claveAlerta = a => (a.t+'|'+a.s).slice(0,120);
+const etiJob = j => j ? ((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'')) : '';
 function cambiarTema(){
   OSCURO=!OSCURO;
   try{ localStorage.setItem('jr31_tema', OSCURO?'oscuro':'claro'); }catch(e){}
@@ -3352,12 +3353,12 @@ async function rutaDelTecnico(){
 async function vResumen(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
-    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,origen,docs,lat,lng, propiedades(lat,lng)'),
-    sb.from('asignaciones').select('*, jobs(folio,cliente,departamento), usuarios(nombre)').eq('fecha',h),
+    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,origen,docs,lat,lng, propiedades(nombre,lat,lng)'),
+    sb.from('asignaciones').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), usuarios(nombre)').eq('fecha',h),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
-    sb.from('partidas').select('*, jobs(folio,cliente,departamento)'),
+    sb.from('partidas').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), contratistas(nombre)'),
     sb.from('estimados').select('*'),
-    sb.from('recordatorios').select('*, jobs(folio,cliente,departamento)').eq('hecho',false)
+    sb.from('recordatorios').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre))').eq('hecho',false)
   ]);
   const J=(jobs||[]).filter(x=>x.departamento===DEP);
   const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus));
@@ -3401,26 +3402,49 @@ async function vResumen(){
   const alertas=[];
   const faltantes=await revisarFaltantes();
   faltantes.filter(x=>x.job.departamento===DEP).forEach(x=>alertas.push({
-    g:'Días sin reporte', c:'r', t:'Sin reporte · '+x.dias+' día'+(x.dias===1?'':'s'),
-    s:x.job.folio+(x.job.unidad?' · Unit '+x.job.unidad:'')+' · '+x.prop
-      +(x.job.usuarios?.nombre?' · '+x.job.usuarios.nombre:' · sin técnico'),
+    g:'Días sin reporte', c:'r',
+    t:x.prop+(x.job.unidad?' · Unit '+x.job.unidad:''),
+    s:x.job.folio+' · '+x.dias+' día'+(x.dias===1?'':'s')+' sin reportar · último '+fmt(x.ultimo)
+      +' · '+(x.job.usuarios?.nombre||'sin técnico'),
     job:x.job.id}));
   const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').limit(6);
-  (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',t:'Reporte inicial por revisar',s:(x.propiedad_texto||'')+(x.unidad?' · Unit '+x.unidad:'')+' · '+(x.tecnico_nombre||'')}));
+  (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',
+    t:(x.propiedad_texto||'Levantamiento')+(x.unidad?' · Unit '+x.unidad:''),
+    s:'Reporte inicial por revisar · '+(x.tecnico_nombre||'')}));
   const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(20);
   (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id,nid:x.id}));
   if(new Date().getHours()>=HORA_AVISO)
-    faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',t:'Falta reporte de hoy',s:a.jobs.folio+' · '+(a.usuarios?.nombre||''),job:a.job_id}));
-  revisar.forEach(x=>alertas.push({g:'Trabajo por revisar',c:'r',t:'Trabajo por revisar',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
-  vencidos.forEach(x=>alertas.push({g:'Recordatorios',c:'r',t:'Recordatorio vencido',s:x.jobs.folio+' · '+x.texto,job:x.job_id}));
-  sinAsig.forEach(x=>alertas.push({g:'Reparaciones',c:'m',t:'Partida sin contratista',s:x.jobs.folio+' · '+x.nombre,job:x.job_id}));
+    faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',
+      t:etiJob(a.jobs)||a.jobs.folio,
+      s:a.jobs.folio+' · falta el reporte de hoy · '+(a.usuarios?.nombre||'sin técnico')+(a.hora?' · llegada '+a.hora:''),
+      job:a.job_id}));
+  revisar.forEach(x=>alertas.push({g:'Trabajo por revisar',c:'r',
+    t:etiJob(x.jobs)||x.jobs.folio,
+    s:x.jobs.folio+' · '+x.nombre+(x.cantidad?' ('+x.cantidad+')':'')
+      +' · '+(x.contratistas?.nombre||'sin contratista')
+      +(x.fecha_fin?' · terminó '+fmt(x.fecha_fin):''),
+    job:x.job_id}));
+  vencidos.forEach(x=>alertas.push({g:'Recordatorios',c:'r',
+    t:etiJob(x.jobs)||x.jobs.folio,
+    s:x.jobs.folio+' · '+x.texto+(x.fecha_venc?' · venció '+fmt(x.fecha_venc):''),
+    job:x.job_id}));
+  sinAsig.forEach(x=>alertas.push({g:'Reparaciones',c:'m',
+    t:etiJob(x.jobs)||x.jobs.folio,
+    s:x.jobs.folio+' · '+x.nombre+(x.detalle?' · '+x.detalle:'')+' · sin contratista asignado',
+    job:x.job_id}));
   J.filter(x=>['terminado','reconstruccion'].includes(x.estatus)).forEach(x=>{
     const hechos=x.docs||[];
     if(!hechos.includes('subido'))
-      alertas.push({g:'Facturación',c:'m',t:'Falta subir el invoice',s:x.folio+' · '+(hechos.includes('invoice')?'invoice creado, falta subirlo':'ni siquiera se ha creado el invoice'),job:x.id});
+      alertas.push({g:'Facturación',c:'m',
+        t:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · Unit '+x.unidad:''),
+        s:x.folio+' · '+(hechos.includes('invoice')?'invoice creado, falta subirlo al portal':'falta crear el invoice'),
+        job:x.id});
   });
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
-     .forEach(x=>alertas.push({g:'Estimados',c:'m',t:'Estimado sin respuesta',s:x.folio+' · '+x.cliente+' · '+cf(x.monto)}));
+     .forEach(x=>alertas.push({g:'Estimados',c:'m',
+       t:x.cliente+' · '+cf(x.monto),
+       s:x.folio+' · '+(x.fecha_envio?dias(x.fecha_envio,h)+' días sin respuesta':'enviado')
+         +(x.descripcion?' · '+x.descripcion.slice(0,60):'')}));
 
   const cl = await traerClima();
   const conDir = activos.filter(x=>x.direccion);
