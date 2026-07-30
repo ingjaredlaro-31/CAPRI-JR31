@@ -689,9 +689,7 @@ async function abrirLevantamiento(id){
       <table class="frm">${(x.lecturas||[]).map(l=>f(esc(l.area)+' · '+esc(l.material||''),(l.mc||'')+'% MC'+(l.temp?' · '+l.temp+'°F':''))).join('')}</table>`:''}
 
       <div class="eyebrow">Fotos · ${(x.fotos||[]).length}</div>
-      ${(x.fotos||[]).length?(x.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener" style="display:block;margin-bottom:8px">
-        <img src="${esc(u)}" style="width:100%;border:1px solid var(--linea);border-radius:8px"></a>`).join('')
-        :'<div class="sub">Sin fotos.</div>'}
+      ${galeriaHTML(x.fotos)}
 
       <div style="height:20px"></div>
       <button class="btn ghost wide no-print" onclick="window.print()">Imprimir / PDF</button>
@@ -931,6 +929,48 @@ async function nuevoTrabajoTecnico(){
   };
 }
 
+async function pickerInicial(){
+  const dep = U.departamento==='ambos'?null:U.departamento;
+  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,fecha_inicio,created_at, propiedades(nombre)')
+    .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false}).limit(80);
+  if(dep) q=q.eq('departamento',dep);
+  const {data:jobs}=await q;
+  const J=jobs||[];
+  let conIni=new Set();
+  if(J.length){
+    const {data:ri}=await sb.from('reportes').select('job_id').eq('tipo_reporte','inicial').in('job_id',J.map(x=>x.id));
+    conIni=new Set((ri||[]).map(x=>x.job_id));
+  }
+  const sin=J.filter(x=>!conIni.has(x.id)), con=J.filter(x=>conIni.has(x.id));
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">REPORTE INICIAL</div>
+    <div class="disp">¿De qué trabajo?</div>
+    <div style="color:#C3D6F7">Levantamiento completo del sitio</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      ${sin.length?`<div class="eyebrow" style="margin-top:0">Sin reporte inicial · ${sin.length}</div>
+        ${sin.map(j=>`<div class="fila r" data-ini="${j.id}">
+          <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+esc(j.unidad):''}</b>
+          <span class="sub">${esc(j.folio)} · ${esc(j.tipo)} · ${esc(antiguedad(j).txt)}</span></div>
+          <span class="chip rojo">LEVANTAR</span></div>`).join('')}`
+        :`<div class="ok">Todos los trabajos activos ya tienen su reporte inicial.</div>`}
+      ${con.length?`<div class="eyebrow">Ya tienen inicial · ${con.length}</div>
+        <div class="sub" style="margin-bottom:8px">Solo puedes corregir el que ya existe.</div>
+        ${con.map(j=>`<div class="fila" data-ini="${j.id}">
+          <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+esc(j.unidad):''}</b>
+          <span class="sub">${esc(j.folio)}</span></div>
+          <span class="chip azul">HECHO</span></div>`).join('')}`:''}
+      <div style="height:18px"></div>
+      <button class="btn ghost wide" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#sheet').querySelectorAll('[data-ini]').forEach(b=>b.onclick=()=>{
+    cerrar(); reporteGuiado(b.dataset.ini, hoy(), 'inicial');
+  });
+}
+
 /* ==================== TÉCNICO · INICIO ==================== */
 let TTAB='activos', JTAB='activos';
 
@@ -966,6 +1006,7 @@ async function vTecInicio(){
     engancharRep();
     document.querySelectorAll('[data-vj2]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj2));
     const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
+    const bi=$('#btn_ini'); if(bi) bi.onclick=pickerInicial;
   },0);
   if(misJobs.length) POST=()=>dibujarMapaRuta(misJobs, true);
 
@@ -1005,6 +1046,7 @@ async function vTecInicio(){
     </div>
     <div class="kpis" style="margin-bottom:12px">
     <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>Dejar mi reporte diario</b><span class="sub">${debeT?'debes '+debeT+' reporte'+(debeT===1?'':'s'):'todo al corriente'}</span></div></div>
+    <div class="fila m" id="btn_ini" style="cursor:pointer"><div class="t"><b>Reporte inicial de trabajo</b><span class="sub">levantamiento completo del sitio</span></div></div>
     <div class="fila a" data-ir="mapa" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
     <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
     <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
@@ -1415,6 +1457,7 @@ async function vTecReporte(){
 
   setTimeout(()=>{
     const lv=$('#lev'); if(lv) lv.onclick=levantamientoInicial;
+    const bin=$('#binicial'); if(bin) bin.onclick=pickerInicial;
     document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rg,b.dataset.f||hoy()));
     document.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>marcarNoFui(b.dataset.nf,b.dataset.f||hoy()));
     document.querySelectorAll('[data-rgi]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rgi,b.dataset.f||hoy(),'inicial'));
@@ -1484,7 +1527,10 @@ async function vTecReporte(){
       <div class="n">${atrasos}</div>
       <div class="t">día${atrasos===1?'':'s'} atrasado${atrasos===1?'':'s'} de días anteriores · toca la fecha en rojo dentro de cada trabajo</div>
     </div>`:''}
-    <button class="btn ghost wide no-print" id="lev" style="margin-bottom:16px">+ Reporte inicial de trabajo nuevo</button>`;
+    <div class="row no-print" style="margin-bottom:16px">
+      <button class="btn" style="flex:1" id="binicial">Reporte inicial</button>
+      <button class="btn ghost" style="flex:1" id="lev">Trabajo nuevo · levantamiento</button>
+    </div>`;
 
   if(!J.length) return out+`<div class="empty"><div class="disp">Todavía no hay trabajos</div>
     <p>Oficina tiene que dar de alta los trabajos. Si llegaste a uno nuevo, usa el botón de arriba para levantarlo.</p></div>`;
@@ -1643,7 +1689,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v51 · reporte inicial completo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v53 · inicial del técnico</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2289,10 +2335,20 @@ function pintaGuiado(){
     <div class="lect meta" style="letter-spacing:.08em;font-size:11px"><span>ÁREA</span><span>MATERIAL</span><span>%MC</span><span>°F</span><span></span></div>
     <div id="glec"></div>
     <button class="btn ghost sm" id="gaddl">+ Agregar lectura</button>`;
-  else if(p.tipo==='fotos') cuerpo=`
+  else if(p.tipo==='fotos'){
+    const zonas=[...new Set(['General'].concat(d.areas||[]))];
+    if(!d.zonaFoto) d.zonaFoto=zonas[0];
+    cuerpo=`
+    <div class="eyebrow" style="margin-top:0">¿De qué área son las fotos que vas a subir?</div>
+    <div class="chips" id="gzona">${zonas.map(z=>
+      `<button type="button" data-z="${esc(z)}" class="${d.zonaFoto===z?'on':''}" style="font-size:16px;padding:11px 15px">${esc(z)}</button>`).join('')}
+      <button type="button" class="add" data-zadd="1" style="font-size:16px;padding:11px 15px">+ otra área</button></div>
+    <div class="sub" style="margin-bottom:10px">Escoge el área, sube las fotos, y luego cambia de área para las siguientes. Puedes subir todas las que quieras.</div>
     <input id="gft" type="file" accept="image/*" multiple capture="environment">
-    <div class="thumbs" id="gth"></div>
-    <div class="sub" style="margin-top:8px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} lista${d.fotos.length===1?'':'s'}</div>`;
+    <div style="height:12px"></div>
+    <div id="gth"></div>
+    <div class="ok" style="margin-top:10px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} en total</div>`;
+  }
   else if(p.tipo==='explica') cuerpo=`
     <textarea id="g1" style="min-height:150px;font-size:17px" placeholder="Ej. La unidad sigue mojada en la cocina, el drywall marcó 22%. Dejé los air movers trabajando. El manager dice que todavía no aprueban el estimado.">${esc(d.notas)}</textarea>`;
   else if(p.tipo==='medidas') cuerpo=`
@@ -2468,17 +2524,39 @@ function pintaGuiado(){
     q1('#gaddl').onclick=()=>fila();
   }
   if(p.tipo==='fotos'){
-    const pinta=()=>q1('#gth').innerHTML=G.d.fotos.map(u=>`<img src="${esc(u)}">`).join('');
+    const pinta=()=>{
+      const g=fotosPorArea(G.d.fotos);
+      q1('#gth').innerHTML=Object.keys(g).map(a=>`<div style="margin-bottom:12px">
+        <div class="meta" style="margin-bottom:5px">${esc(a.toUpperCase())} · ${g[a].length}</div>
+        <div class="thumbs">${g[a].map((u,i)=>`<div style="position:relative">
+          <img src="${esc(u)}">
+          <button type="button" data-qf="${esc(u)}" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;
+            border-radius:50%;border:0;background:var(--rojo);color:#fff;font-size:14px;cursor:pointer;line-height:1">×</button>
+        </div>`).join('')}</div></div>`).join('') || '<div class="sub">Todavía no subes fotos.</div>';
+      q1('#gth').querySelectorAll('[data-qf]').forEach(b=>b.onclick=()=>{
+        G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==b.dataset.qf); pinta(); pintaGuiado();
+      });
+    };
     pinta();
+    qs('#gzona [data-z]').forEach(b=>b.onclick=()=>{ G.d.zonaFoto=b.dataset.z; pintaGuiado(); });
+    const za=q1('#gzona [data-zadd]');
+    if(za) za.onclick=()=>{
+      const n=prompt('Nombre del área:'); if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!G.d.areas.includes(v)) G.d.areas.push(v);
+      G.d.zonaFoto=v; pintaGuiado();
+    };
     q1('#gft').onchange=async e=>{
-      const fs=[...e.target.files]; if(!fs.length) return; toast('Subiendo fotos…');
+      const fs=[...e.target.files]; if(!fs.length) return;
+      const zona=G.d.zonaFoto||'General';
+      toast('Subiendo '+fs.length+' foto'+(fs.length===1?'':'s')+'…');
       for(const f of fs){
-        const nm=`rep/${G.job.id}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+        const nm=`rep/${G.job?G.job.id:'intake'}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
         const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'image/jpeg'});
-        if(error){toast('No se pudo subir una foto');continue;}
-        G.d.fotos.push(sb.storage.from('capri').getPublicUrl(nm).data.publicUrl);
+        if(error){toast('No se pudo subir una foto: '+error.message);continue;}
+        G.d.fotos.push({u:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl, a:zona});
       }
-      pinta(); toast('Fotos listas'); pintaGuiado();
+      toast('Listo · '+G.d.fotos.length+' fotos'); pintaGuiado();
     };
   }
 }
@@ -2646,7 +2724,7 @@ function verReporteCampo(r, j){
       </table>`:''}
 
       ${(r.fotos||[]).length?`<div class="eyebrow">Photos · ${(r.fotos||[]).length}</div>
-      <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>`:''}
+      ${galeriaHTML(r.fotos)}`:''}
 
       <div style="height:22px"></div>
       <button class="btn wide no-print" onclick="window.print()">Imprimir / Guardar PDF</button>
@@ -3165,6 +3243,22 @@ function ocultarAlerta(k){
   }catch(e){}
 }
 const claveAlerta = a => (a.t+'|'+a.s).slice(0,120);
+const fotoU = f => (typeof f==='string' ? f : (f&&f.u)||'');
+const fotoA = f => (typeof f==='string' ? '' : (f&&f.a)||'');
+function fotosPorArea(lista){
+  const g={};
+  (lista||[]).forEach(f=>{ const a=fotoA(f)||'General'; (g[a] ||= []).push(fotoU(f)); });
+  return g;
+}
+function galeriaHTML(lista){
+  const g=fotosPorArea(lista);
+  const claves=Object.keys(g);
+  if(!claves.length) return '<div class="sub">Sin fotos.</div>';
+  return claves.map(a=>`<div style="margin-bottom:10px">
+    <div class="meta" style="margin-bottom:5px">${esc(a.toUpperCase())} · ${g[a].length}</div>
+    <div class="thumbs">${g[a].map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
+  </div>`).join('');
+}
 const etiJob = j => j ? ((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'')) : '';
 function cambiarTema(){
   OSCURO=!OSCURO;
@@ -4527,7 +4621,7 @@ async function abrirJob(id){
         ${(r.lecturas||[]).length?`<div class="meta" style="margin-top:5px">MOISTURE · ${(r.lecturas||[]).map(l=>`${esc(l.area)} ${esc(l.mc)}%`).join(' · ')}</div>`:''}
         ${r.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(r.siguiente_trabajo)}</div>`:''}
         ${r.notas?`<div class="sub" style="margin-top:6px;color:var(--tinta)">${esc(r.notas)}</div>`:''}
-        <div class="thumbs">${(r.fotos||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
+        ${(r.fotos||[]).length?`<div style="margin-top:9px">${galeriaHTML(r.fotos)}</div>`:''}
         <div class="row no-print" style="margin-top:9px">
           <button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button>
           ${EDIT()?`<button class="btn ghost sm" data-er="${r.id}">Editar</button>
