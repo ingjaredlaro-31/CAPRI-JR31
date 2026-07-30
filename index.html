@@ -722,12 +722,13 @@ async function revisarFaltantes(){
   const {data:reps}=await sb.from('reportes').select('job_id,fecha').in('job_id',ids).gte('fecha',hace(30));
   const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
   const pendientes=[];
+  const limpiar=[];
   for(const j of J){
     const arranque=(j.fecha_inicio||j.created_at||h).slice(0,10);
     if(arranque>ayer) continue;
     const faltas=diasFaltantes(j, porJob[j.id]||new Set());
     const deAyer=faltas.filter(f=>f<h);
-    if(!deAyer.length) continue;
+    if(!deAyer.length){ limpiar.push(j.id); continue; }
     const prop=j.propiedades?.nombre||j.cliente;
     pendientes.push({job:j, prop, dias:deAyer.length, ultimo:deAyer[deAyer.length-1]});
     // un aviso por job por día, sin repetir
@@ -738,6 +739,11 @@ async function revisarFaltantes(){
         + (j.usuarios?.nombre?' · '+j.usuarios.nombre:' · sin técnico asignado'),
       job_id:j.id, para_rol:'admin'
     });
+  }
+  // si el job ya quedó al corriente, se apagan sus avisos viejos
+  if(limpiar.length){
+    await sb.from('notificaciones').update({leida:true})
+      .eq('tipo','faltante').eq('leida',false).in('job_id',limpiar);
   }
   return pendientes;
 }
@@ -1248,11 +1254,12 @@ async function verJobTecnico(id){
 }
 
 /* ==================== MARCAR QUE NO FUE ==================== */
-async function marcarNoFui(jobId, fecha){
+async function marcarNoFui(jobId, fecha, tecOverride){
+  const TID = tecOverride || U.id;
   const [{data:j},{data:mot},{data:prev}] = await Promise.all([
-    sb.from('jobs').select('folio,cliente,unidad, propiedades(nombre), managements(nombre)').eq('id',jobId).single(),
+    sb.from('jobs').select('folio,cliente,unidad,tecnico_id, propiedades(nombre), managements(nombre)').eq('id',jobId).single(),
     sb.from('motivos_catalogo').select('nombre').order('orden'),
-    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle()
+    sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fecha).maybeSingle()
   ]);
   const MOT=(mot||[]).map(x=>x.nombre);
   let sel = prev?.motivo_no || '';
@@ -1277,11 +1284,11 @@ async function marcarNoFui(jobId, fecha){
         <div style="height:12px"></div>
         <button class="btn ghost wide" id="c2">Cancelar</button>
       </div></div>`;
-    $('#c1').onclick=$('#c2').onclick=cerrar;
+    $('#c1').onclick=$('#c2').onclick=()=>{ cerrar(); if(tecOverride) abrirJob(jobId); };
     $('#sheet').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ sel=b.dataset.m; pinta(); });
     $('#ok').onclick=async()=>{
       if(!sel) return toast('Escoge el motivo.');
-      const p={job_id:jobId, tecnico_id:U.id, fecha, tipo_reporte:'seguimiento',
+      const p={job_id:jobId, tecnico_id:TID, fecha, tipo_reporte:'seguimiento',
         asistio:false, motivo_no:sel, trabajo_realizado:'No se visitó · '+sel,
         notas:$('#det').value.trim()||null, servicios:[], areas:[], material_removido:[],
         lecturas:[], fotos:[]};
@@ -1291,7 +1298,8 @@ async function marcarNoFui(jobId, fecha){
         tipo:'nofui', titulo:'No se visitó · '+prop,
         texto:`${U.nombre} · ${j.folio}${j.unidad?' · Unit '+j.unidad:''} · ${fmt(fecha)} · ${sel}`,
         job_id:jobId, de_usuario:U.nombre, para_rol:'admin'});
-      cerrar(); toast('Registrado'); render();
+      cerrar(); toast('Registrado · ya no cuenta como pendiente');
+      if(tecOverride) abrirJob(jobId); else render();
     };
   };
   pinta();
@@ -1582,7 +1590,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v44 · seguimiento diario</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v45 · justificantes</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3989,10 +3997,31 @@ async function abrirJob(id){
       ${(()=>{
         const set=new Set(R.map(x=>x.fecha));
         const faltas=diasFaltantes(j,set);
-        return faltas.length?`<div class="alerta" style="margin-bottom:12px">
+        if(!faltas.length) return `<div class="ok" style="margin-bottom:12px">Todos los días de este trabajo están cerrados, con reporte o con justificante.</div>`;
+        const tel=(j.usuarios?.telefono||'').replace(/[^0-9]/g,'');
+        const nom=(j.usuarios?.nombre||'el técnico').split('·')[0].trim();
+        const msg='Hola '+nom+', te faltan '+faltas.length+' reporte(s) del job '+j.folio
+          +(j.unidad?' Unit '+j.unidad:'')+' — '+(j.propiedades?.nombre||j.cliente)+'.\n\nDías pendientes: '
+          +faltas.map(f=>fmt(f)).join(', ')
+          +'\n\nEntra a la app y ciérralos, o marca por qué no fuiste.';
+        return `<div class="alerta" style="margin-bottom:12px">
           <div class="n">${faltas.length}</div>
-          <div class="t">día${faltas.length===1?'':'s'} sin reporte desde que abrió el trabajo${faltas.length<=8?' · '+faltas.map(f=>f.slice(8)+' '+MESCORTO[+f.slice(5,7)-1]).join(', '):''}</div>
-        </div>`:'';
+          <div class="t">día${faltas.length===1?'':'s'} sin cerrar desde que abrió el trabajo</div>
+          <div class="row no-print" style="margin-top:10px">
+            ${tel?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}">Recordar por WhatsApp</a>`
+                 :`<span class="chip rojo">EL TÉCNICO NO TIENE TELÉFONO</span>`}
+          </div>
+        </div>
+        ${EDIT()?`<div class="card" style="border-left-color:var(--rojo)">
+          <div class="sub" style="color:var(--tinta)">Cierra cada día: captura el reporte o justifica por qué no se fue.</div>
+          ${faltas.slice(-14).map(f=>`
+            <div class="row" style="justify-content:space-between;border-top:1px solid var(--linea2);padding-top:10px;margin-top:10px">
+              <span class="mono" style="font-size:16px">${fmt(f)}</span>
+              <div class="row" style="gap:7px">
+                <button class="btn ghost sm" data-justi="${f}">No se fue</button>
+                <button class="btn sm" data-caprep="${f}">Capturar</button>
+              </div></div>`).join('')}
+        </div>`:''}`;
       })()}
 
       <div class="eyebrow">Calendario del trabajo · comenzó ${fmt(inicioJob(j))}</div>
@@ -4223,6 +4252,13 @@ async function abrirJob(id){
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
+  document.querySelectorAll('[data-justi]').forEach(b=>b.onclick=()=>{
+    cerrar(); marcarNoFui(id, b.dataset.justi, j.tecnico_id || null);
+  });
+  document.querySelectorAll('[data-caprep]').forEach(b=>b.onclick=()=>{
+    if(!j.tecnico_id) return toast('Primero asígnale un técnico encargado al trabajo.');
+    cerrar(); reporteGuiado(id, b.dataset.caprep, null, j.tecnico_id);
+  });
   const ar1=$('#addrep');
   if(ar1) ar1.onclick=async()=>{
     const {data:tecs}=await sb.from('usuarios').select('id,nombre,departamento')
