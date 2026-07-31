@@ -1713,7 +1713,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v57 · fotos por área</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v58 · tipo de servicio</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2184,6 +2184,8 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
       categoria_agua: r.categoria_agua||'', fuente_detenida: !!r.fuente_detenida,
       galones: r.galones||'', moho: !!r.moho, movio_contenido: !!r.movio_contenido,
       temp_amb: r.temp_amb||'', hr_amb: r.hr_amb||'', autorizacion: !!r.autorizacion,
+      tipo_servicio: r.tipo_servicio||'', hallazgos: r.hallazgos||'',
+      proximo_paso: (r.proximo_paso||[]).slice(), quien_repara: r.quien_repara||'', repara_detalle:'',
       energia: r.energia!=null?!!r.energia:true, equipo_operando: !!r.equipo_operando,
       requiere_plomero: !!r.requiere_plomero, asbesto: !!r.asbesto,
       vecinos_afectados: !!r.vecinos_afectados, vecinos_detalle: r.vecinos_detalle||'',
@@ -2206,6 +2208,7 @@ function pasosGuiado(){
   const ini = G.tipo==='inicial';
   const en = ING();
   const L = (es,ing) => en ? ing : es;
+  const sv = d.tipo_servicio || '';
 
   G.pasos=[];
 
@@ -2213,65 +2216,78 @@ function pasosGuiado(){
     G.pasos.push({t:L('¿Dónde estás?','Where are you?'), s:L('Escoge el management y la propiedad','Pick the management and property'), tipo:'ubicacion'});
     G.pasos.push({t:L('¿Qué unidad?','Which unit?'), s:L('Número de apartamento o área','Apartment number or area'), tipo:'unidad'});
     G.pasos.push({t:L('¿Quién te recibió?','Who let you in?'), s:L('Contacto en sitio · opcional','On-site contact · optional'), tipo:'contacto'});
-    G.pasos.push({t:L('¿Qué tipo de servicio?','Type of service?'), s:L('Con qué llegaste','What you were called for'), tipo:'servicio'});
   } else if(!G.hayInicial && !G.prev){
     G.pasos.push({t:L('¿Qué reporte vas a hacer?','Which report are you doing?'), s:L('Este trabajo aún no tiene el inicial','This job has no initial report yet'), tipo:'tipo'});
   }
 
-  // 1 · Llegada
-  G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
-
   if(ini){
-    // 2 · Causa
-    G.pasos.push({t:L('¿Qué causó el daño?','What caused the loss?'), s:L('Toca la fuente y escribe el detalle','Tap the source and add the detail'), tipo:'causa2'});
-    // 3 · Respuestas rápidas
-    G.pasos.push({t:L('Respuestas rápidas','Quick answers'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
-      {k:'ocupada_b', t:L('¿Unidad ocupada?','Occupied unit?')},
-      {k:'fuente_detenida', t:L('¿Se detuvo la fuente?','Source stopped?')},
-      {k:'autorizacion', t:L('¿Firmaron la autorización?','Authorization signed?')},
-      {k:'agua_extraida', t:L('¿Se sacó agua?','Water extracted?')},
-      {k:'wipe_down', t:L('¿Wipe down o deep clean?','Wipe down or deep clean?')},
-      {k:'demo', t:L('¿Se hizo demo?','Demo performed?')},
-      {k:'removio_pad_base', t:L('¿Quitaste pad o baseboards?','Removed pad or baseboards?')},
-      {k:'moho', t:L('¿Hay moho visible?','Visible mold?')},
-      {k:'movio_contenido', t:L('¿Moviste contenido o muebles?','Moved content or furniture?')}
-    ]});
-    // 3b · Seguridad y acceso
-    G.pasos.push({t:L('Seguridad y acceso','Safety and access'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
-      {k:'energia', t:L('¿Hay electricidad en la unidad?','Power available in the unit?')},
-      {k:'requiere_plomero', t:L('¿Se necesita plomero?','Plumber needed?')},
-      {k:'asbesto', t:L('¿Material sospechoso de asbesto?','Possible asbestos material?')},
-      {k:'vecinos_afectados', t:L('¿Hay unidades vecinas afectadas?','Adjacent units affected?')},
-      {k:'mascotas', t:L('¿Hay mascotas en la unidad?','Pets in the unit?')},
-      {k:'senalamiento', t:L('¿Pusiste señalamientos de seguridad?','Safety signage placed?')}
-    ]});
-    if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
-    // 4 · Datos del agua
-    G.pasos.push({t:L('Datos del agua','Water details'), s:L('Categoría, fecha del daño y galones','Category, date of loss and gallons'), tipo:'agua'});
-    // 5 · Áreas
-    G.pasos.push({t:L('¿Qué áreas se afectaron?','Which areas were affected?'), s:L('Toca todas las que apliquen','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
-    // 6 · Material + medidas juntos
-    G.pasos.push({t:L('¿Qué material removiste?','What material did you remove?'), s:L('Marca el material y anota su medida','Mark the material and enter its size'), tipo:'materiales'});
-    // 7 · Servicios
-    G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Marca todos los que apliquen','Tap all that apply'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
-    // 8 · Containment y equipo
-    G.pasos.push({t:L('Containment y equipo','Containment and equipment'), s:L('Plástico, zippers y equipo instalado','Plastic, zippers and equipment installed'), tipo:'contain2'});
-    // 8b · Cierre del sitio
-    G.pasos.push({t:L('Al salir del sitio','Leaving the site'), s:L('Cómo dejaste el trabajo','How you left the job'), tipo:'rapidas', lista:[
-      {k:'equipo_operando', t:L('¿El equipo quedó operando?','Equipment left running?')},
-      {k:'regresa_manana', t:L('¿Hay que regresar mañana?','Return needed tomorrow?')}
-    ]});
+    // 1 · QUÉ TIPO DE TRABAJO FUE
+    G.pasos.push({t:L('¿Qué tipo de trabajo fue?','What type of job was it?'), s:L('Esto define las preguntas que siguen','This sets the questions that follow'), tipo:'tiposerv'});
+    // 2 · Llegada
+    G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
+
+    if(sv==='inspection'){
+      G.pasos.push({t:L('¿Qué encontraste?','What did you find?'), s:L('Explícalo como se lo dirías al manager','Explain it like you would to the manager'), tipo:'hallazgos', reqTexto2:true});
+      G.pasos.push({t:L('Revisión rápida','Quick check'), s:L('Toca SÍ o NO','Tap YES or NO'), tipo:'rapidas', lista:[
+        {k:'ocupada_b', t:L('¿Unidad ocupada?','Occupied unit?')},
+        {k:'moho', t:L('¿Hay moho visible?','Visible mold?')},
+        {k:'fuente_detenida', t:L('¿La fuente está controlada?','Source under control?')},
+        {k:'requiere_plomero', t:L('¿Se necesita plomero?','Plumber needed?')},
+        {k:'asbesto', t:L('¿Material sospechoso de asbesto?','Possible asbestos material?')},
+        {k:'vecinos_afectados', t:L('¿Hay unidades vecinas afectadas?','Adjacent units affected?')}
+      ]});
+      if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
+      G.pasos.push({t:L('¿Qué áreas revisaste?','Which areas did you inspect?'), s:L('Toca todas','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
+    } else {
+      G.pasos.push({t:L('¿Qué causó el daño?','What caused the loss?'), s:L('Toca la fuente y escribe el detalle','Tap the source and add the detail'), tipo:'causa2'});
+      G.pasos.push({t:L('Respuestas rápidas','Quick answers'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
+        {k:'ocupada_b', t:L('¿Unidad ocupada?','Occupied unit?')},
+        {k:'fuente_detenida', t:L('¿Se detuvo la fuente?','Source stopped?')},
+        {k:'autorizacion', t:L('¿Firmaron la autorización?','Authorization signed?')},
+        ...(sv==='flood'?[{k:'agua_extraida', t:L('¿Se sacó agua?','Water extracted?')}]:[]),
+        {k:'wipe_down', t:L('¿Wipe down o deep clean?','Wipe down or deep clean?')},
+        {k:'demo', t:L('¿Se hizo demo?','Demo performed?')},
+        {k:'removio_pad_base', t:L('¿Quitaste pad o baseboards?','Removed pad or baseboards?')},
+        {k:'moho', t:L('¿Hay moho visible?','Visible mold?')},
+        {k:'movio_contenido', t:L('¿Moviste contenido o muebles?','Moved content or furniture?')}
+      ]});
+      G.pasos.push({t:L('Seguridad y acceso','Safety and access'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
+        {k:'energia', t:L('¿Hay electricidad en la unidad?','Power available in the unit?')},
+        {k:'requiere_plomero', t:L('¿Se necesita plomero?','Plumber needed?')},
+        {k:'asbesto', t:L('¿Material sospechoso de asbesto?','Possible asbestos material?')},
+        {k:'vecinos_afectados', t:L('¿Hay unidades vecinas afectadas?','Adjacent units affected?')},
+        {k:'mascotas', t:L('¿Hay mascotas en la unidad?','Pets in the unit?')},
+        {k:'senalamiento', t:L('¿Pusiste señalamientos?','Safety signage placed?')}
+      ]});
+      if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
+      G.pasos.push({t:L('Datos del agua','Water details'), s:L('Categoría, fecha del daño y galones','Category, date of loss and gallons'), tipo:'agua'});
+      G.pasos.push({t:L('¿Qué áreas se afectaron?','Which areas were affected?'), s:L('Toca todas las que apliquen','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
+      G.pasos.push({t:L('¿Qué material removiste?','What material did you remove?'), s:L('Marca el material y anota su medida','Mark the material and enter its size'), tipo:'materiales'});
+      G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Marca todos los que apliquen','Tap all that apply'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
+      G.pasos.push({t:L('Containment y equipo','Containment and equipment'), s:L('Plástico, zippers y equipo instalado','Plastic, zippers and equipment installed'), tipo:'contain2'});
+      G.pasos.push({t:L('Al salir del sitio','Leaving the site'), s:L('Cómo dejaste el trabajo','How you left the job'), tipo:'rapidas', lista:[
+        {k:'equipo_operando', t:L('¿El equipo quedó operando?','Equipment left running?')},
+        {k:'regresa_manana', t:L('¿Hay que regresar mañana?','Return needed tomorrow?')}
+      ]});
+    }
   } else {
+    G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
     G.pasos.push({t:L('¿Cómo está el trabajo hoy?','How is the job today?'), s:L('Explica qué encontraste y qué se hizo · obligatorio','Explain what you found and what was done · required'), tipo:'explica', reqTexto:true});
     G.pasos.push({t:L('¿Qué se hizo hoy?','What was done today?'), s:L('Déjalo vacío si solo fuiste a revisar','Leave empty if you only inspected'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
     G.pasos.push({t:L('¿Removiste material hoy?','Removed material today?'), s:L('Déjalo vacío si no removiste nada','Leave empty if nothing was removed'), tipo:'materiales'});
     G.pasos.push({t:L('Equipo de hoy','Equipment today'), s:L('Lo que instalaste y lo que retiraste','What you installed and removed'), tipo:'conteo'});
   }
 
-  if(esRest) G.pasos.push({t:L('Lecturas','Readings'), s:L('Moisture del material y ambiente del cuarto','Material moisture and room conditions'), tipo:'lecturas2'});
+  if(esRest && !(ini && sv==='inspection'))
+    G.pasos.push({t:L('Lecturas','Readings'), s:L('Moisture del material y ambiente del cuarto','Material moisture and room conditions'), tipo:'lecturas2'});
+  if(ini && sv==='inspection')
+    G.pasos.push({t:L('Lecturas','Readings'), s:L('Las que tomaste durante la inspección','Readings taken during the inspection'), tipo:'lecturas2'});
 
   G.pasos.push({t:L('Fotos','Photos'), s:L('Sube las fotos por área · entre más, mejor','Upload photos by area · the more the better'), tipo:'fotos'});
-  G.pasos.push({t:L('Cierre','Wrap up'), s:L('Qué sigue, notas y tu cobro','Next steps, notes and your charge'), tipo:'cierre2'});
+  G.pasos.push({t:L('¿Qué sigue?','What is next?'), s:L('Lo que se tiene que hacer después','What needs to happen next'), tipo:'siguiente'});
+  if((d.proximo_paso||[]).some(x=>/repar|repair/i.test(x)))
+    G.pasos.push({t:L('¿Quién va a reparar?','Who is doing the repairs?'), s:L('Anota el contratista o quién se encarga','Note the contractor or who handles it'), tipo:'quienrepara'});
+  G.pasos.push({t:L('Notas finales','Final notes'), s:L('Lo que oficina debe saber','Anything the office should know'), tipo:'cierre2'});
   G.pasos.push({t:L('Revisa y envía','Review and submit'), s:L('Verifica antes de mandarlo','Check before sending'), tipo:'resumen'});
 }
 
@@ -2292,7 +2308,44 @@ function pintaGuiado(){
 
   const en=ING(); const L=(es,ing)=>en?ing:es;
 
-  if(p.tipo==='inicio2') cuerpo=`
+  if(p.tipo==='tiposerv'){
+    const OPS=[
+      {k:'flood', t:L('Flood service','Flood service'), s:L('Hubo agua: extracción, secado y equipo','Water loss: extraction, drying and equipment')},
+      {k:'remediation', t:L('Remediation','Remediation'), s:L('Moho o contaminación: containment y limpieza','Mold or contamination: containment and cleaning')},
+      {k:'inspection', t:L('Inspection','Inspection'), s:L('Solo revisión y lecturas, sin demo','Inspection and readings only, no demo')},
+      {k:'otro', t:L('Otro trabajo','Other work'), s:L('Cualquier otro servicio en sitio','Any other on-site service')}
+    ];
+    cuerpo=`<div class="si-no" style="flex-direction:column;margin-top:8px">
+      ${OPS.map(o=>`<button data-ts="${o.k}" class="${d.tipo_servicio===o.k?'on':''}" style="padding:18px;text-align:left">
+        <div style="font-size:21px">${esc(o.t)}</div></button>`).join('')}</div>
+      <div class="sub" style="margin-top:12px">${esc((OPS.find(o=>o.k===d.tipo_servicio)||{}).s || L('Escoge para que la app te haga las preguntas correctas.','Pick one so the app asks the right questions.'))}</div>`;
+  }
+  else if(p.tipo==='hallazgos') cuerpo=`
+    <textarea id="g1" style="min-height:170px;font-size:17px" placeholder="${L('Ej. Se revisó la cocina y el pasillo. El drywall marcó 22% en la pared bajo el fregadero. No hay moho visible. La fuga viene de la conexión del lavavajillas.','Ex. Inspected kitchen and hallway. Drywall read 22% on the wall under the sink. No visible mold. Leak comes from the dishwasher connection.')}">${esc(d.hallazgos||'')}</textarea>`;
+  else if(p.tipo==='siguiente'){
+    const PASOS=[
+      L('Moisture check mañana','Moisture check tomorrow'),
+      L('Seguir secando','Keep drying'),
+      L('Recoger equipo','Pick up equipment'),
+      L('Empezar reparaciones','Start repairs'),
+      L('Esperando aprobación del estimado','Waiting for estimate approval'),
+      L('Esperando plomero','Waiting for plumber'),
+      L('Esperando acceso a la unidad','Waiting for unit access'),
+      L('Se necesita estimado','Estimate needed'),
+      L('Trabajo terminado','Job complete')
+    ];
+    cuerpo=`<div class="chips" id="gps">${PASOS.map(x=>
+      `<button type="button" data-ps="${esc(x)}" class="${(d.proximo_paso||[]).includes(x)?'on':''}" style="font-size:16px;padding:12px 16px">${esc(x)}</button>`).join('')}</div>
+      <label>${L('Detalle de lo que sigue','Detail of what comes next')}</label>
+      <input id="g1" value="${esc(d.siguiente_trabajo)}" placeholder="${L('Moisture check el lunes a las 9am','Moisture check Monday at 9am')}" style="font-size:17px">`;
+  }
+  else if(p.tipo==='quienrepara') cuerpo=`
+    <label>${L('¿Quién va a hacer la reparación?','Who is doing the repair?')}</label>
+    <input id="g1" value="${esc(d.quien_repara||'')}" placeholder="${L('JR Drywall · o el mantenimiento de la propiedad','JR Drywall · or property maintenance')}" style="font-size:18px">
+    <div class="sub" style="margin-top:8px">${L('Si no sabes quién, escribe qué se tiene que reparar para que oficina lo asigne.','If you do not know who, write what needs repair so the office can assign it.')}</div>
+    <label>${L('¿Qué se tiene que reparar?','What needs to be repaired?')}</label>
+    <textarea id="g2" placeholder="${L('Drywall 2x2 en cocina, baseboards del pasillo, carpet relay','Drywall 2x2 in kitchen, hallway baseboards, carpet relay')}">${esc(d.repara_detalle||'')}</textarea>`;
+  else if(p.tipo==='inicio2') cuerpo=`
     <div class="g2">
       <div><label>${L('Hora de llegada','Time in')}</label><input id="g1" type="time" value="${esc(d.hora_entrada)}" style="font-size:22px"></div>
       <div><label>${L('Hora de salida','Time out')}</label><input id="g2" type="time" value="${esc(d.hora_salida)}" style="font-size:22px"></div>
@@ -2365,9 +2418,7 @@ function pintaGuiado(){
     <button class="btn ghost sm" id="gaddl">+ ${L('Agregar lectura','Add reading')}</button>`;
 
   else if(p.tipo==='cierre2') cuerpo=`
-    <label>${L('¿Qué sigue?','What is next?')}</label>
-    <input id="g1" placeholder="${L('Moisture check el lunes','Moisture check on Monday')}" value="${esc(d.siguiente_trabajo)}">
-    <label>${L('Notas extra','Extra notes')}</label>
+    <label>${L('Notas para oficina','Notes for the office')}</label>
     <textarea id="g2" placeholder="${L('Lo que oficina debe saber','Anything the office should know')}">${esc(d.notas)}</textarea>
     ${!ING()?`<label>Pago al técnico por este día · solo lo ves tú</label>
     <input class="num" id="g3" type="number" step="0.01" value="${d.cobro_tecnico}" placeholder="0.00"
@@ -2576,6 +2627,9 @@ function pintaGuiado(){
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
+    if(pa.tipo==='tiposerv' && !G.d.tipo_servicio) return toast(ING()?'Pick the type of job.':'Escoge el tipo de trabajo.');
+    if(pa.reqTexto2 && !(G.d.hallazgos||'').trim()) return toast(ING()?'Write what you found.':'Escribe qué encontraste.');
+    if(pa.tipo==='siguiente' && !(G.d.proximo_paso||[]).length) return toast(ING()?'Pick at least one next step.':'Marca al menos un paso siguiente.');
     if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Pick what caused the loss.':'Escoge qué causó el daño.');
     if(pa.tipo==='agua' && !G.d.categoria_agua) return toast(ING()?'Pick the water category.':'Escoge la categoría del agua.');
     if(pa.tipo==='materiales' || pa.tipo==='medidas'){
@@ -2600,6 +2654,13 @@ function pintaGuiado(){
       pr.onchange=()=>{ G.d.prop_id=pr.value; av(); }; av();
     }
   }
+  if(p.tipo==='tiposerv') qs('[data-ts]').forEach(b=>b.onclick=()=>{
+    G.d.tipo_servicio=b.dataset.ts; const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); pintaGuiado(); });
+  if(p.tipo==='siguiente') qs('#gps [data-ps]').forEach(b=>b.onclick=()=>{
+    const v=b.dataset.ps; G.d.proximo_paso=G.d.proximo_paso||[];
+    const i=G.d.proximo_paso.indexOf(v);
+    if(i>=0) G.d.proximo_paso.splice(i,1); else G.d.proximo_paso.push(v);
+    const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); pintaGuiado(); });
   if(p.tipo==='inicio2') qs('#q_ah2 [data-b]').forEach(b=>b.onclick=()=>{
     G.d.after_hours=b.dataset.b==='1'; pintaGuiado(); });
   if(p.tipo==='rapidas') qs('[data-rk]').forEach(b=>b.onclick=()=>{
@@ -2731,8 +2792,11 @@ function guardaPaso(){
       return {area:i[0],material:i[1],mc:i[2],temp:i[3]};
     }).filter(l=>l.area||l.material||l.mc);
   }
-  if(p.tipo==='cierre2'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||'';
+  if(p.tipo==='cierre2'){ d.notas=v('g2')||v('g1')||'';
     const c3=v('g3'); if(c3!==null) d.cobro_tecnico=c3; }
+  if(p.tipo==='hallazgos'){ d.hallazgos=v('g1')||''; }
+  if(p.tipo==='siguiente'){ d.siguiente_trabajo=v('g1')||''; }
+  if(p.tipo==='quienrepara'){ d.quien_repara=v('g1')||''; d.repara_detalle=v('g2')||''; }
   if(p.tipo==='vecinos'){ d.vecinos_detalle=v('g1')||''; }
   if(p.tipo==='causa2'){ d.causa_detalle=v('g1')||''; }
   if(p.tipo==='fechadano'){ d.fecha_dano=v('g1')||''; }
@@ -2769,6 +2833,9 @@ async function enviarGuiado(){
     requiere_plomero:d.requiere_plomero, asbesto:d.asbesto,
     vecinos_afectados:d.vecinos_afectados, vecinos_detalle:d.vecinos_detalle||null,
     mascotas:d.mascotas, senalamiento:d.senalamiento, regresa_manana:d.regresa_manana,
+    tipo_servicio:d.tipo_servicio||null, hallazgos:d.hallazgos||null,
+    proximo_paso:d.proximo_paso||[],
+    quien_repara:(d.quien_repara? d.quien_repara+(d.repara_detalle?' · '+d.repara_detalle:'') : null),
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -2848,6 +2915,10 @@ function verReporteCampo(r, j){
         ${fila('DO YOU MAKE DEMO?', SN(r.demo))}
         ${fila('DO YOU REMOVE PADD OR BASEBOARDS?', SN(r.removio_pad_base))}
         ${(r.situacion||[]).length?fila('STATUS', (r.situacion||[]).join('  ·  ')):''}
+        ${r.tipo_servicio?fila('JOB TYPE', r.tipo_servicio.toUpperCase()):''}
+        ${r.hallazgos?bloque('FINDINGS', r.hallazgos):''}
+        ${(r.proximo_paso||[]).length?fila('NEXT STEPS', (r.proximo_paso||[]).join('  ·  ')):''}
+        ${r.quien_repara?bloque('REPAIRS BY', r.quien_repara):''}
         ${r.causa?fila('CAUSE OF LOSS', r.causa):''}
         ${r.fecha_dano?fila('DATE OF LOSS', dLarga(r.fecha_dano)):''}
         ${r.categoria_agua?fila('WATER CATEGORY', 'CATEGORY '+r.categoria_agua):''}
@@ -4828,6 +4899,10 @@ async function abrirJob(id){
           ${r.ocupada==='ocupada'?'<span class="chip rojo">OCUPADA</span>':''}
         </div>
         ${(r.areas||[]).length?`<div class="meta" style="margin-top:6px">AREAS · ${(r.areas||[]).join(', ')}</div>`:''}
+        ${r.tipo_servicio?`<div class="row" style="margin-top:6px"><span class="chip ambar">${esc(r.tipo_servicio.toUpperCase())}</span></div>`:''}
+        ${r.hallazgos?`<div class="sub" style="margin-top:6px;color:var(--tinta)"><b>Hallazgos:</b> ${esc(r.hallazgos)}</div>`:''}
+        ${(r.proximo_paso||[]).length?`<div class="row" style="margin-top:6px;gap:5px">${(r.proximo_paso||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>`:''}
+        ${r.quien_repara?`<div class="ok" style="margin:8px 0 0;padding:10px"><b>Repara:</b> ${esc(r.quien_repara)}</div>`:''}
         ${r.causa?`<div class="meta">CAUSA · ${esc(r.causa)}${r.categoria_agua?' · CATEGORÍA '+esc(r.categoria_agua):''}${r.galones?' · '+esc(r.galones):''}</div>`:''}
         ${(r.moho||r.movio_contenido||r.autorizacion||r.fuente_detenida)?`<div class="row" style="margin-top:5px;gap:5px">
           ${r.moho?'<span class="chip rojo">MOHO VISIBLE</span>':''}
