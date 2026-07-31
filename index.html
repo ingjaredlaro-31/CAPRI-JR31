@@ -337,6 +337,24 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 .fila.r{border-left-color:var(--rojo)} .fila.m{border-left-color:var(--ambar)} .fila.a{border-left-color:var(--azul)}
 .fila .t{flex:1;min-width:0}
 .fila .t b{display:block;font-family:var(--disp);font-size:22px;font-weight:700;text-transform:uppercase}
+.rapidas{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.rap{display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--linea);
+  border-radius:12px;padding:13px 15px}
+.rap-t{flex:1;font-size:17px;font-weight:500}
+.rap-b{display:flex;gap:6px;flex-shrink:0}
+.rap-b button{width:64px;padding:11px 0;border-radius:9px;border:1.5px solid var(--linea);
+  background:var(--sup2);color:var(--gris);font-family:var(--disp);font-size:17px;cursor:pointer}
+.rap-b button.si{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
+.rap-b button.no{background:var(--sup2);border-color:var(--gris);color:var(--tinta)}
+.destacado{display:block;width:100%;text-align:left;position:relative;overflow:hidden;cursor:pointer;
+  background:linear-gradient(135deg,#E2B85A 0%,#C9962B 55%,#A8791F 100%);color:#0B0D11;border:0;
+  border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 8px 26px rgba(201,150,43,.28)}
+.destacado:hover{filter:brightness(1.06)}
+.destacado:active{transform:translateY(1px)}
+.destacado .et{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
+.destacado .tt{font-family:var(--disp);font-weight:800;font-size:30px;line-height:1.02;text-transform:uppercase;margin-top:4px}
+.destacado .ss{font-size:15.5px;opacity:.85;margin-top:4px}
+.destacado .fl{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:34px;opacity:.5}
 .fondo-tex{position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520'%3E%3Cg fill='%230B0D11' fill-opacity='0.022' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E");background-repeat:repeat}
 body.dark .fondo-tex{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='520'%3E%3Cg fill='%23FFFFFF' fill-opacity='0.018' font-family='Helvetica,Arial,sans-serif' font-weight='700' transform='rotate(-17 280 190)'%3E%3Ctext x='6' y='92' font-size='36' letter-spacing='5'%3ECAPRI RESTORATION%3C/text%3E%3Ctext x='34' y='176' font-size='23' letter-spacing='4'%3EING. JARED RODRIGUEZ%3C/text%3E%3Ctext x='62' y='258' font-size='23' letter-spacing='4'%3EJULIO IBARRIA%3C/text%3E%3C/g%3E%3C/svg%3E")}
@@ -1036,30 +1054,36 @@ async function vTecInicio(){
     (jj||[]).forEach(x=>{ debeT+=diasFaltantes(x, fx[x.id]||new Set()).length; });
   }
 
-  out += `<div class="kpi ${faltanT?'r':'a'}" style="margin-bottom:12px">
-      <div class="l">Reporte diario de hoy</div>
+  out += `<button class="destacado no-print" id="btn_ini">
+      <div class="et">${ING()?'NEW ASSESSMENT':'NUEVO LEVANTAMIENTO'}</div>
+      <div class="tt">${T('Reporte inicial de trabajo')}</div>
+      <div class="ss">${T('levantamiento completo del sitio')}</div>
+      <div class="fl">›</div>
+    </button>
+    <div class="kpi ${faltanT?'r':'a'}" style="margin-bottom:12px">
+      <div class="l">${T('Reporte diario de hoy')}</div>
       <div class="row" style="justify-content:space-between;align-items:baseline">
         <span class="v" style="color:${faltanT?'var(--rojo)':'var(--azul)'}">${repHoy} de ${totalT}</span>
         <span class="disp" style="font-size:24px;color:${faltanT?'var(--rojo)':'var(--azul)'}">${pctT}%</span></div>
       <div class="barra"><i style="width:${pctT}%;background:${faltanT?'var(--rojo)':'var(--azul)'}"></i></div>
-      <div class="p">${faltanT?faltanT+' trabajo'+(faltanT===1?'':'s')+' sin reporte de hoy':'Todos los trabajos reportados'}</div>
+      <div class="p">${faltanT?faltanT+' '+(faltanT===1?T('trabajo sin reporte de hoy'):T('trabajos sin reporte de hoy')):T('Todos los trabajos reportados')}</div>
     </div>
     <div class="kpis" style="margin-bottom:12px">
-    <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>Dejar mi reporte diario</b><span class="sub">${debeT?'debes '+debeT+' reporte'+(debeT===1?'':'s'):'todo al corriente'}</span></div></div>
-    <div class="fila m" id="btn_ini" style="cursor:pointer"><div class="t"><b>Reporte inicial de trabajo</b><span class="sub">levantamiento completo del sitio</span></div></div>
-    <div class="fila a" data-ir="mapa" style="cursor:pointer"><div class="t"><b>Mi ruta de hoy</b><span class="sub">${a.length} parada${a.length===1?'':'s'} en el mapa</span></div></div>
-    <div class="fila a" data-ir="trabajos"><div class="t"><b>Trabajos</b><span class="sub">${mios.length} activos · ${enRec} en reparación</span></div></div>
-    <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>Mis reportes</b><span class="sub">${faltantes.length?faltantes.length+' pendientes':'todo al corriente'}</span></div></div>
+    <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>${T('Dejar mi reporte diario')}</b><span class="sub">${debeT?(ING()?'you owe '+debeT+' report'+(debeT===1?'':'s'):'debes '+debeT+' reporte'+(debeT===1?'':'s')):T('todo al corriente')}</span></div></div>
+
+    <div class="fila a" data-ir="mapa" style="cursor:pointer"><div class="t"><b>${T('Mi ruta de hoy')}</b><span class="sub">${a.length} ${a.length===1?T('parada en el mapa'):T('paradas en el mapa')}</span></div></div>
+    <div class="fila a" data-ir="trabajos"><div class="t"><b>${T('Trabajos')}</b><span class="sub">${mios.length} ${T('activos')} · ${enRec} ${T('en reparación')}</span></div></div>
+    <div class="fila ${faltantes.length?'r':'a'}" data-ir="hist"><div class="t"><b>${T('Mis reportes')}</b><span class="sub">${faltantes.length?faltantes.length+' '+T('pendientes'):T('todo al corriente')}</span></div></div>
   </div>`;
 
   if(misJobs.length){
-    out += `<div class="eyebrow">Mis trabajos en el mapa · ${misJobs.length}</div>
+    out += `<div class="eyebrow">${T('Mis trabajos en el mapa')} · ${misJobs.length}</div>
       <div class="mapa" id="mapa" style="height:260px"></div>
       <div id="rinfo" style="margin-bottom:6px"></div>
-      <a class="btn ghost wide no-print" id="glink" target="_blank" rel="noopener" href="#" style="margin-bottom:6px">Abrir ruta en Google Maps</a>`;
+      <a class="btn ghost wide no-print" id="glink" target="_blank" rel="noopener" href="#" style="margin-bottom:6px">${ING()?'Open route in Google Maps':'Abrir ruta en Google Maps'}</a>`;
   }
 
-  out += `<div class="eyebrow">Mis trabajos asignados · ${misJobs.length}</div>`;
+  out += `<div class="eyebrow">${T('Mis trabajos asignados')} · ${misJobs.length}</div>`;
   out += misJobs.length ? misJobs.map((x,i)=>{
       const j=x.job, rep=hechos.has(j.id);
       const dir=[j.direccion,j.unidad?('Unit '+j.unidad):null,j.ciudad].filter(Boolean).join(', ');
@@ -1075,13 +1099,13 @@ async function vTecInicio(){
         <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}${x.hora?' · llegada '+esc(x.hora):''}</div>
         <div class="row" style="margin-top:11px">
           <a class="btn ghost sm" target="_blank" rel="noopener"
-            href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">Ruta</a>
-          <button class="btn ghost sm" data-vj2="${j.id}">Ver trabajo</button>
+            href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dir)}">${T('Ruta')}</a>
+          <button class="btn ghost sm" data-vj2="${j.id}">${T('Ver trabajo')}</button>
           <span style="flex:1"></span>
-          <button class="btn sm" data-rep="${j.id}" data-f="${h}">${rep?'Corregir':'Reportar hoy'}</button>
+          <button class="btn sm" data-rep="${j.id}" data-f="${h}">${rep?T('Corregir'):T('Reportar hoy')}</button>
         </div></div>`;
     }).join('')
-    : `<div class="empty"><div class="disp">Sin trabajos asignados</div><p>Cuando oficina te asigne uno aparece aquí con su ruta y su reporte.</p></div>`;
+    : `<div class="empty"><div class="disp">${T('Sin trabajos asignados')}</div><p>${ING()?'When the office assigns you a job it shows up here with its route and report.':'Cuando oficina te asigne uno aparece aquí con su ruta y su reporte.'}</p></div>`;
 
   if(faltantes.length){
     out += `<div class="eyebrow">Reportes que debes · ${faltantes.length}</div>`;
@@ -1654,7 +1678,7 @@ function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
 function shell(html){
   const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
   const tabs = U.rol==='tecnico'
-    ? [['dia','Inicio'],['trabajos','Trabajos'],['reporte','Reporte'],['schedule','Agenda'],['hist','Historial']]
+    ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['schedule',T('Agenda')],['hist',T('Historial')]]
     : (U.rol==='admin'
       ? [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
@@ -1668,10 +1692,10 @@ function shell(html){
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
         <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):(U.rol==='oficina'?'OFICINA · SIN CONFIGURACIÓN':'ADMINISTRADOR'))}</div>
       </div>
-      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}Inicio</button></div>
+      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}${T('Inicio')}</button></div>
       ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
-      <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}Avisos${NOTIF?` (${NOTIF})`:''}</button>
-      <button data-v="salir" style="margin-top:22px;color:#6B7280">Salir</button>
+      <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}${T('Avisos')}${NOTIF?` (${NOTIF})`:''}</button>
+      <button data-v="salir" style="margin-top:22px;color:#6B7280">${T('Salir')}</button>
     </div>
     <div class="wrap">
       <div class="fondo-tex"></div>
@@ -1689,7 +1713,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v53 · inicial del técnico</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v56 · preguntas de campo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2160,6 +2184,10 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
       categoria_agua: r.categoria_agua||'', fuente_detenida: !!r.fuente_detenida,
       galones: r.galones||'', moho: !!r.moho, movio_contenido: !!r.movio_contenido,
       temp_amb: r.temp_amb||'', hr_amb: r.hr_amb||'', autorizacion: !!r.autorizacion,
+      energia: r.energia!=null?!!r.energia:true, equipo_operando: !!r.equipo_operando,
+      requiere_plomero: !!r.requiere_plomero, asbesto: !!r.asbesto,
+      vecinos_afectados: !!r.vecinos_afectados, vecinos_detalle: r.vecinos_detalle||'',
+      mascotas: !!r.mascotas, senalamiento: !!r.senalamiento, regresa_manana: !!r.regresa_manana,
       lecturas:(r.lecturas||[]).slice(), fotos:(r.fotos||[]).slice(),
       siguiente_trabajo:r.siguiente_trabajo||'', notas:r.notas||''
     }
@@ -2176,77 +2204,75 @@ function pasosGuiado(){
   const d=G.d;
   const esRest = G.modo==='intake' ? G.dep==='restoration' : G.job.departamento==='restoration';
   const ini = G.tipo==='inicial';
-  if(G.modo==='intake'){
-    G.pasos=[
-      {t:'¿Dónde estás?', s:'Escoge el management y la propiedad', tipo:'ubicacion'},
-      {t:'¿Qué unidad?', s:'Número de apartamento o área', tipo:'unidad'},
-      {t:'¿Quién te recibió?', s:'Contacto en sitio · opcional', tipo:'contacto'},
-      {t:'¿Qué tipo de servicio?', s:'Con qué llegaste', tipo:'servicio'},
-      {t:'¿Qué fue lo que pasó?', s:'Cuenta el origen del daño', tipo:'causa'},
-      {t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'},
-      {t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'},
-      {t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'},
-      {t:'¿Se hizo water extraction?', s:'¿Sacaste agua hoy?', tipo:'sino', k:'agua_extraida'},
-      {t:'¿Hiciste deep clean o wipe down?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'},
-      {t:'¿Hiciste demo?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'},
-      {t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'},
-      {t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true},
-      {t:'¿En qué áreas?', s:'Marca todas las áreas afectadas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true},
-      {t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'},
-      ...(d.material_removido.length?[{t:'Medidas de lo removido', s:'Obligatorio · sin medidas no se puede cotizar', tipo:'medidas'}]:[]),
-      {t:'¿Cuánto cobras por hoy?', s:'Mano de obra y reparaciones de este día', tipo:'cobro'},
-      {t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'},
-      {t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'}
-    ];
-    if(esRest){
-      G.pasos.push({t:'Conteo de equipo', s:'Lo que dejaste instalado', tipo:'conteo'});
-      G.pasos.push({t:'Lecturas de humedad', s:'Las que tomaste hoy', tipo:'lecturas'});
-    }
-    G.pasos.push({t:'Fotos del trabajo', s:'Entre más fotos, mejor', tipo:'fotos'});
-    G.pasos.push({t:'¿Qué sigue?', s:'Next work to do y notas', tipo:'cierre'});
-    G.pasos.push({t:'Revisa y envía', s:'Esto le llega a oficina', tipo:'resumen'});
-    return;
-  }
+  const en = ING();
+  const L = (es,ing) => en ? ing : es;
+
   G.pasos=[];
-  if(!G.hayInicial && !G.prev) G.pasos.push({t:'¿Qué reporte vas a hacer?', s:'Este trabajo aún no tiene el inicial', tipo:'tipo'});
-  G.pasos.push({t:'¿A qué hora llegaste?', s:'Ajusta si es necesario', tipo:'horas'});
-  G.pasos.push({t:'¿Es after hours?', s:'Fuera del horario normal', tipo:'sino', k:'after_hours'});
-  if(ini){
-    G.pasos.push({t:'¿Qué causó el daño?', s:'De dónde vino el agua', tipo:'causa2'});
-    G.pasos.push({t:'¿De cuándo es el daño?', s:'Cuándo ocurrió, según el residente o el manager', tipo:'fechadano'});
-    G.pasos.push({t:'¿Ya se detuvo la fuente?', s:'¿Se cerró la llave o se reparó la fuga?', tipo:'sino', k:'fuente_detenida'});
-    G.pasos.push({t:'Categoría del agua', s:'Define cómo se maneja el trabajo', tipo:'categoria'});
-    G.pasos.push({t:'¿La unidad está ocupada?', s:'¿Hay gente viviendo ahí?', tipo:'ocup'});
-    G.pasos.push({t:'¿Firmó la autorización?', s:'El residente o el manager', tipo:'sino', k:'autorizacion'});
-    G.pasos.push({t:'¿Se hizo water extraction?', s:'¿Sacaste agua?', tipo:'sino', k:'agua_extraida'});
-    if(d.agua_extraida) G.pasos.push({t:'¿Cuánta agua sacaste?', s:'Aproximado en galones', tipo:'galones'});
-    G.pasos.push({t:'¿Hay moho visible?', s:'Manchas negras o verdes, olor a humedad', tipo:'sino', k:'moho'});
-    G.pasos.push({t:'¿Moviste contenido o muebles?', s:'Content manipulation', tipo:'sino', k:'movio_contenido'});
-    G.pasos.push({t:'Condición del ambiente', s:'Temperatura y humedad relativa del cuarto', tipo:'ambiente'});
+
+  if(G.modo==='intake'){
+    G.pasos.push({t:L('¿Dónde estás?','Where are you?'), s:L('Escoge el management y la propiedad','Pick the management and property'), tipo:'ubicacion'});
+    G.pasos.push({t:L('¿Qué unidad?','Which unit?'), s:L('Número de apartamento o área','Apartment number or area'), tipo:'unidad'});
+    G.pasos.push({t:L('¿Quién te recibió?','Who let you in?'), s:L('Contacto en sitio · opcional','On-site contact · optional'), tipo:'contacto'});
+    G.pasos.push({t:L('¿Qué tipo de servicio?','Type of service?'), s:L('Con qué llegaste','What you were called for'), tipo:'servicio'});
+  } else if(!G.hayInicial && !G.prev){
+    G.pasos.push({t:L('¿Qué reporte vas a hacer?','Which report are you doing?'), s:L('Este trabajo aún no tiene el inicial','This job has no initial report yet'), tipo:'tipo'});
   }
+
+  // 1 · Llegada
+  G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
+
   if(ini){
-    G.pasos.push({t:'¿Hiciste deep clean o wipe down?', s:'Limpieza de superficies', tipo:'sino', k:'wipe_down'});
-    G.pasos.push({t:'¿Hiciste demo?', s:'¿Demoliste algo?', tipo:'sino', k:'demo'});
-    G.pasos.push({t:'¿Removiste pad o baseboards?', s:'Carpet pad o molduras', tipo:'sino', k:'removio_pad_base'});
-    G.pasos.push({t:'¿Qué servicio se hizo?', s:'Marca todos los que apliquen', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
-    G.pasos.push({t:'¿En qué áreas trabajaste?', s:'Marca todas las áreas', tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo'});
-    G.pasos.push({t:'¿Qué material removiste?', s:'Déjalo vacío si no removiste nada', tipo:'chips', k:'material_removido', cat:'mcat', tabla:'materiales_catalogo'});
-    if(d.material_removido.length) G.pasos.push({t:'Medidas de lo removido', s:'Obligatorio · sin medidas no se puede cotizar', tipo:'medidas'});
-    G.pasos.push({t:'Containment', s:'Plástico y zippers instalados', tipo:'contain'});
-    G.pasos.push({t:'¿Cuánto cobras por hoy?', s:'Mano de obra y reparaciones de este día', tipo:'cobro'});
-    G.pasos.push({t:'Equipo instalado', s:'Cuántos packs y descripción', tipo:'equipo'});
+    // 2 · Causa
+    G.pasos.push({t:L('¿Qué causó el daño?','What caused the loss?'), s:L('Toca la fuente y escribe el detalle','Tap the source and add the detail'), tipo:'causa2'});
+    // 3 · Respuestas rápidas
+    G.pasos.push({t:L('Respuestas rápidas','Quick answers'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
+      {k:'ocupada_b', t:L('¿Unidad ocupada?','Occupied unit?')},
+      {k:'fuente_detenida', t:L('¿Se detuvo la fuente?','Source stopped?')},
+      {k:'autorizacion', t:L('¿Firmaron la autorización?','Authorization signed?')},
+      {k:'agua_extraida', t:L('¿Se sacó agua?','Water extracted?')},
+      {k:'wipe_down', t:L('¿Wipe down o deep clean?','Wipe down or deep clean?')},
+      {k:'demo', t:L('¿Se hizo demo?','Demo performed?')},
+      {k:'removio_pad_base', t:L('¿Quitaste pad o baseboards?','Removed pad or baseboards?')},
+      {k:'moho', t:L('¿Hay moho visible?','Visible mold?')},
+      {k:'movio_contenido', t:L('¿Moviste contenido o muebles?','Moved content or furniture?')}
+    ]});
+    // 3b · Seguridad y acceso
+    G.pasos.push({t:L('Seguridad y acceso','Safety and access'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
+      {k:'energia', t:L('¿Hay electricidad en la unidad?','Power available in the unit?')},
+      {k:'requiere_plomero', t:L('¿Se necesita plomero?','Plumber needed?')},
+      {k:'asbesto', t:L('¿Material sospechoso de asbesto?','Possible asbestos material?')},
+      {k:'vecinos_afectados', t:L('¿Hay unidades vecinas afectadas?','Adjacent units affected?')},
+      {k:'mascotas', t:L('¿Hay mascotas en la unidad?','Pets in the unit?')},
+      {k:'senalamiento', t:L('¿Pusiste señalamientos de seguridad?','Safety signage placed?')}
+    ]});
+    if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
+    // 4 · Datos del agua
+    G.pasos.push({t:L('Datos del agua','Water details'), s:L('Categoría, fecha del daño y galones','Category, date of loss and gallons'), tipo:'agua'});
+    // 5 · Áreas
+    G.pasos.push({t:L('¿Qué áreas se afectaron?','Which areas were affected?'), s:L('Toca todas las que apliquen','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
+    // 6 · Material + medidas juntos
+    G.pasos.push({t:L('¿Qué material removiste?','What material did you remove?'), s:L('Marca el material y anota su medida','Mark the material and enter its size'), tipo:'materiales'});
+    // 7 · Servicios
+    G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Marca todos los que apliquen','Tap all that apply'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
+    // 8 · Containment y equipo
+    G.pasos.push({t:L('Containment y equipo','Containment and equipment'), s:L('Plástico, zippers y equipo instalado','Plastic, zippers and equipment installed'), tipo:'contain2'});
+    // 8b · Cierre del sitio
+    G.pasos.push({t:L('Al salir del sitio','Leaving the site'), s:L('Cómo dejaste el trabajo','How you left the job'), tipo:'rapidas', lista:[
+      {k:'equipo_operando', t:L('¿El equipo quedó operando?','Equipment left running?')},
+      {k:'regresa_manana', t:L('¿Hay que regresar mañana?','Return needed tomorrow?')}
+    ]});
   } else {
-    G.pasos.push({t:'¿Cómo está el trabajo hoy?', s:'Explica qué encontraste y qué se hizo · obligatorio', tipo:'explica', reqTexto:true});
-    G.pasos.push({t:'¿Se hizo algún trabajo hoy?', s:'Déjalo vacío si solo fuiste a revisar', tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
+    G.pasos.push({t:L('¿Cómo está el trabajo hoy?','How is the job today?'), s:L('Explica qué encontraste y qué se hizo · obligatorio','Explain what you found and what was done · required'), tipo:'explica', reqTexto:true});
+    G.pasos.push({t:L('¿Qué se hizo hoy?','What was done today?'), s:L('Déjalo vacío si solo fuiste a revisar','Leave empty if you only inspected'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
+    G.pasos.push({t:L('¿Removiste material hoy?','Removed material today?'), s:L('Déjalo vacío si no removiste nada','Leave empty if nothing was removed'), tipo:'materiales'});
+    G.pasos.push({t:L('Equipo de hoy','Equipment today'), s:L('Lo que instalaste y lo que retiraste','What you installed and removed'), tipo:'conteo'});
   }
-  if(esRest){
-    if(ini) G.pasos.push({t:'Conteo de equipo', s:'Lo que entró y lo que salió hoy', tipo:'conteo'});
-    else G.pasos.push({t:'¿Moviste equipo hoy?', s:'Instalado y retirado — déjalo en cero si no', tipo:'conteo'});
-    G.pasos.push({t:'Lecturas de humedad', s:ini?'Opcional — agrega las que tomaste':'Si tomaste moisture check, anótalo aquí', tipo:'lecturas'});
-  }
-  G.pasos.push({t:'Fotos del trabajo', s:'Toma o sube las fotos de hoy', tipo:'fotos'});
-  G.pasos.push({t:'¿Qué sigue?', s:'Next work to do y notas extra', tipo:'cierre'});
-  G.pasos.push({t:'Revisa y envía', s:'Verifica que todo esté bien', tipo:'resumen'});
+
+  if(esRest) G.pasos.push({t:L('Lecturas','Readings'), s:L('Moisture del material y ambiente del cuarto','Material moisture and room conditions'), tipo:'lecturas2'});
+
+  G.pasos.push({t:L('Fotos','Photos'), s:L('Sube las fotos por área · entre más, mejor','Upload photos by area · the more the better'), tipo:'fotos'});
+  G.pasos.push({t:L('Cierre','Wrap up'), s:L('Qué sigue, notas y tu cobro','Next steps, notes and your charge'), tipo:'cierre2'});
+  G.pasos.push({t:L('Revisa y envía','Review and submit'), s:L('Verifica antes de mandarlo','Check before sending'), tipo:'resumen'});
 }
 
 function gChips(k, cat, tabla){
@@ -2264,7 +2290,90 @@ function pintaGuiado(){
     : (G.job.propiedades?.nombre||G.job.managements?.nombre||G.job.cliente);
   let cuerpo='';
 
-  if(p.tipo==='ubicacion'){
+  const en=ING(); const L=(es,ing)=>en?ing:es;
+
+  if(p.tipo==='inicio2') cuerpo=`
+    <div class="g2">
+      <div><label>${L('Hora de llegada','Time in')}</label><input id="g1" type="time" value="${esc(d.hora_entrada)}" style="font-size:22px"></div>
+      <div><label>${L('Hora de salida','Time out')}</label><input id="g2" type="time" value="${esc(d.hora_salida)}" style="font-size:22px"></div>
+    </div>
+    <label>${L('¿Fue after hours?','After hours?')}</label>
+    <div class="si-no" id="q_ah2"><button data-b="1" class="${d.after_hours?'on':''}">${L('Sí','Yes')}</button>
+      <button data-b="0" class="${!d.after_hours?'on':''}">No</button></div>`;
+
+  else if(p.tipo==='rapidas') cuerpo=`
+    <div class="rapidas">${p.lista.map(x=>{
+      const val = x.k==='ocupada_b' ? (d.ocupada==='ocupada') : !!d[x.k];
+      return `<div class="rap">
+        <span class="rap-t">${esc(x.t)}</span>
+        <div class="rap-b">
+          <button type="button" data-rk="${x.k}" data-rv="1" class="${val?'si':''}">${L('SÍ','YES')}</button>
+          <button type="button" data-rk="${x.k}" data-rv="0" class="${!val?'no':''}">NO</button>
+        </div></div>`;}).join('')}</div>`;
+
+  else if(p.tipo==='vecinos') cuerpo=`
+    <label>${L('¿Qué unidades vecinas se vieron afectadas?','Which adjacent units were affected?')}</label>
+    <input id="g1" value="${esc(d.vecinos_detalle||'')}" placeholder="${L('Unit 327 y 329, pared compartida','Unit 327 and 329, shared wall')}" style="font-size:18px">
+    <div class="sub" style="margin-top:8px">${L('Esto le sirve a oficina para avisarle al management de inmediato.','This helps the office notify the management right away.')}</div>`;
+  else if(p.tipo==='agua') cuerpo=`
+    <label>${L('Categoría del agua','Water category')}</label>
+    <div class="si-no" style="flex-direction:column">
+      ${CATEGORIAS.map(x=>`<button data-cat="${x.k}" class="${d.categoria_agua===x.k?'on':''}" style="padding:15px;text-align:left">
+        ${en?('Category '+x.k+' · '+(x.k==='1'?'clean water':x.k==='2'?'gray water':'black water')):esc(x.t)}</button>`).join('')}
+    </div>
+    <div class="sub" style="margin-top:8px">${esc((CATEGORIAS.find(x=>x.k===d.categoria_agua)||{}).s||L('Escoge según de dónde vino el agua.','Pick based on where the water came from.'))}</div>
+    <div class="g2" style="margin-top:14px">
+      <div><label>${L('Fecha del daño','Date of loss')}</label><input id="g1" type="date" value="${esc(d.fecha_dano||G.fecha)}" max="${hoy()}"></div>
+      <div><label>${L('Galones sacados','Gallons extracted')}</label><input id="g2" value="${esc(d.galones||'')}" placeholder="${d.agua_extraida?'30':'0'}"></div>
+    </div>`;
+
+  else if(p.tipo==='materiales'){
+    const sel=d.material_removido;
+    cuerpo=`<div class="chips" id="gc">${G.mcat.map(x=>
+      `<button type="button" data-c="${esc(x)}" class="${sel.includes(x)?'on':''}">${esc(x)}</button>`).join('')}
+      <button type="button" class="add" data-add="1">+ ${L('otro','other')}</button></div>
+      ${sel.length?`<div class="eyebrow">${L('Medida de cada material · obligatorio','Size of each material · required')}</div>
+      ${sel.map((m,i)=>`<label style="margin-top:10px">${esc(m)}</label>
+        <input id="med${i}" value="${esc(d.medidas[m]||'')}" placeholder="1 ft x 1 ft" style="font-size:17px">`).join('')}`
+      :`<div class="sub" style="margin-top:10px">${L('Si no removiste nada, dale Siguiente.','If nothing was removed, tap Next.')}</div>`}`;
+  }
+
+  else if(p.tipo==='contain2') cuerpo=`
+    <div class="g2">
+      <div><label>${L('Sqft de plástico','Plastic sqft')}</label><input class="num" id="g1" type="number" value="${d.sqft_plastico}"></div>
+      <div><label>Zipper</label><select id="g2">${ZIPPERS.map(z=>`<option ${d.zipper===z?'selected':''}>${z}</option>`).join('')}</select></div>
+    </div>
+    <div class="eyebrow">${L('Equipo instalado','Equipment installed')}</div>
+    <div class="g3">
+      <div><label>Deshu</label><input class="num" id="gdi" type="number" min="0" value="${d.deshu_inst}"></div>
+      <div><label>Air mover</label><input class="num" id="gai" type="number" min="0" value="${d.air_inst}"></div>
+      <div><label>Scrubber</label><input class="num" id="gsi" type="number" min="0" value="${d.scrub_inst}"></div>
+    </div>
+    <label>${L('Packs instalados','Packs installed')}</label>
+    <input class="num" id="gpk" type="number" min="0" value="${d.packs_equipo}">
+    <label>${L('Describe el equipo','Describe the equipment')}</label>
+    <textarea id="geq" placeholder="${L('2 air movers y 1 deshu en la cocina','2 air movers and 1 dehu in the kitchen')}">${esc(d.equipo_desc)}</textarea>`;
+
+  else if(p.tipo==='lecturas2') cuerpo=`
+    <div class="g2">
+      <div><label>${L('Temperatura °F','Temperature °F')}</label><input class="num" id="gta" value="${esc(d.temp_amb||'')}" placeholder="72"></div>
+      <div><label>${L('Humedad relativa %','Relative humidity %')}</label><input class="num" id="gha" value="${esc(d.hr_amb||'')}" placeholder="65"></div>
+    </div>
+    <div class="eyebrow">${L('Moisture del material','Material moisture')}</div>
+    <div class="lect meta" style="letter-spacing:.08em;font-size:11px"><span>${L('ÁREA','AREA')}</span><span>${L('MATERIAL','MATERIAL')}</span><span>%MC</span><span>°F</span><span></span></div>
+    <div id="glec"></div>
+    <button class="btn ghost sm" id="gaddl">+ ${L('Agregar lectura','Add reading')}</button>`;
+
+  else if(p.tipo==='cierre2') cuerpo=`
+    <label>${L('¿Qué sigue?','What is next?')}</label>
+    <input id="g1" placeholder="${L('Moisture check el lunes','Moisture check on Monday')}" value="${esc(d.siguiente_trabajo)}">
+    <label>${L('Notas extra','Extra notes')}</label>
+    <textarea id="g2" placeholder="${L('Lo que oficina debe saber','Anything the office should know')}">${esc(d.notas)}</textarea>
+    ${!ING()?`<label>Pago al técnico por este día · solo lo ves tú</label>
+    <input class="num" id="g3" type="number" step="0.01" value="${d.cobro_tecnico}" placeholder="0.00"
+      style="font-family:var(--mono);font-size:24px;text-align:left">`:''}`;
+
+  else if(p.tipo==='ubicacion'){
     const lista=G.PR.filter(x=>x.management_id===d.mg_id);
     cuerpo=`
     <label>Management company</label>
@@ -2440,8 +2549,8 @@ function pintaGuiado(){
       ${cuerpo}
       <div style="height:22px"></div>
       <div class="row">
-        ${G.paso>0?'<button class="btn ghost" style="flex:1" id="gprev">Atrás</button>':''}
-        <button class="btn" style="flex:2" id="gnext">${G.paso===n-1?(G.prev?'Guardar cambios':'Enviar reporte'):'Siguiente'}</button>
+        ${G.paso>0?`<button class="btn ghost" style="flex:1" id="gprev">${T('Atrás')}</button>`:''}
+        <button class="btn" style="flex:2" id="gnext">${G.paso===n-1?(G.prev?T('Guardar cambios'):T('Enviar reporte')):T('Siguiente')}</button>
       </div>
       <div style="height:12px"></div>
       <button class="btn ghost wide" id="gform">Usar formulario completo</button>
@@ -2460,11 +2569,11 @@ function pintaGuiado(){
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
-    if(pa.tipo==='causa2' && !G.d.causa) return toast('Escoge qué causó el daño.');
-    if(pa.tipo==='categoria' && !G.d.categoria_agua) return toast('Escoge la categoría del agua.');
-    if(pa.tipo==='medidas'){
+    if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Pick what caused the loss.':'Escoge qué causó el daño.');
+    if(pa.tipo==='agua' && !G.d.categoria_agua) return toast(ING()?'Pick the water category.':'Escoge la categoría del agua.');
+    if(pa.tipo==='materiales' || pa.tipo==='medidas'){
       const falta=G.d.material_removido.find(m=>!(G.d.medidas[m]||'').trim());
-      if(falta) return toast('Falta la medida de '+falta);
+      if(falta) return toast((ING()?'Missing size for ':'Falta la medida de ')+falta);
     }
     if(pa.tipo==='ubicacion'){
       if(G.d.mg_id && !G.d.prop_id) return toast('Escoge la propiedad.');
@@ -2483,6 +2592,39 @@ function pintaGuiado(){
         q1('#g_av').innerHTML = x?'Dirección: <b>'+esc([x.direccion,x.ciudad,x.zip].filter(Boolean).join(', '))+'</b>':''; };
       pr.onchange=()=>{ G.d.prop_id=pr.value; av(); }; av();
     }
+  }
+  if(p.tipo==='inicio2') qs('#q_ah2 [data-b]').forEach(b=>b.onclick=()=>{
+    G.d.after_hours=b.dataset.b==='1'; pintaGuiado(); });
+  if(p.tipo==='rapidas') qs('[data-rk]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.rk, v=b.dataset.rv==='1';
+    if(k==='ocupada_b') G.d.ocupada = v?'ocupada':'vacia'; else G.d[k]=v;
+    if(k==='vecinos_afectados' || k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
+    pintaGuiado();
+  });
+  if(p.tipo==='materiales'){
+    qs('#gc [data-c]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.c, arr=G.d.material_removido, i=arr.indexOf(v);
+      if(i>=0) arr.splice(i,1); else arr.push(v);
+      pintaGuiado();
+    });
+    const ba=q1('#gc [data-add]');
+    if(ba) ba.onclick=async()=>{
+      const n=prompt(ING()?'Material name:':'Nombre del material:'); if(!n||!n.trim()) return;
+      const v=n.trim();
+      if(!G.mcat.includes(v)){ G.mcat.push(v); try{ await sb.from('materiales_catalogo').insert({nombre:v}); }catch(e){} }
+      if(!G.d.material_removido.includes(v)) G.d.material_removido.push(v);
+      pintaGuiado();
+    };
+  }
+  if(p.tipo==='lecturas2'){
+    const lec=q1('#glec');
+    const fila=(l={})=>{const dd=document.createElement('div');dd.className='lect';
+      dd.innerHTML=`<input placeholder="Kitchen" value="${esc(l.area||'')}"><input placeholder="Drywall" value="${esc(l.material||'')}">
+        <input class="num" inputmode="decimal" placeholder="18" value="${esc(l.mc||'')}">
+        <input class="num" inputmode="decimal" placeholder="72" value="${esc(l.temp||'')}"><button type="button">✕</button>`;
+      dd.querySelector('button').onclick=()=>dd.remove(); lec.appendChild(dd);};
+    (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
+    q1('#gaddl').onclick=()=>fila();
   }
   if(p.tipo==='causa2') qs('[data-cz]').forEach(b=>b.onclick=()=>{
     G.d.causa=b.dataset.cz; pintaGuiado(); });
@@ -2576,6 +2718,27 @@ function guardaPaso(){
     else { const x=G.PR.find(y=>y.id===d.prop_id);
       if(x){ d.propiedad_texto=x.nombre; d.direccion=x.direccion||''; d.ciudad=x.ciudad||'San Diego'; d.zip=x.zip||''; } }
   }
+  if(p.tipo==='inicio2'){ d.hora_entrada=v('g1')||d.hora_entrada; d.hora_salida=v('g2')||''; }
+  if(p.tipo==='agua'){ d.fecha_dano=v('g1')||''; d.galones=v('g2')||''; }
+  if(p.tipo==='materiales'){
+    d.material_removido.forEach((m,i)=>{ const val=v('med'+i); if(val!==null) d.medidas[m]=val.trim(); });
+  }
+  if(p.tipo==='contain2'){
+    d.sqft_plastico=v('g1'); d.zipper=v('g2')||'no zipper';
+    d.deshu_inst=+v('gdi')||0; d.air_inst=+v('gai')||0; d.scrub_inst=+v('gsi')||0;
+    d.packs_equipo=+v('gpk')||0; d.equipo_desc=v('geq')||'';
+  }
+  if(p.tipo==='lecturas2'){
+    d.temp_amb=v('gta')||''; d.hr_amb=v('gha')||'';
+    const lec=SH.querySelector('#glec');
+    if(lec) d.lecturas=[...lec.children].map(x=>{
+      const i=[...x.querySelectorAll('input')].map(y=>y.value.trim());
+      return {area:i[0],material:i[1],mc:i[2],temp:i[3]};
+    }).filter(l=>l.area||l.material||l.mc);
+  }
+  if(p.tipo==='cierre2'){ d.siguiente_trabajo=v('g1')||''; d.notas=v('g2')||'';
+    const c3=v('g3'); if(c3!==null) d.cobro_tecnico=c3; }
+  if(p.tipo==='vecinos'){ d.vecinos_detalle=v('g1')||''; }
   if(p.tipo==='causa2'){ d.causa_detalle=v('g1')||''; }
   if(p.tipo==='fechadano'){ d.fecha_dano=v('g1')||''; }
   if(p.tipo==='galones'){ d.galones=v('g1')||''; }
@@ -2607,7 +2770,10 @@ async function enviarGuiado(){
     fecha_dano:d.fecha_dano||null, categoria_agua:d.categoria_agua||null,
     fuente_detenida:d.fuente_detenida, galones:d.galones||null, moho:d.moho,
     movio_contenido:d.movio_contenido, temp_amb:d.temp_amb||null, hr_amb:d.hr_amb||null,
-    autorizacion:d.autorizacion,
+    autorizacion:d.autorizacion, energia:d.energia, equipo_operando:d.equipo_operando,
+    requiere_plomero:d.requiere_plomero, asbesto:d.asbesto,
+    vecinos_afectados:d.vecinos_afectados, vecinos_detalle:d.vecinos_detalle||null,
+    mascotas:d.mascotas, senalamiento:d.senalamiento, regresa_manana:d.regresa_manana,
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
     after_hours:d.after_hours, ocupada:d.ocupada, agua_extraida:d.agua_extraida,
     wipe_down:d.wipe_down, demo:d.demo, removio_pad_base:d.removio_pad_base,
@@ -2696,6 +2862,14 @@ function verReporteCampo(r, j){
         ${r.movio_contenido!=null?fila('CONTENT MANIPULATION', SN(r.movio_contenido)):''}
         ${(r.temp_amb||r.hr_amb)?fila('AMBIENT', (r.temp_amb||'—')+'°F · '+(r.hr_amb||'—')+'% RH'):''}
         ${r.autorizacion!=null?fila('AUTHORIZATION SIGNED', SN(r.autorizacion)):''}
+        ${r.energia!=null?fila('POWER AVAILABLE', SN(r.energia)):''}
+        ${r.requiere_plomero?fila('PLUMBER NEEDED','YES'):''}
+        ${r.asbesto?fila('POSSIBLE ASBESTOS','YES'):''}
+        ${r.vecinos_afectados?fila('ADJACENT UNITS AFFECTED', r.vecinos_detalle||'YES'):''}
+        ${r.mascotas?fila('PETS ON SITE','YES'):''}
+        ${r.senalamiento!=null?fila('SAFETY SIGNAGE', SN(r.senalamiento)):''}
+        ${r.equipo_operando!=null?fila('EQUIPMENT LEFT RUNNING', SN(r.equipo_operando)):''}
+        ${r.regresa_manana?fila('RETURN TOMORROW','YES'):''}
         ${fila('SERVICE/WORK', serv.join('  ·  '))}
         ${fila('HOW MANY AREAS ?', areas.length ? areas.length+(areas.length===1?' AREA':' AREAS') : '—')}
         ${fila('AREAS', areas.join(', '))}
@@ -2883,13 +3057,13 @@ function arrancarReloj(){
 
 function saludo(){
   const h=new Date().getHours();
-  if(h<12) return 'Buenos días';
-  if(h<19) return 'Buenas tardes';
-  return 'Buenas noches';
+  if(h<12) return T('Buenos días');
+  if(h<19) return T('Buenas tardes');
+  return T('Buenas noches');
 }
 
 function heroHTML(cl, activos, hoyN, etiqueta){
-  const f=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const f=new Date().toLocaleDateString(ING()?'en-US':'es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   let bloqueClima='<div class="clima"><div class="l">San Diego</div><div class="d">clima no disponible</div></div>';
   let alerta='';
   if(cl && cl.current){
@@ -2922,9 +3096,9 @@ function heroHTML(cl, activos, hoyN, etiqueta){
     </div>
     ${alerta}
     <div class="grid" style="margin-top:14px">
-      <div><div class="salu">Trabajos activos</div><div class="nom" style="font-size:26px">${activos}</div></div>
-      <div><div class="salu">Visitas hoy</div><div class="nom" style="font-size:26px">${hoyN}</div></div>
-      <div><div class="salu">Departamento</div><div class="nom" style="font-size:26px">${esc(etiqueta||DEP)}</div></div>
+      <div><div class="salu">${T('Trabajos activos')}</div><div class="nom" style="font-size:26px">${activos}</div></div>
+      <div><div class="salu">${T('Visitas hoy')}</div><div class="nom" style="font-size:26px">${hoyN}</div></div>
+      <div><div class="salu">${T('Departamento')}</div><div class="nom" style="font-size:26px">${esc(etiqueta||DEP)}</div></div>
     </div>
     <div class="franja2"><i></i><i></i></div>
   </div>`;
@@ -3259,6 +3433,38 @@ function galeriaHTML(lista){
     <div class="thumbs">${g[a].map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
   </div>`).join('');
 }
+const ING = () => U && U.rol==='tecnico';
+const TR = {
+ 'Inicio':'Home','Trabajos':'Jobs','Reporte':'Report','Agenda':'Schedule','Historial':'History','Avisos':'Alerts','Salir':'Log out',
+ 'Buenos días':'Good morning','Buenas tardes':'Good afternoon','Buenas noches':'Good evening',
+ 'Trabajos activos':'Active jobs','Visitas hoy':"Today's visits",'Departamento':'Department',
+ 'Reporte diario de hoy':"Today's daily report",'trabajos sin reporte de hoy':'jobs without a report today',
+ 'trabajo sin reporte de hoy':'job without a report today','Todos los trabajos reportados':'All jobs reported',
+ 'Dejar mi reporte diario':'Submit my daily report','todo al corriente':'all caught up',
+ 'Reporte inicial de trabajo':'INITIAL JOB REPORT','levantamiento completo del sitio':'Full site assessment',
+ 'Mi ruta de hoy':"Today's route",'paradas en el mapa':'stops on the map','parada en el mapa':'stop on the map',
+ 'Mis reportes':'My reports','pendientes':'pending','activos':'active','en reparación':'in repair',
+ 'Mis trabajos asignados':'My assigned jobs','Mis trabajos en el mapa':'My jobs on the map',
+ 'Trabajos de hoy':"Today's jobs",'Reportes que debes':'Reports you owe',
+ 'Sin trabajos asignados':'No jobs assigned','Ruta':'Route','Ver trabajo':'View job','Reportar hoy':'Report today',
+ 'Corregir':'Edit','Reporte de hoy':"Today's report",'Reporte de seguimiento':'Follow-up report',
+ 'Levantar inicial':'Initial report','No fui':"Didn't go",'no fui':"didn't go",
+ 'REPORTADO':'REPORTED','FALTA HOY':'MISSING TODAY','ASIGNADO HOY':'ASSIGNED TODAY','MI TRABAJO':'MY JOB',
+ 'REPORTADO HOY':'REPORTED TODAY','SIN REPORTE HOY':'NO REPORT TODAY','AL CORRIENTE':'UP TO DATE',
+ 'DÍAS ATRASADOS':'DAYS BEHIND','Última visita':'Last visit','nunca':'never','hoy':'today','ayer':'yesterday',
+ 'Lo que sigue':'Next up','Activos':'Active','Reparación':'In repair','Cleaning':'Cleaning',
+ 'Cómo llegar':'Get directions','Falta tu reporte de hoy':"Today's report is missing",
+ 'Crear reporte de seguimiento de hoy':"Create today's follow-up report",
+ 'Corregir mi reporte de hoy':"Edit today's report",'Fechas clave':'Key dates','Áreas':'Areas',
+ 'Calendario':'Calendar','Reparaciones':'Repairs','Últimos reportes':'Latest reports',
+ 'Comentarios del trabajo':'Job comments','Enviar':'Send','Cerrar':'Close','Cancelar':'Cancel',
+ 'Atrás':'Back','Siguiente':'Next','Enviar reporte':'Submit report','Guardar cambios':'Save changes',
+ 'Revisa y envía':'Review and submit','Paso':'Step','de':'of',
+ 'Reportes enviados':'Reports sent','Me faltan':'I owe','No fui':"Didn't go",'Trabajos':'Jobs',
+ 'Sin visitas asignadas hoy':'No visits assigned today','Otros trabajos activos':'Other active jobs',
+ 'Todavía no hay trabajos':'No jobs yet','Sin trabajos hoy':'No jobs today'
+};
+const T = es => (ING() && TR[es]) ? TR[es] : es;
 const etiJob = j => j ? ((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'')) : '';
 function cambiarTema(){
   OSCURO=!OSCURO;
@@ -4614,6 +4820,15 @@ async function abrirJob(id){
           ${r.autorizacion?'<span class="chip azul">AUTORIZACIÓN FIRMADA</span>':'<span class="chip rojo">SIN AUTORIZACIÓN</span>'}
         </div>`:''}
         ${(r.temp_amb||r.hr_amb)?`<div class="meta">AMBIENTE · ${esc(r.temp_amb||'—')}°F · ${esc(r.hr_amb||'—')}% HR</div>`:''}
+        <div class="row" style="margin-top:5px;gap:5px">
+          ${r.asbesto?'<span class="chip rojo">POSIBLE ASBESTO</span>':''}
+          ${r.vecinos_afectados?`<span class="chip rojo">VECINOS AFECTADOS${r.vecinos_detalle?' · '+esc(r.vecinos_detalle):''}</span>`:''}
+          ${r.requiere_plomero?'<span class="chip ambar">NECESITA PLOMERO</span>':''}
+          ${r.energia===false?'<span class="chip rojo">SIN ELECTRICIDAD</span>':''}
+          ${r.equipo_operando?'<span class="chip azul">EQUIPO OPERANDO</span>':''}
+          ${r.regresa_manana?'<span class="chip ambar">REGRESA MAÑANA</span>':''}
+          ${r.mascotas?'<span class="chip">CON MASCOTAS</span>':''}
+        </div>
         ${(r.material_removido||[]).length?`<div class="meta" style="color:var(--rojo-d)">REMOVIDO · ${(r.material_removido||[]).map(m=>esc(m)+((r.medidas||{})[m]?' ('+esc(r.medidas[m])+')':'')).join(' · ')}</div>`:''}
         ${r.cobro_tecnico?`<div class="meta" style="color:var(--azul-d)">COBRO DEL TÉCNICO · ${cf(r.cobro_tecnico)}</div>`:''}
         ${(r.sqft_plastico||r.packs_equipo)?`<div class="meta">${r.sqft_plastico?r.sqft_plastico+' sqft plastic · ':''}${esc(r.zipper||'')}${r.packs_equipo?' · '+r.packs_equipo+' pack':''}</div>`:''}
