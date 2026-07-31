@@ -1713,7 +1713,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v56 · preguntas de campo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v57 · fotos por área</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2445,18 +2445,25 @@ function pintaGuiado(){
     <div id="glec"></div>
     <button class="btn ghost sm" id="gaddl">+ Agregar lectura</button>`;
   else if(p.tipo==='fotos'){
-    const zonas=[...new Set(['General'].concat(d.areas||[]))];
-    if(!d.zonaFoto) d.zonaFoto=zonas[0];
+    const zonas=[...new Set([L('General','General')].concat(d.areas||[]))];
+    const g=fotosPorArea(d.fotos);
     cuerpo=`
-    <div class="eyebrow" style="margin-top:0">¿De qué área son las fotos que vas a subir?</div>
-    <div class="chips" id="gzona">${zonas.map(z=>
-      `<button type="button" data-z="${esc(z)}" class="${d.zonaFoto===z?'on':''}" style="font-size:16px;padding:11px 15px">${esc(z)}</button>`).join('')}
-      <button type="button" class="add" data-zadd="1" style="font-size:16px;padding:11px 15px">+ otra área</button></div>
-    <div class="sub" style="margin-bottom:10px">Escoge el área, sube las fotos, y luego cambia de área para las siguientes. Puedes subir todas las que quieras.</div>
-    <input id="gft" type="file" accept="image/*" multiple capture="environment">
-    <div style="height:12px"></div>
-    <div id="gth"></div>
-    <div class="ok" style="margin-top:10px">${d.fotos.length} foto${d.fotos.length===1?'':'s'} en total</div>`;
+    <div class="sub" style="margin-bottom:14px">${L('Sube las fotos en el área que les toca. No hay límite.','Upload photos under the matching area. No limit.')}</div>
+    ${zonas.map((z,i)=>{
+      const fs=g[z]||[];
+      return `<div class="card" style="border-left-color:${fs.length?'var(--azul)':'var(--linea)'}">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <span class="disp" style="font-size:20px">${esc(z)}</span>
+          <span class="chip ${fs.length?'azul':'rojo'}">${fs.length} ${L('FOTOS','PHOTOS')}</span></div>
+        <div style="margin-top:10px"><input id="gft${i}" data-zi="${esc(z)}" type="file" accept="image/*" multiple capture="environment"></div>
+        ${fs.length?`<div class="thumbs" style="margin-top:10px">${fs.map(u=>`<div style="position:relative">
+          <img src="${esc(u)}">
+          <button type="button" data-qf="${esc(u)}" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;
+            border-radius:50%;border:0;background:var(--rojo);color:#fff;font-size:14px;cursor:pointer;line-height:1">×</button>
+        </div>`).join('')}</div>`:''}
+      </div>`;}).join('')}
+    <button class="btn ghost wide" id="gzadd">+ ${L('Agregar otra área','Add another area')}</button>
+    <div class="ok" style="margin-top:12px">${d.fotos.length} ${L('fotos en total','photos in total')}</div>`;
   }
   else if(p.tipo==='explica') cuerpo=`
     <textarea id="g1" style="min-height:150px;font-size:17px" placeholder="Ej. La unidad sigue mojada en la cocina, el drywall marcó 22%. Dejé los air movers trabajando. El manager dice que todavía no aprueban el estimado.">${esc(d.notas)}</textarea>`;
@@ -2666,40 +2673,28 @@ function pintaGuiado(){
     q1('#gaddl').onclick=()=>fila();
   }
   if(p.tipo==='fotos'){
-    const pinta=()=>{
-      const g=fotosPorArea(G.d.fotos);
-      q1('#gth').innerHTML=Object.keys(g).map(a=>`<div style="margin-bottom:12px">
-        <div class="meta" style="margin-bottom:5px">${esc(a.toUpperCase())} · ${g[a].length}</div>
-        <div class="thumbs">${g[a].map((u,i)=>`<div style="position:relative">
-          <img src="${esc(u)}">
-          <button type="button" data-qf="${esc(u)}" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;
-            border-radius:50%;border:0;background:var(--rojo);color:#fff;font-size:14px;cursor:pointer;line-height:1">×</button>
-        </div>`).join('')}</div></div>`).join('') || '<div class="sub">Todavía no subes fotos.</div>';
-      q1('#gth').querySelectorAll('[data-qf]').forEach(b=>b.onclick=()=>{
-        G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==b.dataset.qf); pinta(); pintaGuiado();
-      });
-    };
-    pinta();
-    qs('#gzona [data-z]').forEach(b=>b.onclick=()=>{ G.d.zonaFoto=b.dataset.z; pintaGuiado(); });
-    const za=q1('#gzona [data-zadd]');
+    qs('[data-qf]').forEach(b=>b.onclick=()=>{
+      G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==b.dataset.qf); pintaGuiado();
+    });
+    const za=q1('#gzadd');
     if(za) za.onclick=()=>{
-      const n=prompt('Nombre del área:'); if(!n||!n.trim()) return;
+      const n=prompt(ING()?'Area name:':'Nombre del área:'); if(!n||!n.trim()) return;
       const v=n.trim();
       if(!G.d.areas.includes(v)) G.d.areas.push(v);
-      G.d.zonaFoto=v; pintaGuiado();
+      pintaGuiado();
     };
-    q1('#gft').onchange=async e=>{
+    qs('[data-zi]').forEach(inp=>inp.onchange=async e=>{
       const fs=[...e.target.files]; if(!fs.length) return;
-      const zona=G.d.zonaFoto||'General';
-      toast('Subiendo '+fs.length+' foto'+(fs.length===1?'':'s')+'…');
+      const zona=inp.dataset.zi;
+      toast((ING()?'Uploading ':'Subiendo ')+fs.length+(ING()?' photo':' foto')+(fs.length===1?'':'s')+'…');
       for(const f of fs){
         const nm=`rep/${G.job?G.job.id:'intake'}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
         const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'image/jpeg'});
-        if(error){toast('No se pudo subir una foto: '+error.message);continue;}
+        if(error){toast('Error: '+error.message);continue;}
         G.d.fotos.push({u:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl, a:zona});
       }
-      toast('Listo · '+G.d.fotos.length+' fotos'); pintaGuiado();
-    };
+      toast((ING()?'Done · ':'Listo · ')+G.d.fotos.length+(ING()?' photos':' fotos')); pintaGuiado();
+    });
   }
 }
 
@@ -3424,14 +3419,35 @@ function fotosPorArea(lista){
   (lista||[]).forEach(f=>{ const a=fotoA(f)||'General'; (g[a] ||= []).push(fotoU(f)); });
   return g;
 }
+const urlDescarga = u => u + (u.includes('?') ? '&' : '?') + 'download';
 function galeriaHTML(lista){
   const g=fotosPorArea(lista);
   const claves=Object.keys(g);
   if(!claves.length) return '<div class="sub">Sin fotos.</div>';
-  return claves.map(a=>`<div style="margin-bottom:10px">
-    <div class="meta" style="margin-bottom:5px">${esc(a.toUpperCase())} · ${g[a].length}</div>
-    <div class="thumbs">${g[a].map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}"></a>`).join('')}</div>
+  return claves.map(a=>`<div class="card" style="border-left-color:var(--azul);margin-bottom:10px">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="disp" style="font-size:18px">${esc(a)}</span>
+      <div class="row" style="gap:6px">
+        <span class="chip">${g[a].length} FOTO${g[a].length===1?'':'S'}</span>
+        <button class="btn ghost sm no-print" data-dlarea="${esc(a)}">Descargar</button>
+      </div></div>
+    <div class="thumbs" style="margin-top:9px">${g[a].map(u=>
+      `<a href="${esc(u)}" target="_blank" rel="noopener" title="Abrir"><img src="${esc(u)}"></a>`).join('')}</div>
   </div>`).join('');
+}
+function engancharDescargas(lista){
+  const g=fotosPorArea(lista);
+  document.querySelectorAll('[data-dlarea]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    const urls=g[b.dataset.dlarea]||[];
+    toast('Descargando '+urls.length+' foto'+(urls.length===1?'':'s')+'…');
+    for(let i=0;i<urls.length;i++){
+      const a=document.createElement('a');
+      a.href=urlDescarga(urls[i]); a.download='';
+      document.body.appendChild(a); a.click(); a.remove();
+      await new Promise(r=>setTimeout(r,700));
+    }
+  });
 }
 const ING = () => U && U.rol==='tecnico';
 const TR = {
@@ -4952,6 +4968,7 @@ async function abrirJob(id){
     await sb.from('partidas').update(up).eq('id',s.dataset.pe);
     cerrar(); abrirJob(id);
   });
+  R.forEach(r=>{ if((r.fotos||[]).length) engancharDescargas(r.fotos); });
   document.querySelectorAll('[data-vr],[data-vr2]').forEach(b=>b.onclick=()=>{
     const rr=R.find(x=>x.id===(b.dataset.vr||b.dataset.vr2)); if(rr) verReporteCampo(rr,j);
   });
@@ -5599,6 +5616,7 @@ async function abrirEstimado(id){
       <button class="btn ghost wide no-print" id="c2">Cerrar</button>
     </div></div>`;
 
+  engancharDescargas(x.fotos||[]);
   $('#c1').onclick=$('#c2').onclick=cerrar;
   const ed2=$('#ed2'); if(ed2) ed2.onclick=()=>formEstimado(id);
   const del2=$('#del2'); if(del2) del2.onclick=async()=>{
