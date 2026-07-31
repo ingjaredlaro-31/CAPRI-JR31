@@ -617,7 +617,6 @@ async function vLevantamientos(){
     .order('created_at',{ascending:false}).limit(60);
   const R=data||[];
   const pend=R.filter(x=>x.estatus==='pendiente');
-  setTimeout(()=>document.querySelectorAll('[data-ri]').forEach(b=>b.onclick=()=>abrirLevantamiento(b.dataset.ri)),0);
   if(!R.length) return `<div class="empty"><div class="disp">Sin reportes iniciales</div>
     <p>Cuando un técnico levante un trabajo nuevo desde campo, te llega aquí para que lo revises y lo conviertas en job.</p></div>`;
   return `<div class="kpis" style="margin-bottom:12px">
@@ -1022,9 +1021,6 @@ async function vTecInicio(){
 
   setTimeout(()=>{
     engancharRep();
-    document.querySelectorAll('[data-vj2]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj2));
-    const m=$('#miruta'); if(m) m.onclick=rutaDelTecnico;
-    const bi=$('#btn_ini'); if(bi) bi.onclick=pickerInicial;
   },0);
   if(misJobs.length) POST=()=>dibujarMapaRuta(misJobs, true);
 
@@ -1141,10 +1137,6 @@ async function vTecTrabajos(){
 
   setTimeout(()=>{
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TTAB=b.dataset.t;render();});
-    document.querySelectorAll('[data-vj]').forEach(b=>b.onclick=()=>verJobTecnico(b.dataset.vj));
-    document.querySelectorAll('[data-rg2]').forEach(b=>b.onclick=e=>{
-      e.stopPropagation(); reporteGuiado(b.dataset.rg2, b.dataset.f2);
-    });
   },0);
 
   const tarjeta=j=>{
@@ -1480,12 +1472,6 @@ async function vTecReporte(){
   const atrasos=J.reduce((a,x)=>a+diasFaltantes(x, fechasPorJob[x.id]||new Set()).filter(f=>f!==h).length,0);
 
   setTimeout(()=>{
-    const lv=$('#lev'); if(lv) lv.onclick=levantamientoInicial;
-    const bin=$('#binicial'); if(bin) bin.onclick=pickerInicial;
-    document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rg,b.dataset.f||hoy()));
-    document.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>marcarNoFui(b.dataset.nf,b.dataset.f||hoy()));
-    document.querySelectorAll('[data-rgi]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rgi,b.dataset.f||hoy(),'inicial'));
-    document.querySelectorAll('[data-vj]').forEach(b=>b.onclick=e=>{e.stopPropagation();verJobTecnico(b.dataset.vj);});
   },0);
 
   const tarjeta=j=>{
@@ -1497,8 +1483,9 @@ async function vTecReporte(){
       <div class="row" style="justify-content:space-between">
         <span class="folio">${esc(j.folio)}</span>
         <div class="row" style="gap:5px">
-          ${j.tecnico_id===U.id?'<span class="chip azul">MI TRABAJO</span>':(asignados.has(j.id)?'<span class="chip azul">ASIGNADO HOY</span>':'')}
-          ${rHoy?(rHoy.asistio===false?'<span class="chip ambar">NO SE VISITÓ</span>':'<span class="chip azul">REPORTADO</span>'):'<span class="chip rojo">FALTA HOY</span>'}
+          <span class="chip ambar">${ING()?'ACTIVE':'ACTIVO'}</span>
+          ${j.tecnico_id===U.id?`<span class="chip azul">${T('MI TRABAJO')}</span>`:(asignados.has(j.id)?`<span class="chip azul">${T('ASIGNADO HOY')}</span>`:'')}
+          ${rHoy?(rHoy.asistio===false?`<span class="chip ambar">${ING()?"DIDN'T GO":'NO SE VISITÓ'}</span>`:`<span class="chip azul">${T('REPORTADO')}</span>`):`<span class="chip rojo">${T('FALTA HOY')}</span>`}
         </div></div>
       <div class="tit">${esc(prop)}</div>
       <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.tipo)}</div>
@@ -1551,9 +1538,14 @@ async function vTecReporte(){
       <div class="n">${atrasos}</div>
       <div class="t">día${atrasos===1?'':'s'} atrasado${atrasos===1?'':'s'} de días anteriores · toca la fecha en rojo dentro de cada trabajo</div>
     </div>`:''}
-    <div class="row no-print" style="margin-bottom:16px">
-      <button class="btn" style="flex:1" id="binicial">Reporte inicial</button>
-      <button class="btn ghost" style="flex:1" id="lev">Trabajo nuevo · levantamiento</button>
+    <div class="row no-print" style="margin-bottom:14px">
+      <button class="btn" style="flex:1" id="binicial">${ING()?'Initial report':'Reporte inicial'}</button>
+      <button class="btn ghost" style="flex:1" id="lev">${ING()?'New job · assessment':'Trabajo nuevo · levantamiento'}</button>
+    </div>
+    <div class="ok" style="margin-bottom:16px">
+      ${ING()
+        ? '<b>Every active job needs a report every day.</b> A job keeps showing up here until the office marks it as finished. If you did not go, tap “Didn\'t go” and pick a reason.'
+        : '<b>Todo trabajo activo se reporta todos los días.</b> El trabajo sigue apareciendo aquí hasta que oficina lo marque como terminado. Si no fuiste, toca “No fui” y escoge el motivo.'}
     </div>`;
 
   if(!J.length) return out+`<div class="empty"><div class="disp">Todavía no hay trabajos</div>
@@ -1713,7 +1705,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v58 · tipo de servicio</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v60 · arrastre diario</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1835,7 +1827,7 @@ function tarjetaTec(a,hecho,tarde){
       <button class="btn sm" data-rep="${a.job_id}" data-f="${a.fecha}">${hecho?'Ver':'Reporte'}</button>
     </div></div>`;
 }
-function engancharRep(){ document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>reporteGuiado(b.dataset.rep,b.dataset.f)); }
+function engancharRep(){}
 
 async function vTecDia(){
   const h=hoy();
@@ -2994,7 +2986,6 @@ async function vControl(){
   setTimeout(()=>{
     engancharDep();
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;render();});
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
     document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=async()=>{
       await sb.from('partidas').update({revisado:true,fecha_fin:hoy()}).eq('id',b.dataset.apr);
       toast('Partida aprobada'); render();
@@ -3456,7 +3447,6 @@ async function abrirPropiedad(id){
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   const ep2=$('#ep2'); if(ep2) ep2.onclick=()=>formPropiedad(id,pr.management_id);
-  document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
 }
 
 /* ==================== MAPA Y RUTAS ==================== */
@@ -3751,8 +3741,6 @@ async function vMapa(){
     if(U.rol!=='tecnico') engancharDep();
     document.querySelectorAll('[data-mm]').forEach(b=>b.onclick=()=>{MODO_MAPA=b.dataset.mm;render();});
     const op=$('#opt'); if(op) op.onclick=()=>{OPTIMIZAR=!OPTIMIZAR;render();};
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>
-      U.rol==='tecnico' ? verJobTecnico(b.dataset.job) : abrirJob(b.dataset.job));
   },0);
   POST=()=>dibujarMapaRuta(items, conRuta);
 
@@ -3843,7 +3831,6 @@ async function vResumen(){
 
   const engResumen=()=>{
     engancharDep();
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
     document.querySelectorAll('[data-okn]').forEach(b=>b.onclick=async e=>{
       e.stopPropagation();
@@ -3871,6 +3858,24 @@ async function vResumen(){
     s:x.job.folio+' · '+x.dias+' día'+(x.dias===1?'':'s')+' sin reportar · último '+fmt(x.ultimo)
       +' · '+(x.job.usuarios?.nombre||'sin técnico'),
     job:x.job.id}));
+  // trabajos que parecen terminados pero siguen abiertos
+  const idsAct=activos.map(x=>x.id);
+  if(idsAct.length){
+    const {data:ur}=await sb.from('reportes').select('job_id,fecha').in('job_id',idsAct);
+    const ult={}; (ur||[]).forEach(x=>{ if(!ult[x.job_id]||x.fecha>ult[x.job_id]) ult[x.job_id]=x.fecha; });
+    activos.forEach(j=>{
+      const u=ult[j.id];
+      const dd=u?dias(u,h):dias((j.fecha_inicio||j.created_at||h).slice(0,10),h);
+      const P2=P.filter(x=>x.job_id===j.id);
+      const todasListas=P2.length>0 && P2.every(x=>x.estatus==='terminada');
+      if(dd>=5 || todasListas)
+        alertas.push({g:'¿Ya terminó?', c:'m',
+          t:(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:''),
+          s:j.folio+' · '+(todasListas?'todas las reparaciones están listas':dd+' días sin movimiento')
+            +' · ciérralo o el técnico lo va a seguir reportando',
+          job:j.id});
+    });
+  }
   const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').limit(6);
   (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',
     t:(x.propiedad_texto||'Levantamiento')+(x.unidad?' · Unit '+x.unidad:''),
@@ -3949,7 +3954,7 @@ async function vResumen(){
     <div class="eyebrow">Requiere tu atención · ${alertas.length}</div>
     ${(()=>{
       if(!alertas.length) return `<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`;
-      const ORDEN=['Días sin reporte','Reporte de hoy','Trabajo por revisar','Reportes iniciales',
+      const ORDEN=['Días sin reporte','Reporte de hoy','Trabajo por revisar','¿Ya terminó?','Reportes iniciales',
         'Recordatorios','Reparaciones','Estimados','Facturación','Avisos nuevos'];
       const ocultas=leerOcultas();
       const vivas=alertas.filter(a=>a.nid || !ocultas.has(claveAlerta(a)));
@@ -4031,7 +4036,6 @@ async function vManagements(){
   const cuenta=(arr,id)=>(arr||[]).filter(x=>x.management_id===id).length;
   setTimeout(()=>{
     const n=$('#nm'); if(n) n.onclick=()=>formManagement();
-    document.querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>abrirManagement(b.dataset.mg));
   },0);
   return `${EDIT()?'<button class="btn wide no-print" id="nm">+ Nuevo management</button>':''}
     <div class="eyebrow">Managements · ${(mg||[]).length}</div>
@@ -4108,10 +4112,7 @@ async function abrirManagement(id){
   const np=$('#np'); if(np) np.onclick=()=>formPropiedad(null,id);
   const nc2=$('#nc2'); if(nc2) nc2.onclick=()=>formContacto(null,id,P);
   document.querySelectorAll('[data-ep]').forEach(b=>b.onclick=e=>{e.stopPropagation();formPropiedad(b.dataset.ep,id);});
-  document.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>abrirPropiedad(b.dataset.pv));
-  document.querySelectorAll('[data-pv2]').forEach(b=>b.onclick=e=>{e.stopPropagation();abrirPropiedad(b.dataset.pv2);});
   document.querySelectorAll('[data-ec]').forEach(b=>b.onclick=()=>formContacto(b.dataset.ec,id,P));
-  document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job));
 }
 
 async function formManagement(id){
@@ -4989,7 +4990,6 @@ async function abrirJob(id){
   const ne1=$('#nuevoest'), ne2=$('#nuevoest2');
   if(ne1) ne1.onclick=()=>{ cerrar(); formEstimado(null,id); };
   if(ne2) ne2.onclick=()=>{ cerrar(); formEstimado(null,id); };
-  document.querySelectorAll('[data-vest]').forEach(b=>b.onclick=()=>{ cerrar(); abrirEstimado(b.dataset.vest); });
   const an=$('#an'); if(an) an.onclick=async()=>{
     const t=$('#nt').value.trim(); if(!t) return;
     await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
@@ -5562,8 +5562,6 @@ async function vEstimados(){
   setTimeout(()=>{
     const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ETAB=b.dataset.t;render();});
-    document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>abrirEstimado(b.dataset.ver));
-    document.querySelectorAll('[data-nejob]').forEach(b=>b.onclick=()=>formEstimado(null,b.dataset.nejob));
   },0);
 
   const tarjeta=e=>{
@@ -5993,16 +5991,66 @@ document.addEventListener('click', e=>{
   if(x) x.click(); else cerrar();
 });
 
-/* Navegación global: funciona sin importar cuándo se pinte la pantalla */
+/* Acciones globales: funcionan sin importar cuándo se pinte la pantalla */
 document.addEventListener('click', e=>{
   if(!U) return;
-  const ir = e.target.closest('[data-ir]');
-  if(ir){
-    e.preventDefault();
-    const d=ir.dataset.ir;
+  const el = k => e.target.closest('['+k+']');
+  const idEl = id => e.target.closest('#'+id);
+  const F = () => hoy();
+
+  const ir = el('data-ir');
+  if(ir){ e.preventDefault(); const d=ir.dataset.ir;
     if(d==='salir') return salir();
-    V=d; render();
-  }
+    V=d; return render(); }
+
+  // abrir trabajos
+  const vj = el('data-vj') || el('data-vj2');
+  if(vj){ e.preventDefault(); e.stopPropagation();
+    return verJobTecnico(vj.dataset.vj || vj.dataset.vj2); }
+
+  const jb = el('data-job');
+  if(jb){ e.preventDefault();
+    return U.rol==='tecnico' ? verJobTecnico(jb.dataset.job) : abrirJob(jb.dataset.job); }
+
+  // reportes
+  const rgi = el('data-rgi');
+  if(rgi){ e.preventDefault(); return reporteGuiado(rgi.dataset.rgi, rgi.dataset.f||F(), 'inicial'); }
+
+  const rini = el('data-ini');
+  if(rini){ e.preventDefault(); cerrar(); return reporteGuiado(rini.dataset.ini, F(), 'inicial'); }
+
+  const rg = el('data-rg') || el('data-rg2') || el('data-rgf') || el('data-rep');
+  if(rg){ e.preventDefault(); e.stopPropagation();
+    const id = rg.dataset.rg || rg.dataset.rg2 || rg.dataset.rgf || rg.dataset.rep;
+    const f  = rg.dataset.f || rg.dataset.f2 || rg.dataset.rgf || F();
+    return reporteGuiado(id, /^\d{4}-\d{2}-\d{2}$/.test(f)?f:F()); }
+
+  const nf = el('data-nf');
+  if(nf){ e.preventDefault(); e.stopPropagation(); return marcarNoFui(nf.dataset.nf, nf.dataset.f||F()); }
+
+  // estimados, managements, propiedades, levantamientos
+  const ve = el('data-ver') || el('data-vest');
+  if(ve){ e.preventDefault(); const id=ve.dataset.ver||ve.dataset.vest;
+    if(ve.dataset.vest) cerrar();
+    return abrirEstimado(id); }
+
+  const nj = el('data-nejob');
+  if(nj){ e.preventDefault(); return formEstimado(null, nj.dataset.nejob); }
+
+  const mg = el('data-mg');
+  if(mg){ e.preventDefault(); return abrirManagement(mg.dataset.mg); }
+
+  const pv = el('data-pv') || el('data-pv2');
+  if(pv){ e.preventDefault(); e.stopPropagation(); return abrirPropiedad(pv.dataset.pv||pv.dataset.pv2); }
+
+  const ri = el('data-ri');
+  if(ri){ e.preventDefault(); return abrirLevantamiento(ri.dataset.ri); }
+
+  // botones por id
+  if(idEl('btn_ini') || idEl('binicial')){ e.preventDefault(); return pickerInicial(); }
+  if(idEl('lev')){ e.preventDefault(); return levantamientoInicial(); }
+  if(idEl('miruta')){ e.preventDefault(); return rutaDelTecnico(); }
+  if(idEl('irmapa')){ e.preventDefault(); V='mapa'; return render(); }
 });
 
 const g=sessionStorage.getItem('jr31');
