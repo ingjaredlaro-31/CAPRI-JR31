@@ -947,40 +947,68 @@ async function nuevoTrabajoTecnico(){
 }
 
 async function pickerInicial(){
+  toast(ING()?'Loading jobs…':'Cargando trabajos…');
   const dep = U.departamento==='ambos'?null:U.departamento;
-  let q=sb.from('jobs').select('id,folio,cliente,unidad,tipo,fecha_inicio,created_at, propiedades(nombre)')
+  let q=sb.from('jobs').select('*, propiedades(nombre)')
     .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false}).limit(80);
   if(dep) q=q.eq('departamento',dep);
-  const {data:jobs}=await q;
+  const {data:jobs,error:eJ}=await q;
+  if(eJ){ return toast('Error: '+eJ.message); }
   const J=jobs||[];
-  let conIni=new Set();
-  if(J.length){
-    const {data:ri}=await sb.from('reportes').select('job_id').eq('tipo_reporte','inicial').in('job_id',J.map(x=>x.id));
-    conIni=new Set((ri||[]).map(x=>x.job_id));
+  if(!J.length){
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div style="min-width:0"><div class="disp">${ING()?'No jobs':'Sin trabajos'}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body"><div class="empty"><div class="disp">${ING()?'No active jobs':'No hay trabajos activos'}</div>
+      <p>${ING()?'The office has to create the job first.':'Oficina tiene que dar de alta el trabajo primero.'}</p></div>
+      <button class="btn ghost wide" id="c2">${ING()?'Close':'Cerrar'}</button></div></div>`;
+    $('#c1').onclick=$('#c2').onclick=cerrar; return;
   }
+  let conIni=new Set();
+  try{
+    const {data:ri}=await sb.from('reportes').select('job_id,tipo_reporte').in('job_id',J.map(x=>x.id));
+    conIni=new Set((ri||[]).filter(x=>x.tipo_reporte==='inicial').map(x=>x.job_id));
+  }catch(e){}
   const sin=J.filter(x=>!conIni.has(x.id)), con=J.filter(x=>conIni.has(x.id));
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
-    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">REPORTE INICIAL</div>
-    <div class="disp">¿De qué trabajo?</div>
-    <div style="color:#C3D6F7">Levantamiento completo del sitio</div></div>
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${ING()?'INITIAL REPORT':'REPORTE INICIAL'}</div>
+    <div class="disp">${ING()?'Which job?':'¿De qué trabajo?'}</div>
+    <div style="color:#C3D6F7">${ING()?'Full site assessment':'Levantamiento completo del sitio'}</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
-      ${sin.length?`<div class="eyebrow" style="margin-top:0">Sin reporte inicial · ${sin.length}</div>
+      <button class="destacado no-print" id="lev" style="margin-bottom:16px">
+        <div class="et">${ING()?'NOT IN THE SYSTEM':'NO ESTÁ EN EL SISTEMA'}</div>
+        <div class="tt">${ING()?'New job':'Trabajo nuevo'}</div>
+        <div class="ss">${ING()?'You arrived at a job the office has not created yet':'Llegaste a un trabajo que oficina todavía no da de alta'}</div>
+        <div class="fl">›</div>
+      </button>
+
+      ${sin.length?`<div class="eyebrow" style="margin-top:0">${ING()?'Without initial report':'Sin reporte inicial'} · ${sin.length}</div>
         ${sin.map(j=>`<div class="fila r" data-ini="${j.id}">
           <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+esc(j.unidad):''}</b>
           <span class="sub">${esc(j.folio)} · ${esc(j.tipo)} · ${esc(antiguedad(j).txt)}</span></div>
-          <span class="chip rojo">LEVANTAR</span></div>`).join('')}`
-        :`<div class="ok">Todos los trabajos activos ya tienen su reporte inicial.</div>`}
-      ${con.length?`<div class="eyebrow">Ya tienen inicial · ${con.length}</div>
-        <div class="sub" style="margin-bottom:8px">Solo puedes corregir el que ya existe.</div>
+          <span class="chip rojo">${ING()?'START':'LEVANTAR'}</span></div>`).join('')}`
+        :`<div class="ok">${ING()?'All active jobs already have their initial report.':'Todos los trabajos activos ya tienen su reporte inicial.'}</div>`}
+
+      ${con.length?`<div class="eyebrow">${ING()?'Already have an initial':'Ya tienen inicial'} · ${con.length}</div>
+        <div class="sub" style="margin-bottom:8px">${ING()?'You can only edit the existing one.':'Solo puedes corregir el que ya existe.'}</div>
         ${con.map(j=>`<div class="fila" data-ini="${j.id}">
           <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' · Unit '+esc(j.unidad):''}</b>
-          <span class="sub">${esc(j.folio)}</span></div>
-          <span class="chip azul">HECHO</span></div>`).join('')}`:''}
+          <span class="sub">${esc(j.folio)} · ${esc(antiguedad(j).txt)}</span></div>
+          <span class="chip azul">${ING()?'DONE':'HECHO'}</span></div>`).join('')}`:''}
+
+      <div class="eyebrow">${ING()?'Daily reports':'Reportes diarios'}</div>
+      <div class="fila a" data-ir="reporte">
+        <div class="t"><b>${ING()?'Go to my daily reports':'Ir a mis reportes diarios'}</b>
+        <span class="sub">${ING()?'One report per active job, every day':'Un reporte por cada trabajo activo, todos los días'}</span></div>
+        <span class="chip azul">${ING()?'OPEN':'ABRIR'}</span>
+      </div>
+
       <div style="height:18px"></div>
-      <button class="btn ghost wide" id="c2">Cerrar</button>
+      <button class="btn ghost wide" id="c2">${ING()?'Close':'Cerrar'}</button>
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#sheet').querySelectorAll('[data-ini]').forEach(b=>b.onclick=()=>{
@@ -1417,7 +1445,10 @@ function inicioJob(j){ return (j.fecha_inicio||j.created_at||hoy()).slice(0,10);
 function antiguedad(j){
   const ini=inicioJob(j);
   const d=dias(ini,hoy())+1;
-  return {ini, d, txt:'Inició '+fmt(ini)+' · día '+d+' del trabajo'};
+  const txt = (typeof ING==='function' && ING())
+    ? 'Started '+fmt(ini)+' · day '+d+' of the job'
+    : 'Inició '+fmt(ini)+' · día '+d+' del trabajo';
+  return {ini, d, txt};
 }
 
 function diasFaltantes(job, fechasConReporte, maxDias){
@@ -1705,7 +1736,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v60 · arrastre diario</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v62 · trabajo nuevo desde el técnico</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5971,7 +6002,10 @@ const obsSheet = new MutationObserver(()=>{
   if(cont.querySelector('.sheetnav')) return;
   const nav = document.createElement('div');
   nav.className='sheetnav no-print';
-  nav.innerHTML = '<button data-snav="atras">‹ Atrás</button><button data-snav="inicio">⌂ Inicio</button>';
+  const enT = (U && U.rol==='tecnico');
+  nav.innerHTML = enT
+    ? '<button data-snav="atras">‹ Back</button><button data-snav="inicio">⌂ Home</button>'
+    : '<button data-snav="atras">‹ Atrás</button><button data-snav="inicio">⌂ Inicio</button>';
   cab.insertAdjacentElement('afterend', nav);
 });
 obsSheet.observe(document.getElementById('sheet'), {childList:true, subtree:false});
@@ -5991,9 +6025,20 @@ document.addEventListener('click', e=>{
   if(x) x.click(); else cerrar();
 });
 
+window.addEventListener('error', ev=>{
+  try{ toast('Error: '+(ev.message||'').slice(0,90)); }catch(x){}
+});
+window.addEventListener('unhandledrejection', ev=>{
+  try{ toast('Error: '+((ev.reason&&ev.reason.message)||ev.reason||'').toString().slice(0,90)); }catch(x){}
+});
+
 /* Acciones globales: funcionan sin importar cuándo se pinte la pantalla */
 document.addEventListener('click', e=>{
   if(!U) return;
+  try{ accionGlobal(e); }catch(err){ console.error(err); toast('Error: '+(err.message||err)); }
+});
+
+function accionGlobal(e){
   const el = k => e.target.closest('['+k+']');
   const idEl = id => e.target.closest('#'+id);
   const F = () => hoy();
@@ -6048,10 +6093,10 @@ document.addEventListener('click', e=>{
 
   // botones por id
   if(idEl('btn_ini') || idEl('binicial')){ e.preventDefault(); return pickerInicial(); }
-  if(idEl('lev')){ e.preventDefault(); return levantamientoInicial(); }
+  if(idEl('lev')){ e.preventDefault(); cerrar(); return levantamientoInicial(); }
   if(idEl('miruta')){ e.preventDefault(); return rutaDelTecnico(); }
   if(idEl('irmapa')){ e.preventDefault(); V='mapa'; return render(); }
-});
+}
 
 const g=sessionStorage.getItem('jr31');
 if(g){ U=JSON.parse(g); PUERTA=U.rol; DEP=U.departamento==='ambos'?'restoration':U.departamento;
