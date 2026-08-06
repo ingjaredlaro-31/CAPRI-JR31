@@ -1105,6 +1105,8 @@ function buscarCliente(pref){
         <div class="sub" style="margin-top:16px;font-size:14px">
           Your job number and access code are on the paperwork we left on site,
           or you can request them from our office.</div>
+        <div style="height:14px"></div>
+        <button class="btn ghost wide" id="b_volver" style="font-size:15px">← Staff login</button>
       </div>
     </div>
     <div class="mono" style="font-size:10px;letter-spacing:.18em;color:var(--gris);text-align:center;margin-top:16px">
@@ -1125,6 +1127,8 @@ function buscarCliente(pref){
     pintaPortal(data);
   };
   $('#b_go').onclick=ir;
+  const bv=$('#b_volver');
+  if(bv) bv.onclick=()=>{ document.body.classList.remove('portal'); portada(); };
   $('#b_cod').onkeydown=e=>{ if(e.key==='Enter') ir(); };
   $('#b_folio').onkeydown=e=>{ if(e.key==='Enter') $('#b_cod').focus(); };
 }
@@ -2054,10 +2058,22 @@ function portada(){
           <span class="t">${v.t}</span>
           <span class="s">${v.s}</span>
         </button>`).join('')}
+
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 0 14px">
+        <div style="flex:1;height:1px;background:#DDE1E6"></div>
+        <span style="font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:#8A93A0">CLIENTS</span>
+        <div style="flex:1;height:1px;background:#DDE1E6"></div>
+      </div>
+
+      <button class="puerta" id="p_cliente" style="border-left-color:var(--oro);background:#FFF8E8!important;border-color:#E8D9AE!important">
+        <span class="t">Track my job</span>
+        <span class="s">Property managers · enter your job number</span>
+      </button>
     </div>
     <div class="pie">SAN DIEGO · CALIFORNIA</div>
   </div></div>`;
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ PUERTA=b.dataset.p; login(); });
+  const pc=$('#p_cliente'); if(pc) pc.onclick=()=>buscarCliente();
 }
 
 function bienvenida(u, luego){
@@ -2177,7 +2193,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v73 · portal por folio</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v74 · acceso del cliente</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4028,7 +4044,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='73';
+const VERSION='74';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
