@@ -2193,7 +2193,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v75 · envío al manager</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v76 · botones corregidos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2844,6 +2844,9 @@ function pintaGuiado(){
     ];
     cuerpo=`<div class="chips" id="gps">${PASOS.map(x=>
       `<button type="button" data-ps="${esc(x)}" class="${(d.proximo_paso||[]).includes(x)?'on':''}" style="font-size:16px;padding:12px 16px">${esc(x)}</button>`).join('')}</div>
+      <div class="sub" style="margin-top:10px">${(d.proximo_paso||[]).length
+        ? L('Seleccionado: ','Selected: ')+esc((d.proximo_paso||[]).join(' · '))
+        : L('Puedes marcar varios, o solo escribir el detalle abajo.','You can tap several, or just write the detail below.')}</div>
       <label>${L('Detalle de lo que sigue','Detail of what comes next')}</label>
       <input id="g1" value="${esc(d.siguiente_trabajo)}" placeholder="${L('Moisture check el lunes a las 9am','Moisture check Monday at 9am')}" style="font-size:17px">`;
   }
@@ -3132,11 +3135,11 @@ function pintaGuiado(){
   q1('#gnext').onclick=async()=>{
     guardaPaso();
     const pa=G.pasos[G.paso];
-    if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
+    if(pa.req && !G.d[pa.k].length) return toast(ING()?'Tap at least one option.':'Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
     if(pa.tipo==='tiposerv' && !G.d.tipo_servicio) return toast(ING()?'Select the type of job.':'Escoge el tipo de trabajo.');
     if(pa.reqTexto2 && !(G.d.hallazgos||'').trim()) return toast(ING()?'Write what you found.':'Escribe qué encontraste.');
-    if(pa.tipo==='siguiente' && !(G.d.proximo_paso||[]).length) return toast(ING()?'Pick at least one next step.':'Marca al menos un paso siguiente.');
+
     if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Select the source of the loss.':'Escoge la fuente del daño.');
 
     if(pa.tipo==='materiales' || pa.tipo==='medidas'){
@@ -3163,52 +3166,11 @@ function pintaGuiado(){
   }
   // ---- Enganches: se aplican a lo que exista en pantalla, sin importar el paso ----
 
-  qs('#gps [data-ps]').forEach(b=>b.onclick=()=>{
-    const v=b.dataset.ps; G.d.proximo_paso=G.d.proximo_paso||[];
-    const i=G.d.proximo_paso.indexOf(v);
-    if(i>=0) G.d.proximo_paso.splice(i,1); else G.d.proximo_paso.push(v);
-    const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); pintaGuiado(); });
 
-  qs('#q_ah2 [data-b]').forEach(b=>b.onclick=()=>{ G.d.after_hours=b.dataset.b==='1'; pintaGuiado(); });
-
-  qs('[data-rk]').forEach(b=>b.onclick=()=>{
-    const k=b.dataset.rk, v=b.dataset.rv==='1';
-    if(k==='ocupada_b') G.d.ocupada = v?'ocupada':'vacia'; else G.d[k]=v;
-    if(k==='vecinos_afectados' || k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
-    pintaGuiado();
-  });
-
-  qs('[data-sv]').forEach(b=>b.onclick=()=>{ G.d.tipo=b.dataset.sv; pintaGuiado(); });
-  qs('[data-t]').forEach(b=>b.onclick=()=>{ G.tipo=b.dataset.t; pasosGuiado(); pintaGuiado(); });
-  qs('[data-o]').forEach(b=>b.onclick=()=>{ G.d.ocupada=b.dataset.o; pintaGuiado(); });
 
   // sí/no de un solo campo (pasos tipo 'sino')
-  if(p.tipo==='sino') qs('[data-b]').forEach(b=>b.onclick=()=>{
-    G.d[p.k]=b.dataset.b==='1';
-    if(p.k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
-    pintaGuiado(); });
 
   // chips genéricos (áreas, servicios, materiales)
-  const contC = q1('#gc');
-  if(contC){
-    const kk = p.k || 'material_removido';
-    const cat = p.cat ? G[p.cat] : G.mcat;
-    const tabla = p.tabla || 'materiales_catalogo';
-    contC.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
-      const v=b.dataset.c, arr=G.d[kk], i=arr.indexOf(v);
-      if(i>=0) arr.splice(i,1); else arr.push(v);
-      if(kk==='material_removido' || kk==='areas'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
-      pintaGuiado();
-    });
-    const ba=contC.querySelector('[data-add]');
-    if(ba) ba.onclick=async()=>{
-      const n=prompt(ING()?'Type the name:':'Escribe el nombre:'); if(!n||!n.trim()) return;
-      const v=n.trim();
-      if(cat && !cat.includes(v)){ cat.push(v); try{ await sb.from(tabla).insert({nombre:v}); }catch(e){} }
-      if(!G.d[kk].includes(v)) G.d[kk].push(v);
-      pintaGuiado();
-    };
-  }
 
   // ubicación del levantamiento
   const selMg=q1('#g_mg');
@@ -3233,30 +3195,7 @@ function pintaGuiado(){
     (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
     q1('#gaddl').onclick=()=>fila();
   }
-  if(p.tipo==='servicio') qs('[data-sv]').forEach(b=>b.onclick=()=>{
-    G.d.tipo=b.dataset.sv; pintaGuiado(); });
-  if(p.tipo==='tipo') qs('[data-t]').forEach(b=>b.onclick=()=>{
-    G.tipo=b.dataset.t; pasosGuiado(); pintaGuiado(); });
-  if(p.tipo==='sino') qs('[data-b]').forEach(b=>b.onclick=()=>{
-    G.d[p.k]=b.dataset.b==='1';
-    if(p.k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
-    pintaGuiado(); });
-  if(p.tipo==='ocup') qs('[data-o]').forEach(b=>b.onclick=()=>{
-    G.d.ocupada=b.dataset.o; pintaGuiado(); });
   if(p.tipo==='chips'){
-    qs('#gc [data-c]').forEach(b=>b.onclick=()=>{
-      const v=b.dataset.c, arr=G.d[p.k], i=arr.indexOf(v);
-      if(i>=0) arr.splice(i,1); else arr.push(v);
-      if(p.k==='material_removido'){ const paso=G.paso; pasosGuiado(); G.paso=Math.min(paso,G.pasos.length-1); }
-      pintaGuiado();
-    });
-    q1('#gc [data-add]').onclick=async()=>{
-      const nn=prompt('Escribe el nombre nuevo:'); if(!nn||!nn.trim()) return;
-      const v=nn.trim();
-      if(!G[p.cat].includes(v)){ G[p.cat].push(v); await sb.from(p.tabla).insert({nombre:v}); }
-      if(!G.d[p.k].includes(v)) G.d[p.k].push(v);
-      pintaGuiado();
-    };
   }
   if(p.tipo==='lecturas'){
     const lec=q1('#glec');
@@ -3305,30 +3244,6 @@ function pintaGuiado(){
     toast(ING()?'Draft built from your answers':'Borrador armado con tus respuestas');
   };
 
-  if(p.tipo==='fotos'){
-    qs('[data-qf]').forEach(b=>b.onclick=()=>{
-      G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==b.dataset.qf); pintaGuiado();
-    });
-    const za=q1('#gzadd');
-    if(za) za.onclick=()=>{
-      const n=prompt(ING()?'Area name:':'Nombre del área:'); if(!n||!n.trim()) return;
-      const v=n.trim();
-      if(!G.d.areas.includes(v)) G.d.areas.push(v);
-      pintaGuiado();
-    };
-    qs('[data-zi]').forEach(inp=>inp.onchange=async e=>{
-      const fs=[...e.target.files]; if(!fs.length) return;
-      const zona=inp.dataset.zi;
-      toast((ING()?'Uploading ':'Subiendo ')+fs.length+(ING()?' photo':' foto')+(fs.length===1?'':'s')+'…');
-      for(const f of fs){
-        const nm=`rep/${G.job?G.job.id:'intake'}/${G.fecha}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
-        const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'image/jpeg'});
-        if(error){toast('Error: '+error.message);continue;}
-        G.d.fotos.push({u:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl, a:zona});
-      }
-      toast((ING()?'Done · ':'Listo · ')+G.d.fotos.length+(ING()?' photos':' fotos')); pintaGuiado();
-    });
-  }
 }
 
 function guardaPaso(){
@@ -4044,7 +3959,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='75';
+const VERSION='76';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
