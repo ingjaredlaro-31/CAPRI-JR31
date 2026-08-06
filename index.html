@@ -4462,7 +4462,7 @@ async function vResumen(){
       +' · '+(x.job.usuarios?.nombre||'sin técnico'),
     job:x.job.id}));
   // estimados enviados sin respuesta
-  (EST||[]).filter(x=>x.estatus==='enviado').forEach(x=>{
+  (ests||[]).filter(x=>x.estatus==='enviado').forEach(x=>{
     const d=x.fecha_envio?dias(x.fecha_envio,h):0;
     if(d>=2) alertas.push({g:'Estimados sin respuesta', c: d>=7?'r':'m',
       t:(x.cliente||'')+' · '+cf(x.monto),
