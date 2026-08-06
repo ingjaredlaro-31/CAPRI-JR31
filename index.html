@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
 <script>
   // Aplica el tema antes de pintar, para que no salga el destello blanco
@@ -346,6 +349,40 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
   background:var(--sup2);color:var(--gris);font-family:var(--disp);font-size:17px;cursor:pointer}
 .rap-b button.si{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
 .rap-b button.no{background:var(--sup2);border-color:var(--gris);color:var(--tinta)}
+.bi{display:block;font-family:var(--body);font-size:11.5px;font-weight:400;letter-spacing:.02em;
+  text-transform:none;color:var(--gris);margin-top:1px;line-height:1.2}
+.side button .bi{color:#6B7280}
+.side button.on .bi{color:rgba(255,255,255,.65)}
+.portal-wrap{max-width:860px;margin:0 auto;padding:0 0 40px}
+.pcarga{display:flex;align-items:center;justify-content:center;min-height:70vh;color:var(--gris)}
+.pcab{background:#070B12;padding:34px 24px 28px;text-align:center;position:relative;overflow:hidden}
+.pcab .rot{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;color:#8494AD;text-transform:uppercase}
+.pcab .tt{font-family:var(--disp);font-weight:800;font-size:34px;color:#fff;line-height:1.02;margin-top:9px;text-transform:uppercase}
+.pcab .psub{font-size:16px;color:#C3D6F7;margin-top:5px}
+.pbody{padding:22px 18px 0}
+.pblk{margin-top:12px;padding-top:11px;border-top:1px solid var(--linea2)}
+.ptab{width:100%;border-collapse:collapse;margin-top:6px;font-size:15px}
+.ptab th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--gris);text-align:left;
+  padding:5px 8px 5px 0;border-bottom:1px solid var(--linea)}
+.ptab td{padding:7px 8px 7px 0;border-bottom:1px solid var(--linea2)}
+details.rep{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--azul);
+  border-radius:0 12px 12px 0;margin-bottom:10px;overflow:hidden}
+details.rep.nov{border-left-color:var(--ambar)}
+details.rep summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:15px 16px}
+details.rep summary::-webkit-details-marker{display:none}
+details.rep summary:hover{background:var(--sup2)}
+details.rep .ac-fl{color:var(--gris);transition:transform .2s}
+details.rep[open] .ac-fl{transform:rotate(180deg)}
+details.rep .rep-b{padding:4px 16px 18px}
+.pfoot{text-align:center;padding:34px 14px;margin-top:30px;border-top:1px solid var(--linea);color:var(--gris)}
+body.portal .fondo-tex{opacity:.5}
+@media print{
+  details.rep{break-inside:avoid;page-break-inside:avoid}
+  details.rep .rep-b{display:block!important}
+  .pcab{background:#fff!important;color:#000!important}
+  .pcab .tt{color:#000!important}
+  .pcab .rot,.pcab .psub{color:#444!important}
+}
 .destacado{display:block;width:100%;text-align:left;position:relative;overflow:hidden;cursor:pointer;
   background:linear-gradient(135deg,#E2B85A 0%,#C9962B 55%,#A8791F 100%);color:#0B0D11;border:0;
   border-radius:14px;padding:20px 22px;margin-bottom:14px;box-shadow:0 8px 26px rgba(201,150,43,.28)}
@@ -740,8 +777,33 @@ async function abrirLevantamiento(id){
 /* ==================== NOTIFICACIONES ==================== */
 let NOTIF=0;
 
+async function avisarTecnicos(){
+  const h=hoy();
+  if(new Date().getHours() < HORA_AVISO) return;
+  const {data:tecs}=await sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true);
+  if(!tecs||!tecs.length) return;
+  const {data:jobs}=await sb.from('jobs')
+    .select('id,departamento,fecha_inicio,created_at').not('estatus','in','("terminado","facturado")');
+  const J=jobs||[];
+  if(!J.length) return;
+  const {data:reps}=await sb.from('reportes').select('job_id,fecha').in('job_id',J.map(x=>x.id)).gte('fecha',hace(30));
+  const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
+  for(const t of tecs){
+    const suyos = J.filter(x=>t.departamento==='ambos' || x.departamento===t.departamento);
+    let total=0, jobsCon=0;
+    suyos.forEach(j=>{ const f=diasFaltantes(j, porJob[j.id]||new Set()); if(f.length){ total+=f.length; jobsCon++; } });
+    if(!total) continue;
+    await sb.from('notificaciones').insert({
+      tipo:'recordatorio', clave:'rec-'+t.id+'-'+h,
+      titulo:'You owe '+total+' report'+(total===1?'':'s'),
+      texto:jobsCon+' job'+(jobsCon===1?'':'s')+' waiting for your report. Open the app and close them, or mark why you did not go.',
+      para_rol:'tecnico', para_usuario:t.id});
+  }
+}
+
 async function revisarFaltantes(){
   if(!U || U.rol==='tecnico') return [];
+  avisarTecnicos();
   const h=hoy(), ayer=hace(1);
   const {data:jobs}=await sb.from('jobs')
     .select('id,folio,cliente,unidad,fecha_inicio,created_at,departamento,tecnico_id, propiedades(nombre), usuarios(nombre)')
@@ -1016,6 +1078,380 @@ async function pickerInicial(){
   });
 }
 
+/* ==================== PORTAL DEL CLIENTE (solo lectura, en inglés) ==================== */
+function buscarCliente(pref){
+  document.body.classList.add('portal');
+  $('#root').innerHTML = `
+  <div class="login-page"><div class="fondo-tex"></div><div class="login">
+    <div class="box">
+      <div class="portada marca-agua">
+        <div class="logo-img"></div>
+        <div class="rot" style="text-align:center">CAPRI RESTORATION SERVICES INC</div>
+        <div class="tt" style="text-align:center">Job Status</div>
+        <div class="mono" style="font-size:12px;letter-spacing:.4em;color:var(--oro);margin-top:10px;text-align:center;font-weight:600">JR31</div>
+      </div>
+      <div class="franja split" style="border-radius:0"><i></i><i></i></div>
+      <div class="cajaclara">
+        <div class="eyebrow">Look up your job</div>
+        <label style="margin-top:0">Job number</label>
+        <input id="b_folio" value="${esc(pref||'')}" placeholder="CAP-1005" autocapitalize="characters"
+          style="font-family:var(--mono);font-size:21px;letter-spacing:.05em">
+        <label>Access code</label>
+        <input id="b_cod" placeholder="7K2M9P" autocapitalize="characters" maxlength="8"
+          style="font-family:var(--mono);font-size:21px;letter-spacing:.18em;text-transform:uppercase">
+        <div style="height:20px"></div>
+        <button class="btn wide" id="b_go">View my job</button>
+        <div id="b_msg" style="margin-top:14px"></div>
+        <div class="sub" style="margin-top:16px;font-size:14px">
+          Your job number and access code are on the paperwork we left on site,
+          or you can request them from our office.</div>
+      </div>
+    </div>
+    <div class="mono" style="font-size:10px;letter-spacing:.18em;color:var(--gris);text-align:center;margin-top:16px">
+      SAN DIEGO · CALIFORNIA</div>
+  </div></div>`;
+
+  const ir=async()=>{
+    const f=$('#b_folio').value.trim(), c=$('#b_cod').value.trim();
+    if(!f||!c){ $('#b_msg').innerHTML='<div class="alerta"><div class="t">Enter both the job number and the access code.</div></div>'; return; }
+    $('#b_go').textContent='Searching…'; $('#b_msg').innerHTML='';
+    const {data,error}=await sb.rpc('portal_buscar',{p_folio:f, p_codigo:c});
+    $('#b_go').textContent='View my job';
+    if(error || !data || !data.ok){
+      $('#b_msg').innerHTML='<div class="alerta"><div class="t">We could not find a job with that number and code. Please check both and try again.</div></div>';
+      return;
+    }
+    try{ localStorage.setItem('jr31_cli', JSON.stringify({f,c})); }catch(e){}
+    pintaPortal(data);
+  };
+  $('#b_go').onclick=ir;
+  $('#b_cod').onkeydown=e=>{ if(e.key==='Enter') ir(); };
+  $('#b_folio').onkeydown=e=>{ if(e.key==='Enter') $('#b_cod').focus(); };
+}
+
+function linkPortal(tok){ return location.origin + location.pathname + '?w=' + tok; }
+function tokenURL(){ try{ return new URLSearchParams(location.search).get('w'); }catch(e){ return null; } }
+
+async function portalCliente(tok){
+  document.body.classList.add('portal');
+  $('#root').innerHTML = `<div class="pcarga"><div class="disp" style="font-size:26px">Loading job report…</div></div>`;
+
+  const {data, error} = await sb.rpc('portal_job', {tok});
+  if(error || !data || !data.ok){
+    $('#root').innerHTML = `<div class="login-page"><div class="login"><div class="box">
+      <div class="portada marca-agua"><div class="logo-img"></div>
+        <div class="rot" style="text-align:center">CAPRI RESTORATION SERVICES INC</div>
+        <div class="tt" style="text-align:center">Link not available</div></div>
+      <div class="franja split" style="border-radius:0"><i></i><i></i></div>
+      <div class="cajaclara">
+        <p style="color:var(--rojo)">This link is no longer active or does not exist.</p>
+        <div class="sub">Please contact Capri Restoration Services for an updated link.</div>
+      </div></div></div></div>`;
+    return;
+  }
+
+  pintaPortal(data);
+}
+
+function pintaPortal(data){
+  document.body.classList.add('portal');
+  const j = data.job, R = data.reportes||[], P = data.reparaciones||[], EST = data.estimados||[];
+  const dLarga = f => f ? new Date(f+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '';
+  const dCorta = f => f ? new Date(f+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+  const SN = v => v===true?'Yes':(v===false?'No':'—');
+  const ini = (j.fecha_inicio||'').slice(0,10);
+  const diasJob = ini ? dias(ini, hoy())+1 : 0;
+
+  const ETAPAS_EN = [
+    {k:'inicial', t:'Initial report'}, {k:'reportes', t:'Daily reports'},
+    {k:'estimado', t:'Estimate sent'}, {k:'trabajando', t:'In progress'},
+    {k:'seco', t:'Dry'}, {k:'reparando', t:'Repairs'},
+    {k:'aceptado', t:'Estimate approved'}, {k:'invoice', t:'Invoice issued'},
+    {k:'subido', t:'Invoice submitted'}
+  ];
+  const man = j.docs||[];
+  const auto = {inicial:R.length>0, reportes:R.length>0,
+    reparando: P.some(x=>['asignada','proceso'].includes(x.estatus)) || (P.length>0 && P.every(x=>x.estatus==='terminada'))};
+  const listo = k => man.includes('-'+k) ? false : (man.includes(k) || !!auto[k]);
+  const hechas = ETAPAS_EN.filter(e=>listo(e.k)).length;
+  const pct = Math.round(hechas*100/ETAPAS_EN.length);
+  const idxAct = ETAPAS_EN.findIndex(e=>!listo(e.k));
+
+  const visitas = R.filter(r=>r.asistio!==false);
+  const noFue  = R.filter(r=>r.asistio===false);
+  const ultimo = visitas.length ? visitas[visitas.length-1] : null;
+
+  const fotoTodas = [];
+  R.forEach(r=>(r.fotos||[]).forEach(f=>fotoTodas.push(f)));
+
+  const tarjetaReporte = (r,i) => {
+    const noVisit = r.asistio===false;
+    const g = fotosPorArea(r.fotos);
+    return `<details class="rep ${noVisit?'nov':''}">
+      <summary>
+        <div style="flex:1;min-width:0">
+          <div class="mono" style="font-size:13px;color:var(--gris)">${dCorta(r.fecha)}${r.tecnico?' · '+esc(r.tecnico):''}</div>
+          <div class="disp" style="font-size:21px">${noVisit?'No visit':(r.tipo_reporte==='inicial'?'Initial assessment':'Follow-up visit')}</div>
+        </div>
+        <span class="chip ${noVisit?'ambar':'azul'}">${noVisit?'NO ACCESS':'COMPLETED'}</span>
+        <span class="ac-fl">▾</span>
+      </summary>
+      <div class="rep-b">
+        ${noVisit?`<div class="alerta"><div class="t"><b>Reason:</b> ${esc(r.motivo_no||'Not specified')}${r.notas?' — '+esc(r.notas):''}</div></div>`:`
+
+        ${r.tipo_servicio?`<span class="chip ambar">${esc(String(r.tipo_servicio).toUpperCase())}</span>`:''}
+        ${(r.hora_entrada||r.hora_salida)?`<div class="meta" style="margin-top:7px">TIME ON SITE · ${esc(r.hora_entrada||'—')}${r.hora_salida?' to '+esc(r.hora_salida):''}</div>`:''}
+
+        ${r.hallazgos?`<div class="pblk"><div class="meta">FINDINGS</div><div class="texto">${esc(r.hallazgos)}</div></div>`:''}
+        ${r.scope_texto?`<div class="pblk"><div class="meta">SCOPE OF WORK</div><div class="texto">${esc(r.scope_texto)}</div></div>`:''}
+        ${r.notas?`<div class="pblk"><div class="meta">WORK PERFORMED</div><div class="texto">${esc(r.notas)}</div></div>`:''}
+
+        ${r.causa?`<div class="meta" style="margin-top:9px">CAUSE OF LOSS · ${esc(r.causa)}</div>`:''}
+        ${r.categoria_agua?`<div class="meta">WATER CATEGORY · Category ${esc(r.categoria_agua)}</div>`:''}
+        ${r.galones?`<div class="meta">WATER EXTRACTED · ${esc(r.galones)}</div>`:''}
+
+        ${(r.servicios||[]).length?`<div class="pblk"><div class="meta">SERVICES</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:5px">${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div></div>`:''}
+
+        ${(r.areas||[]).length?`<div class="pblk"><div class="meta">AREAS</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:5px">${(r.areas||[]).map(x=>`<span class="chip">${esc(x)}</span>`).join('')}</div></div>`:''}
+
+        ${(r.material_removido||[]).length?`<div class="pblk"><div class="meta">MATERIAL REMOVED</div>
+          <table class="ptab"><tbody>${(r.material_removido||[]).map(m=>
+            `<tr><td>${esc(m)}</td><td class="mono">${esc((r.medidas||{})[m]||'—')}</td></tr>`).join('')}</tbody></table></div>`:''}
+
+        ${(r.deshu_inst||r.air_inst||r.scrub_inst||r.equipo_desc)?`<div class="pblk"><div class="meta">EQUIPMENT</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:5px">
+            ${r.deshu_inst?`<span class="chip azul">${r.deshu_inst} DEHUMIDIFIER${r.deshu_inst>1?'S':''}</span>`:''}
+            ${r.air_inst?`<span class="chip azul">${r.air_inst} AIR MOVER${r.air_inst>1?'S':''}</span>`:''}
+            ${r.scrub_inst?`<span class="chip azul">${r.scrub_inst} AIR SCRUBBER${r.scrub_inst>1?'S':''}</span>`:''}
+          </div>
+          ${r.equipo_desc?`<div class="sub" style="margin-top:6px">${esc(r.equipo_desc)}</div>`:''}</div>`:''}
+
+        ${(r.lecturas||[]).length?`<div class="pblk"><div class="meta">MOISTURE READINGS</div>
+          <table class="ptab"><thead><tr><th>Area</th><th>Material</th><th>%MC</th><th>°F</th></tr></thead>
+          <tbody>${(r.lecturas||[]).map(l=>`<tr><td>${esc(l.area||'')}</td><td>${esc(l.material||'')}</td>
+            <td class="mono">${esc(l.mc||'')}</td><td class="mono">${esc(l.temp||'')}</td></tr>`).join('')}</tbody></table></div>`:''}
+
+        ${(r.temp_amb||r.hr_amb)?`<div class="meta">AMBIENT · ${esc(r.temp_amb||'—')}°F · ${esc(r.hr_amb||'—')}% RH</div>`:''}
+
+        ${(r.moho||r.asbesto||r.vecinos_afectados||r.requiere_plomero)?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:9px">
+          ${r.moho?'<span class="chip rojo">VISIBLE MOLD</span>':''}
+          ${r.asbesto?'<span class="chip rojo">POSSIBLE ASBESTOS</span>':''}
+          ${r.vecinos_afectados?`<span class="chip rojo">ADJACENT UNITS${r.vecinos_detalle?' · '+esc(r.vecinos_detalle):''}</span>`:''}
+          ${r.requiere_plomero?'<span class="chip ambar">PLUMBER NEEDED</span>':''}
+        </div>`:''}
+
+        ${Object.keys(g).length?`<div class="pblk"><div class="meta">PHOTOS · ${(r.fotos||[]).length}</div>
+          ${Object.keys(g).map(a=>`<div style="margin-top:8px">
+            <div class="mono" style="font-size:12px;color:var(--gris)">${esc(a.toUpperCase())} · ${g[a].length}</div>
+            <div class="thumbs" style="margin-top:5px">${g[a].map(u=>
+              `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" loading="lazy"></a>`).join('')}</div>
+          </div>`).join('')}</div>`:''}
+
+        ${(r.proximo_paso||[]).length?`<div class="pblk"><div class="meta">NEXT STEPS</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:5px">${(r.proximo_paso||[]).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}</div>
+          ${r.siguiente_trabajo?`<div class="sub" style="margin-top:6px">${esc(r.siguiente_trabajo)}</div>`:''}
+          ${r.quien_repara?`<div class="sub" style="margin-top:4px"><b>Repairs by:</b> ${esc(r.quien_repara)}</div>`:''}</div>`:''}
+        `}
+      </div></details>`;
+  };
+
+  $('#root').innerHTML = `
+  <div class="portal-wrap">
+    <div class="pcab marca-agua">
+      <div class="logo-img" style="width:56px;height:56px;margin-bottom:10px"></div>
+      <div class="rot">CAPRI RESTORATION SERVICES INC</div>
+      <div class="tt">${esc(j.cliente||'')}${j.unidad?' · Unit '+esc(j.unidad):''}</div>
+      <div class="psub">${esc(j.direccion||'')}${j.ciudad?', '+esc(j.ciudad):''}</div>
+      <div class="mono" style="font-size:13px;color:#8494AD;margin-top:8px">
+        JOB ${esc(j.folio)}${j.po_number?' · PO '+esc(j.po_number):''}${j.management?' · '+esc(j.management):''}</div>
+    </div>
+    <div class="franja split"><i></i><i></i></div>
+
+    <div class="pbody">
+      <div class="kpis">
+        <div class="kpi a"><div class="l">Status</div>
+          <div class="v" style="font-size:26px">${idxAct<0?'Complete':esc(ETAPAS_EN[idxAct].t)}</div>
+          <div class="p">${pct}% · stage ${hechas} of ${ETAPAS_EN.length}</div></div>
+        <div class="kpi"><div class="l">Started</div>
+          <div class="v" style="font-size:26px">${dCorta(ini)}</div>
+          <div class="p">day ${diasJob} of the job</div></div>
+        <div class="kpi"><div class="l">Site visits</div>
+          <div class="v" style="font-size:26px">${visitas.length}</div>
+          <div class="p">${noFue.length?noFue.length+' no-access day(s)':'documented'}</div></div>
+        <div class="kpi"><div class="l">Last visit</div>
+          <div class="v" style="font-size:26px">${ultimo?dCorta(ultimo.fecha):'—'}</div>
+          <div class="p">${ultimo&&ultimo.tecnico?esc(ultimo.tecnico):'pending'}</div></div>
+      </div>
+
+      <div class="barra" style="height:14px;margin-bottom:18px"><i style="width:${pct}%;background:var(--oro)"></i></div>
+
+      <div class="eyebrow">Job progress</div>
+      <div class="etapas">${ETAPAS_EN.map((e,i)=>{
+        const ok=listo(e.k), act=(i===idxAct);
+        return `<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
+          <div class="bolita">${ok?'✓':i+1}</div>
+          <div class="txt"><b>${esc(e.t)}</b></div></div>`;}).join('')}</div>
+
+      ${j.scope?`<div class="eyebrow">Scope of work</div>
+        <div class="card" style="border-left-color:var(--azul)"><div class="texto">${esc(j.scope)}</div></div>`:''}
+
+      ${(j.archivos||[]).length?`<div class="eyebrow">Documents · ${(j.archivos||[]).length}</div>
+        ${(j.archivos||[]).map(a=>`<div class="fila a">
+          <div class="t"><b>${esc(a.nombre||'Document')}</b>
+          <span class="sub">${esc(a.tipo||'PDF')}${a.fecha?' · '+dCorta(a.fecha):''}</span></div>
+          <a class="btn ghost sm" href="${esc(a.url)}" target="_blank" rel="noopener">Open</a></div>`).join('')}`:''}
+
+      ${EST.length?`<div class="eyebrow">Estimates · ${EST.length}</div>
+        ${EST.map(e=>`<div class="card" style="border-left-color:${e.estatus==='aceptado'?'var(--verde,var(--azul))':e.estatus==='rechazado'?'var(--gris)':'var(--oro)'}">
+          <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <div style="flex:1;min-width:0">
+              <div class="mono" style="font-size:13px;color:var(--gris)">${esc(e.folio)}${e.fecha_envio?' · sent '+dCorta(e.fecha_envio):''}</div>
+              <div class="disp" style="font-size:20px;margin-top:2px">${esc(e.descripcion||'Estimate')}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="disp" style="font-size:26px;color:var(--azul-d)">${cf(e.monto)}</div>
+              <span class="chip ${e.estatus==='aceptado'?'azul':e.estatus==='rechazado'?'':'ambar'}">${
+                e.estatus==='aceptado'?'APPROVED':e.estatus==='rechazado'?'DECLINED':'AWAITING APPROVAL'}</span>
+            </div></div>
+          ${(e.renglones||[]).length?`<table class="ptab" style="margin-top:11px">
+            <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+            <tbody>${(e.renglones||[]).map(x=>`<tr>
+              <td>${esc(x.concepto||'')}</td>
+              <td class="mono">${esc(x.cant||1)} ${esc(x.unidad||'')}</td>
+              <td class="mono">${cf(x.precio)}</td>
+              <td class="mono">${cf(Number(x.cant||1)*Number(x.precio||0))}</td></tr>`).join('')}</tbody></table>`:''}
+          ${(e.archivos||[]).length?`<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">${(e.archivos||[]).map(a=>
+            `<a class="btn ghost sm" href="${esc(a.url||a)}" target="_blank" rel="noopener">Open document</a>`).join('')}</div>`:''}
+        </div>`).join('')}`:''}
+
+      ${j.invoice?`<div class="eyebrow">Invoice</div>
+        <div class="card" style="border-left-color:${j.invoice.pagado?'var(--verde,var(--azul))':'var(--oro)'}">
+          <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="meta">INVOICE</div>
+              <div class="disp" style="font-size:24px">${esc(j.invoice.numero||'')}</div>
+              <div class="meta" style="margin-top:4px">${j.invoice.fecha?'issued '+dCorta(j.invoice.fecha):''}${j.invoice.plataforma?' · '+esc(j.invoice.plataforma):''}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="meta">AMOUNT</div>
+              <div class="disp" style="font-size:32px;color:var(--azul-d)">${cf(j.invoice.monto)}</div>
+              <span class="chip ${j.invoice.pagado?'azul':'ambar'}">${j.invoice.pagado?'PAID':'OUTSTANDING'}</span>
+            </div></div>
+        </div>`:''}
+
+      ${P.length?`<div class="eyebrow">Reconstruction · ${P.filter(x=>x.estatus==='terminada').length} of ${P.length} complete</div>
+        ${P.map(x=>`<div class="fila ${x.estatus==='terminada'?'a':'m'}">
+          <div class="t"><b>${esc(x.nombre)}</b><span class="sub">${esc(x.detalle||'')}${x.cantidad?' · '+esc(x.cantidad):''}</span></div>
+          <span class="chip ${x.estatus==='terminada'?'azul':'ambar'}">${esc(String(x.estatus).toUpperCase())}</span></div>`).join('')}`:''}
+
+      <div class="eyebrow">Daily reports · ${R.length}</div>
+      <div class="sub" style="margin-bottom:10px">Tap any date to see the full report for that day.</div>
+      ${R.length?R.map(tarjetaReporte).join(''):'<div class="empty"><div class="disp">No reports yet</div></div>'}
+
+      <div class="row no-print" style="margin-top:22px">
+        <button class="btn wide" onclick="window.print()">Download / Print full report</button>
+      </div>
+      <div class="row no-print" style="margin-top:10px">
+        <button class="btn ghost wide" id="p_otro">Look up another job</button>
+      </div>
+
+      <div class="pfoot">
+        <div class="disp" style="font-size:17px">CAPRI RESTORATION SERVICES INC</div>
+        <div class="mono" style="font-size:11px;letter-spacing:.18em;margin-top:4px">SAN DIEGO · CALIFORNIA</div>
+        <div class="sub" style="margin-top:8px;font-size:13px">This report is generated automatically from field documentation.<br>
+          For questions about this job, please contact our office.</div>
+      </div>
+    </div>
+  </div>`;
+
+  const po=document.getElementById('p_otro');
+  if(po) po.onclick=()=>{ try{ localStorage.removeItem('jr31_cli'); }catch(e){} buscarCliente(); };
+  window.addEventListener('beforeprint', ()=>document.querySelectorAll('details.rep').forEach(d=>d.open=true));
+}
+
+async function resumenDiario(auto){
+  const h=hoy();
+  const dep = U.departamento==='ambos'?null:U.departamento;
+  let q=sb.from('jobs').select('id,folio,cliente,unidad,fecha_inicio,created_at,tecnico_id, propiedades(nombre)')
+    .not('estatus','in','("terminado","facturado")');
+  if(dep) q=q.eq('departamento',dep);
+  const {data:jobs}=await q;
+  const J=jobs||[];
+  if(!J.length) return auto?null:toast(ING()?'No active jobs':'Sin trabajos activos');
+
+  const {data:reps}=await sb.from('reportes').select('job_id,fecha').in('job_id',J.map(x=>x.id)).gte('fecha',hace(30));
+  const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
+
+  const lista=[];
+  J.forEach(j=>{
+    const f=diasFaltantes(j, porJob[j.id]||new Set());
+    if(f.length) lista.push({job:j, dias:f, hoyFalta:f.includes(h)});
+  });
+
+  const total=lista.reduce((a,x)=>a+x.dias.length,0);
+  if(auto && !total) return null;
+
+  const prop=j=>(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'');
+  const atrasados=lista.filter(x=>x.dias.some(f=>f<h));
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${ING()?'DAILY BRIEFING':'RESUMEN DEL DÍA'} · ${fmt(h).toUpperCase()}</div>
+    <div class="disp">${ING()?'Good morning':'Buenos días'}, ${esc((U.nombre||'').split(' ')[0])}</div>
+    <div style="color:#C3D6F7">${total? (ING()?total+' report(s) to submit':total+' reporte(s) por entregar') : (ING()?'You are all caught up':'Estás al corriente')}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      ${!total?`<div class="ok" style="font-size:17px">${ING()
+        ? 'Nothing pending. Every active job has its report.'
+        : 'Nada pendiente. Todos tus trabajos activos tienen su reporte.'}</div>`:`
+
+      <div class="kpis" style="margin-bottom:14px">
+        <div class="kpi ${lista.filter(x=>x.hoyFalta).length?'r':'a'}">
+          <div class="l">${ING()?'For today':'De hoy'}</div>
+          <div class="v" style="font-size:34px">${lista.filter(x=>x.hoyFalta).length}</div>
+          <div class="p">${ING()?'jobs':'trabajos'}</div></div>
+        <div class="kpi ${atrasados.length?'r':''}">
+          <div class="l">${ING()?'Behind':'Atrasados'}</div>
+          <div class="v" style="font-size:34px">${atrasados.length}</div>
+          <div class="p">${ING()?'jobs with older days':'con días anteriores'}</div></div>
+        <div class="kpi m"><div class="l">${ING()?'Total':'Total'}</div>
+          <div class="v" style="font-size:34px">${total}</div>
+          <div class="p">${ING()?'reports owed':'reportes que debes'}</div></div>
+      </div>
+
+      <div class="sub" style="margin-bottom:10px">${ING()
+        ? 'Tap a job to report it, or tap a red date to close that specific day.'
+        : 'Toca un trabajo para reportarlo, o toca una fecha roja para cerrar ese día.'}</div>
+
+      ${lista.sort((a,b)=>b.dias.length-a.dias.length).map(x=>`
+        <div class="card ${x.dias.length>2?'rojo':''}">
+          <div class="row" style="justify-content:space-between">
+            <span class="folio">${esc(x.job.folio)}</span>
+            <span class="chip ${x.dias.length>2?'rojo':'ambar'}">${x.dias.length} ${ING()?'DAY(S)':'DÍA(S)'}</span></div>
+          <div class="tit">${esc(prop(x.job))}</div>
+          <div class="chips" style="margin-top:9px">${x.dias.slice(-10).map(f=>
+            `<button type="button" data-rg="${x.job.id}" data-f="${f}"
+              style="border-color:${f===h?'var(--oro)':'var(--rojo-b)'};background:${f===h?'rgba(224,179,78,.14)':'var(--rojo-l)'};color:${f===h?'var(--oro)':'var(--rojo-d)'};font-size:14px;padding:9px 13px">
+              ${f===h?(ING()?'TODAY':'HOY'):f.slice(8)+' '+MESCORTO[+f.slice(5,7)-1]}</button>`).join('')}</div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn ghost sm" data-vj2="${x.job.id}">${ING()?'View job':'Ver trabajo'}</button>
+            <span style="flex:1"></span>
+            <button class="btn ghost sm" data-nf="${x.job.id}" data-f="${h}">${ING()?"Didn't go":'No fui'}</button>
+          </div>
+        </div>`).join('')}`}
+
+      <div style="height:18px"></div>
+      <button class="btn ghost wide" id="c2">${ING()?'Got it':'Entendido'}</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{
+    try{ localStorage.setItem('jr31_brief_'+U.id, h); }catch(e){}
+    cerrar();
+  };
+  return total;
+}
+
 /* ==================== TÉCNICO · INICIO ==================== */
 let TTAB='activos', JTAB='activos';
 
@@ -1051,6 +1487,13 @@ async function vTecInicio(){
     engancharRep();
   },0);
   if(misJobs.length) POST=()=>dibujarMapaRuta(misJobs, true);
+  // Resumen del día · sale una vez al día al abrir la app
+  try{
+    if(localStorage.getItem('jr31_brief_'+U.id) !== h){
+      const antes=POST;
+      POST=()=>{ if(antes) antes(); setTimeout(()=>resumenDiario(true),600); };
+    }
+  }catch(e){}
 
   let out = heroHTML(cl, mios.length, a.length, dep||'ambos');
 
@@ -1093,6 +1536,7 @@ async function vTecInicio(){
       <div class="p">${faltanT?faltanT+' '+(faltanT===1?T('trabajo sin reporte de hoy'):T('trabajos sin reporte de hoy')):T('Todos los trabajos reportados')}</div>
     </div>
     <div class="kpis" style="margin-bottom:12px">
+    <div class="fila m" id="btn_brief" style="cursor:pointer"><div class="t"><b>${ING()?'My daily briefing':'Mi resumen del día'}</b><span class="sub">${ING()?'what I owe today':'qué debo hoy'}</span></div></div>
     <div class="fila ${debeT?'r':'a'}" data-ir="reporte"><div class="t"><b>${T('Dejar mi reporte diario')}</b><span class="sub">${debeT?(ING()?'you owe '+debeT+' report'+(debeT===1?'':'s'):'debes '+debeT+' reporte'+(debeT===1?'':'s')):T('todo al corriente')}</span></div></div>
 
     <div class="fila a" data-ir="mapa" style="cursor:pointer"><div class="t"><b>${T('Mi ruta de hoy')}</b><span class="sub">${a.length} ${a.length===1?T('parada en el mapa'):T('paradas en el mapa')}</span></div></div>
@@ -1357,11 +1801,6 @@ async function verJobTecnico(id){
 /* ==================== MARCAR QUE NO FUE ==================== */
 const CAUSAS_BASE = ['Supply line','Water heater','Toilet overflow','Sink / faucet','Dishwasher',
   'Washing machine','AC / condensation','Roof leak','Sewer backup','Pipe break','Fire / smoke','Otro'];
-const CATEGORIAS = [
-  {k:'1', t:'Categoría 1 · agua limpia', s:'De tubería limpia, sin contaminantes'},
-  {k:'2', t:'Categoría 2 · agua gris', s:'Lavadora, lavavajillas, sobreflujo con jabón'},
-  {k:'3', t:'Categoría 3 · agua negra', s:'Drenaje, sewer backup, agua de afuera'}
-];
 const MOTIVOS_BASE = [
   'No había nadie en la unidad',
   'El cliente no dio acceso',
@@ -1538,7 +1977,9 @@ async function vTecReporte(){
         <button class="btn ghost sm" data-vj="${j.id}">Ver trabajo</button>
         <span style="flex:1"></span>
         ${rHoy?'':`<button class="btn ghost" data-nf="${j.id}" data-f="${h}">No fui</button>`}
-        ${!tieneIni[j.id]?`<button class="btn rojo" data-rgi="${j.id}" data-f="${h}">Levantar inicial</button>`:''}
+        ${(()=>{const b=leerBorrador(j.id,h,'job');
+          return b?`<span class="chip ambar">${ING()?'DRAFT SAVED':'BORRADOR GUARDADO'}</span>`:'';})()}
+        ${!tieneIni[j.id]?`<button class="btn rojo" data-rgi="${j.id}" data-f="${h}">${ING()?'Initial report':'Levantar inicial'}</button>`:''}
         <button class="btn" data-rg="${j.id}" data-f="${h}">${rHoy?'Corregir':'Reporte de hoy'}</button>
       </div></div>`;
   };
@@ -1703,7 +2144,7 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['schedule',T('Agenda')],['hist',T('Historial')]]
     : (U.rol==='admin'
-      ? [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['equipo','Equipo']]
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')],['equipo',BI('Equipo','Team')]]
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
@@ -1715,10 +2156,10 @@ function shell(html){
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
         <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):(U.rol==='oficina'?'OFICINA · SIN CONFIGURACIÓN':'ADMINISTRADOR'))}</div>
       </div>
-      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}${T('Inicio')}</button></div>
-      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}</button>`).join('')}
-      <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}${T('Avisos')}${NOTIF?` (${NOTIF})`:''}</button>
-      <button data-v="salir" style="margin-top:22px;color:#6B7280">${T('Salir')}</button>
+      <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}<span>${esTec?T('Inicio'):BI('Resumen','Home')}</span></button></div>
+      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}<span>${t}</span></button>`).join('')}
+      <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}<span>${esTec?T('Avisos'):BI('Avisos','Alerts')}${NOTIF?` (${NOTIF})`:''}</span></button>
+      <button data-v="salir" style="margin-top:22px;color:#6B7280"><span>${esTec?T('Salir'):BI('Salir','Log out')}</span></button>
     </div>
     <div class="wrap">
       <div class="fondo-tex"></div>
@@ -1727,7 +2168,7 @@ function shell(html){
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
-          <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'}</div>
+          <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
         <div class="who"><b>${esc(U.nombre)}</b>${esc(U.rol)}${esTec?` · <a href="#" id="out" style="color:#C3D6F7">salir</a>`:''}</div>
@@ -1736,7 +2177,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v62 · trabajo nuevo desde el técnico</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v73 · portal por folio</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -1906,7 +2347,8 @@ async function vTecHist(){
 let FOT=[];
 const ZIPPERS=['no zipper','1 zipper','2 zippers','3 zippers'];
 
-async function formReporte(jobId,fecha){
+async function formReporte(jobId,fecha,tecOverride){
+  const TID = tecOverride || U.id;
   const [{data:j},{data:prev},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre), propiedades(nombre)').eq('id',jobId).single(),
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fecha).maybeSingle(),
@@ -2128,7 +2570,7 @@ async function formReporte(jobId,fecha){
       const nuevas=[...new Set((j.areas||[]).concat(AREAS))];
       await sb.from('jobs').update({areas:nuevas,ocupada:OC}).eq('id',jobId);
     }
-    cerrar(); toast('Reporte enviado'); render();
+    borrarBorrador(); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
   };
 }
 
@@ -2184,6 +2626,7 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
     : (hayInicial
       ? `El inicial se levantó el ${fmt(iniPrevio.fecha)}${iniPrevio.usuarios?.nombre?' por '+iniPrevio.usuarios.nombre:''}. Aquí reportas cómo va hoy.`
       : 'Este trabajo todavía no tiene reporte inicial. Levanta toda la información del sitio.');
+  const bor = leerBorrador(jobId, fecha, 'job');
   G = {
     job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni, tid:TID, hayInicial,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
@@ -2207,7 +2650,7 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
       categoria_agua: r.categoria_agua||'', fuente_detenida: !!r.fuente_detenida,
       galones: r.galones||'', moho: !!r.moho, movio_contenido: !!r.movio_contenido,
       temp_amb: r.temp_amb||'', hr_amb: r.hr_amb||'', autorizacion: !!r.autorizacion,
-      tipo_servicio: r.tipo_servicio||'', hallazgos: r.hallazgos||'',
+      tipo_servicio: r.tipo_servicio||'', hallazgos: r.hallazgos||'', scope_texto: r.scope_texto||'',
       proximo_paso: (r.proximo_paso||[]).slice(), quien_repara: r.quien_repara||'', repara_detalle:'',
       energia: r.energia!=null?!!r.energia:true, equipo_operando: !!r.equipo_operando,
       requiere_plomero: !!r.requiere_plomero, asbesto: !!r.asbesto,
@@ -2222,6 +2665,17 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
   G.scat=[...new Set(G.scat.concat(G.d.servicios))];
   G.qcat=[...new Set(G.qcat.concat(G.d.situacion))];
   pasosGuiado();
+  if(bor && bor.d && !prev){
+    const cont = confirm(ING()
+      ? 'You have an unfinished report for this job. Continue where you left off?'
+      : 'Tienes un reporte a medias de este trabajo. ¿Continuar donde te quedaste?');
+    if(cont){
+      G.d = Object.assign(G.d, bor.d);
+      if(bor.tipo) G.tipo = bor.tipo;
+      pasosGuiado();
+      G.paso = Math.min(bor.paso||0, G.pasos.length-1);
+    } else borrarBorrador();
+  }
   pintaGuiado();
 }
 
@@ -2261,6 +2715,7 @@ function pasosGuiado(){
       ]});
       if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
       G.pasos.push({t:L('¿Qué áreas revisaste?','Which areas did you inspect?'), s:L('Toca todas','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
+      G.pasos.push({t:L('Scope of work','Scope of work'), s:L('Qué se necesita hacer en este trabajo','What needs to be done on this job'), tipo:'scope'});
     } else {
       G.pasos.push({t:L('¿Qué causó el daño?','What caused the loss?'), s:L('Toca la fuente y escribe el detalle','Tap the source and add the detail'), tipo:'causa2'});
       G.pasos.push({t:L('Respuestas rápidas','Quick answers'), s:L('Toca SÍ o NO en cada una','Tap YES or NO on each'), tipo:'rapidas', lista:[
@@ -2283,7 +2738,7 @@ function pasosGuiado(){
         {k:'senalamiento', t:L('¿Pusiste señalamientos?','Safety signage placed?')}
       ]});
       if(d.vecinos_afectados) G.pasos.push({t:L('Unidades vecinas','Adjacent units'), s:L('Anota cuáles','Note which ones'), tipo:'vecinos'});
-      G.pasos.push({t:L('Datos del agua','Water details'), s:L('Categoría, fecha del daño y galones','Category, date of loss and gallons'), tipo:'agua'});
+      G.pasos.push({t:L('Datos del daño','Loss details'), s:L('Cuándo pasó y cuánta agua se sacó','When it happened and how much water was extracted'), tipo:'agua'});
       G.pasos.push({t:L('¿Qué áreas se afectaron?','Which areas were affected?'), s:L('Toca todas las que apliquen','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
       G.pasos.push({t:L('¿Qué material removiste?','What material did you remove?'), s:L('Marca el material y anota su medida','Mark the material and enter its size'), tipo:'materiales'});
       G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Marca todos los que apliquen','Tap all that apply'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
@@ -2292,6 +2747,7 @@ function pasosGuiado(){
         {k:'equipo_operando', t:L('¿El equipo quedó operando?','Equipment left running?')},
         {k:'regresa_manana', t:L('¿Hay que regresar mañana?','Return needed tomorrow?')}
       ]});
+      G.pasos.push({t:L('Scope of work','Scope of work'), s:L('Describe todo el trabajo que se necesita','Describe the full work needed'), tipo:'scope'});
     }
   } else {
     G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
@@ -2333,15 +2789,28 @@ function pintaGuiado(){
 
   if(p.tipo==='tiposerv'){
     const OPS=[
-      {k:'flood', t:L('Flood service','Flood service'), s:L('Hubo agua: extracción, secado y equipo','Water loss: extraction, drying and equipment')},
-      {k:'remediation', t:L('Remediation','Remediation'), s:L('Moho o contaminación: containment y limpieza','Mold or contamination: containment and cleaning')},
-      {k:'inspection', t:L('Inspection','Inspection'), s:L('Solo revisión y lecturas, sin demo','Inspection and readings only, no demo')},
+      {k:'flood', t:L('Flood service · hubo agua','Flood service · water loss'), s:L('Extracción, secado y equipo','Extraction, drying and equipment')},
+      {k:'remediation', t:L('Remediation · moho o contaminación','Remediation · mold or contamination'), s:L('Containment y limpieza','Containment and cleaning')},
+      {k:'inspection', t:L('Inspection · solo revisión','Inspection · assessment only'), s:L('Lecturas y fotos, sin demo','Readings and photos, no demo')},
       {k:'otro', t:L('Otro trabajo','Other work'), s:L('Cualquier otro servicio en sitio','Any other on-site service')}
     ];
-    cuerpo=`<div class="si-no" style="flex-direction:column;margin-top:8px">
-      ${OPS.map(o=>`<button data-ts="${o.k}" class="${d.tipo_servicio===o.k?'on':''}" style="padding:18px;text-align:left">
-        <div style="font-size:21px">${esc(o.t)}</div></button>`).join('')}</div>
+    cuerpo=`<label>${L('Tipo de trabajo','Type of job')}</label>
+      <select id="g1" style="font-size:18px;padding:15px 14px">
+        <option value="">${L('— escoge uno —','— select one —')}</option>
+        ${OPS.map(o=>`<option value="${o.k}" ${d.tipo_servicio===o.k?'selected':''}>${esc(o.t)}</option>`).join('')}
+      </select>
       <div class="sub" style="margin-top:12px">${esc((OPS.find(o=>o.k===d.tipo_servicio)||{}).s || L('Escoge para que la app te haga las preguntas correctas.','Pick one so the app asks the right questions.'))}</div>`;
+  }
+  else if(p.tipo==='scope'){
+    const yaHay = G.job && G.job.scope;
+    cuerpo=`
+    ${yaHay?`<div class="ok" style="margin-bottom:12px">
+      <div class="t">${L('La oficina ya capturó un scope. Si escribes aquí, se agrega el tuyo al final.','The office already entered a scope. What you write is added at the end.')}</div></div>`:''}
+    <div class="sub" style="margin-bottom:10px">${L('Escribe todo lo que se necesita hacer. Esto es lo que la oficina usa para cotizarle al management.','Write everything that needs to be done. This is what the office uses to quote the management.')}</div>
+    <textarea id="g1" style="min-height:230px;font-size:17px;line-height:1.6" placeholder="${L(
+      'Ej.\n\nEvaluación inicial\nSe hizo inspección de humedad en las áreas afectadas. Lecturas elevadas en recámara y cuarto del calentador.\n\nDemolición y remoción\n* Drywall: recámara 2ft x 2ft, cuarto del calentador 1ft x 1ft\n* Se quitó baseboard afectado\n* Se quitó carpet pad mojado\n\nContainment\nSe cubrió con plástico todo lo abierto.\n\nEquipo instalado\n* 2 deshumidificadores\n* 3 air movers\n\nLo que sigue\nSeguir secando y hacer moisture check diario hasta llegar a nivel.',
+      'Ex.\n\nInitial Assessment\nA moisture inspection was performed in the affected areas. Elevated readings in the bedroom and water heater room.\n\nDemolition and Material Removal\n* Drywall: Bedroom 2ft x 2ft, Water Heater Room 1ft x 1ft\n* Removed affected baseboards\n* Removed wet carpet pad\n\nContainment\nAll exposed openings covered with plastic sheeting.\n\nEquipment Installed\n* 2 Dehumidifiers\n* 3 Air Movers\n\nNext Steps\nContinue drying with daily moisture checks until acceptable levels are reached.')}">${esc(d.scope_texto||'')}</textarea>
+    <button class="btn ghost wide" id="gscauto" style="margin-top:10px">${L('Armarlo con lo que ya contesté','Build it from my answers')}</button>`;
   }
   else if(p.tipo==='hallazgos') cuerpo=`
     <textarea id="g1" style="min-height:170px;font-size:17px" placeholder="${L('Ej. Se revisó la cocina y el pasillo. El drywall marcó 22% en la pared bajo el fregadero. No hay moho visible. La fuga viene de la conexión del lavavajillas.','Ex. Inspected kitchen and hallway. Drywall read 22% on the wall under the sink. No visible mold. Leak comes from the dishwasher connection.')}">${esc(d.hallazgos||'')}</textarea>`;
@@ -2392,16 +2861,13 @@ function pintaGuiado(){
     <input id="g1" value="${esc(d.vecinos_detalle||'')}" placeholder="${L('Unit 327 y 329, pared compartida','Unit 327 and 329, shared wall')}" style="font-size:18px">
     <div class="sub" style="margin-top:8px">${L('Esto le sirve a oficina para avisarle al management de inmediato.','This helps the office notify the management right away.')}</div>`;
   else if(p.tipo==='agua') cuerpo=`
-    <label>${L('Categoría del agua','Water category')}</label>
-    <div class="si-no" style="flex-direction:column">
-      ${CATEGORIAS.map(x=>`<button data-cat="${x.k}" class="${d.categoria_agua===x.k?'on':''}" style="padding:15px;text-align:left">
-        ${en?('Category '+x.k+' · '+(x.k==='1'?'clean water':x.k==='2'?'gray water':'black water')):esc(x.t)}</button>`).join('')}
+    <div class="g2">
+      <div><label>${L('Fecha del daño','Date of loss')}</label>
+        <input id="g1" type="date" value="${esc(d.fecha_dano||G.fecha)}" max="${hoy()}" style="font-size:18px"></div>
+      <div><label>${L('Galones sacados','Gallons extracted')}</label>
+        <input id="g2" value="${esc(d.galones||'')}" placeholder="${d.agua_extraida?'30':'0'}" style="font-size:18px"></div>
     </div>
-    <div class="sub" style="margin-top:8px">${esc((CATEGORIAS.find(x=>x.k===d.categoria_agua)||{}).s||L('Escoge según de dónde vino el agua.','Pick based on where the water came from.'))}</div>
-    <div class="g2" style="margin-top:14px">
-      <div><label>${L('Fecha del daño','Date of loss')}</label><input id="g1" type="date" value="${esc(d.fecha_dano||G.fecha)}" max="${hoy()}"></div>
-      <div><label>${L('Galones sacados','Gallons extracted')}</label><input id="g2" value="${esc(d.galones||'')}" placeholder="${d.agua_extraida?'30':'0'}"></div>
-    </div>`;
+    <div class="sub" style="margin-top:10px">${L('Si el residente no sabe la fecha, pon el día que se reportó.','If the resident does not know the date, use the day it was reported.')}</div>`;
 
   else if(p.tipo==='materiales'){
     const sel=d.material_removido;
@@ -2484,8 +2950,10 @@ function pintaGuiado(){
     </div>
     <div class="${G.tipo==='inicial'?'alerta':'ok'}" style="margin-top:12px">
       <div class="t">${G.tipo==='inicial'
-      ? 'Levantamiento completo: causa del daño, categoría del agua, extracción con galones, áreas, medidas de lo removido, containment, equipo, lecturas y fotos.'
-      : 'Visita corta: cómo está el trabajo hoy, lecturas, equipo y qué sigue.'}</div></div>`;
+      ? (ING()?'Full assessment: cause of loss, extraction with gallons, areas, measurements of removed material, containment, equipment, readings and photos.'
+             : 'Levantamiento completo: causa del daño, extracción con galones, áreas, medidas de lo removido, containment, equipo, lecturas y fotos.')
+      : (ING()?'Short visit: how the job is today, readings, equipment and what comes next.'
+             : 'Visita corta: cómo está el trabajo hoy, lecturas, equipo y qué sigue.')}</div></div>`;
   else if(p.tipo==='horas') cuerpo=`
     <label>Hora de llegada</label><input id="g1" type="time" value="${esc(d.hora_entrada)}" style="font-size:22px">
     <label>Hora de salida (si ya sabes)</label><input id="g2" type="time" value="${esc(d.hora_salida)}" style="font-size:22px">`;
@@ -2547,20 +3015,17 @@ function pintaGuiado(){
       <label>${esc(m)}</label>
       <input id="med${i}" value="${esc(d.medidas[m]||'')}" placeholder="1 ft x 1 ft" style="font-size:17px">`).join('')}`;
   else if(p.tipo==='causa2') cuerpo=`
-    <div class="chips" id="gc2">${CAUSAS_BASE.map(x=>
-      `<button type="button" data-cz="${esc(x)}" class="${d.causa===x?'on':''}" style="font-size:16px;padding:12px 16px">${esc(x)}</button>`).join('')}</div>
-    <label>Explica con detalle</label>
-    <textarea id="g1" style="min-height:110px" placeholder="Se reventó la manguera del calentador en el closet del pasillo. El agua corrió a la cocina.">${esc(d.causa_detalle||'')}</textarea>`;
+    <label>${L('Fuente del daño','Source of the loss')}</label>
+    <select id="g2" style="font-size:18px;padding:15px 14px">
+      <option value="">${L('— escoge una —','— select one —')}</option>
+      ${CAUSAS_BASE.map(x=>`<option value="${esc(x)}" ${d.causa===x?'selected':''}>${esc(x)}</option>`).join('')}
+    </select>
+    <label>${L('Explica con detalle','Explain in detail')}</label>
+    <textarea id="g1" style="min-height:120px;font-size:17px" placeholder="${L('Se reventó la manguera del calentador en el closet del pasillo. El agua corrió a la cocina.','The water heater supply line burst in the hallway closet. Water ran into the kitchen.')}">${esc(d.causa_detalle||'')}</textarea>`;
   else if(p.tipo==='fechadano') cuerpo=`
     <label>Fecha aproximada del daño</label>
     <input id="g1" type="date" value="${esc(d.fecha_dano||G.fecha)}" max="${hoy()}" style="font-family:var(--mono);font-size:21px">
     <div class="sub" style="margin-top:8px">Si el residente no sabe, pon la fecha en que se reportó. Esto importa para saber cuánto tiempo llevaba mojado.</div>`;
-  else if(p.tipo==='categoria') cuerpo=`
-    <div class="si-no" style="flex-direction:column;margin-top:10px">
-      ${CATEGORIAS.map(x=>`<button data-cat="${x.k}" class="${d.categoria_agua===x.k?'on':''}" style="padding:16px;text-align:left">
-        <div>${esc(x.t)}</div></button>`).join('')}
-    </div>
-    <div class="sub" style="margin-top:10px">${esc((CATEGORIAS.find(x=>x.k===d.categoria_agua)||{}).s||'Escoge la categoría según de dónde vino el agua.')}</div>`;
   else if(p.tipo==='galones') cuerpo=`
     <label>Galones aproximados</label>
     <input id="g1" value="${esc(d.galones||'')}" placeholder="30 galones" style="font-family:var(--mono);font-size:22px">
@@ -2615,7 +3080,7 @@ function pintaGuiado(){
   }
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
-    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${G.modo==='intake'?'LEVANTAMIENTO INICIAL':esc(G.job.folio)+' · '+(G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO')} · PASO ${G.paso+1} DE ${n}</div>
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${G.modo==='intake'?'LEVANTAMIENTO INICIAL':esc(G.job.folio)+' · '+(G.tipo==='inicial'?'INICIAL':'SEGUIMIENTO')} · PASO ${G.paso+1} DE ${n} · v${VERSION}</div>
     ${G.modo!=='intake'?`<div class="mono" style="color:#C3D6F7">REPORTE DEL ${fmt(G.fecha)} · ${esc(antiguedad(G.job).txt.toUpperCase())}</div>`:''}
     <div class="disp" style="font-size:20px;line-height:1">${esc(prop)}</div>
     <div style="font-size:13px;color:#C3D6F7">${(G.modo==='intake'? (G.d.unidad?'Unit '+esc(G.d.unidad):'') : (G.job.unidad?'Unit '+esc(G.job.unidad):''))}</div></div>
@@ -2630,9 +3095,11 @@ function pintaGuiado(){
       ${cuerpo}
       <div style="height:22px"></div>
       <div class="row">
-        ${G.paso>0?`<button class="btn ghost" style="flex:1" id="gprev">${T('Atrás')}</button>`:''}
-        <button class="btn" style="flex:2" id="gnext">${G.paso===n-1?(G.prev?T('Guardar cambios'):T('Enviar reporte')):T('Siguiente')}</button>
+        <button class="btn ghost" style="flex:1" id="gprev" ${G.paso===0?'disabled style="flex:1;opacity:.4"':''}>‹ ${T('Atrás')}</button>
+        <button class="btn" style="flex:2" id="gnext">${G.paso===n-1?(G.prev?T('Guardar cambios'):T('Enviar reporte')):T('Siguiente')+' ›'}</button>
       </div>
+      <div class="sub" style="text-align:center;margin-top:9px;font-size:13.5px">
+        ${ING()?'Your progress saves automatically. You can close and come back.':'Tu avance se guarda solo. Puedes cerrar y volver.'}</div>
       <div style="height:12px"></div>
       <button class="btn ghost wide" id="gform">Usar formulario completo</button>
     </div></div>`;
@@ -2643,18 +3110,19 @@ function pintaGuiado(){
   $('#gx').onclick=cerrar;
   const gf=q1('#gform');
   if(G.modo==='intake'){ gf.style.display='none'; }
-  else gf.onclick=()=>{ const j=G.job.id, f=G.fecha; cerrar(); formReporte(j,f); };
-  const prev=q1('#gprev'); if(prev) prev.onclick=()=>{guardaPaso();G.paso--;pintaGuiado();};
+  else gf.onclick=()=>{ const j=G.job.id, f=G.fecha, t=G.tid; cerrar(); formReporte(j,f,t); };
+  const prev=q1('#gprev');
+  if(prev) prev.onclick=()=>{ if(G.paso===0) return; guardaPaso(); G.paso--; guardarBorrador(); pintaGuiado(); };
   q1('#gnext').onclick=async()=>{
     guardaPaso();
     const pa=G.pasos[G.paso];
     if(pa.req && !G.d[pa.k].length) return toast('Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
-    if(pa.tipo==='tiposerv' && !G.d.tipo_servicio) return toast(ING()?'Pick the type of job.':'Escoge el tipo de trabajo.');
+    if(pa.tipo==='tiposerv' && !G.d.tipo_servicio) return toast(ING()?'Select the type of job.':'Escoge el tipo de trabajo.');
     if(pa.reqTexto2 && !(G.d.hallazgos||'').trim()) return toast(ING()?'Write what you found.':'Escribe qué encontraste.');
     if(pa.tipo==='siguiente' && !(G.d.proximo_paso||[]).length) return toast(ING()?'Pick at least one next step.':'Marca al menos un paso siguiente.');
-    if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Pick what caused the loss.':'Escoge qué causó el daño.');
-    if(pa.tipo==='agua' && !G.d.categoria_agua) return toast(ING()?'Pick the water category.':'Escoge la categoría del agua.');
+    if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Select the source of the loss.':'Escoge la fuente del daño.');
+
     if(pa.tipo==='materiales' || pa.tipo==='medidas'){
       const falta=G.d.material_removido.find(m=>!(G.d.medidas[m]||'').trim());
       if(falta) return toast((ING()?'Missing size for ':'Falta la medida de ')+falta);
@@ -2665,7 +3133,7 @@ function pintaGuiado(){
     }
     if(pa.tipo==='unidad' && !G.d.unidad) return toast('Pon el número de unidad.');
     if(G.paso===G.pasos.length-1) return G.modo==='intake' ? enviarLevantamiento() : enviarGuiado();
-    G.paso++; pintaGuiado();
+    G.paso++; guardarBorrador(); pintaGuiado();
   };
 
   if(p.tipo==='ubicacion'){
@@ -2677,36 +3145,68 @@ function pintaGuiado(){
       pr.onchange=()=>{ G.d.prop_id=pr.value; av(); }; av();
     }
   }
-  if(p.tipo==='tiposerv') qs('[data-ts]').forEach(b=>b.onclick=()=>{
-    G.d.tipo_servicio=b.dataset.ts; const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); pintaGuiado(); });
-  if(p.tipo==='siguiente') qs('#gps [data-ps]').forEach(b=>b.onclick=()=>{
+  // ---- Enganches: se aplican a lo que exista en pantalla, sin importar el paso ----
+
+  qs('#gps [data-ps]').forEach(b=>b.onclick=()=>{
     const v=b.dataset.ps; G.d.proximo_paso=G.d.proximo_paso||[];
     const i=G.d.proximo_paso.indexOf(v);
     if(i>=0) G.d.proximo_paso.splice(i,1); else G.d.proximo_paso.push(v);
     const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); pintaGuiado(); });
-  if(p.tipo==='inicio2') qs('#q_ah2 [data-b]').forEach(b=>b.onclick=()=>{
-    G.d.after_hours=b.dataset.b==='1'; pintaGuiado(); });
-  if(p.tipo==='rapidas') qs('[data-rk]').forEach(b=>b.onclick=()=>{
+
+  qs('#q_ah2 [data-b]').forEach(b=>b.onclick=()=>{ G.d.after_hours=b.dataset.b==='1'; pintaGuiado(); });
+
+  qs('[data-rk]').forEach(b=>b.onclick=()=>{
     const k=b.dataset.rk, v=b.dataset.rv==='1';
     if(k==='ocupada_b') G.d.ocupada = v?'ocupada':'vacia'; else G.d[k]=v;
     if(k==='vecinos_afectados' || k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
     pintaGuiado();
   });
-  if(p.tipo==='materiales'){
-    qs('#gc [data-c]').forEach(b=>b.onclick=()=>{
-      const v=b.dataset.c, arr=G.d.material_removido, i=arr.indexOf(v);
+
+  qs('[data-sv]').forEach(b=>b.onclick=()=>{ G.d.tipo=b.dataset.sv; pintaGuiado(); });
+  qs('[data-t]').forEach(b=>b.onclick=()=>{ G.tipo=b.dataset.t; pasosGuiado(); pintaGuiado(); });
+  qs('[data-o]').forEach(b=>b.onclick=()=>{ G.d.ocupada=b.dataset.o; pintaGuiado(); });
+
+  // sí/no de un solo campo (pasos tipo 'sino')
+  if(p.tipo==='sino') qs('[data-b]').forEach(b=>b.onclick=()=>{
+    G.d[p.k]=b.dataset.b==='1';
+    if(p.k==='agua_extraida'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
+    pintaGuiado(); });
+
+  // chips genéricos (áreas, servicios, materiales)
+  const contC = q1('#gc');
+  if(contC){
+    const kk = p.k || 'material_removido';
+    const cat = p.cat ? G[p.cat] : G.mcat;
+    const tabla = p.tabla || 'materiales_catalogo';
+    contC.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.c, arr=G.d[kk], i=arr.indexOf(v);
       if(i>=0) arr.splice(i,1); else arr.push(v);
+      if(kk==='material_removido' || kk==='areas'){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
       pintaGuiado();
     });
-    const ba=q1('#gc [data-add]');
+    const ba=contC.querySelector('[data-add]');
     if(ba) ba.onclick=async()=>{
-      const n=prompt(ING()?'Material name:':'Nombre del material:'); if(!n||!n.trim()) return;
+      const n=prompt(ING()?'Type the name:':'Escribe el nombre:'); if(!n||!n.trim()) return;
       const v=n.trim();
-      if(!G.mcat.includes(v)){ G.mcat.push(v); try{ await sb.from('materiales_catalogo').insert({nombre:v}); }catch(e){} }
-      if(!G.d.material_removido.includes(v)) G.d.material_removido.push(v);
+      if(cat && !cat.includes(v)){ cat.push(v); try{ await sb.from(tabla).insert({nombre:v}); }catch(e){} }
+      if(!G.d[kk].includes(v)) G.d[kk].push(v);
       pintaGuiado();
     };
   }
+
+  // ubicación del levantamiento
+  const selMg=q1('#g_mg');
+  if(selMg){
+    selMg.onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
+    const pr=q1('#g_pr');
+    if(pr){
+      const av=()=>{ const x=G.PR.find(y=>y.id===pr.value);
+        const cont=q1('#g_av');
+        if(cont) cont.innerHTML = x?'Dirección: <b>'+esc([x.direccion,x.ciudad,x.zip].filter(Boolean).join(', '))+'</b>':''; };
+      pr.onchange=()=>{ G.d.prop_id=pr.value; av(); }; av();
+    }
+  }
+
   if(p.tipo==='lecturas2'){
     const lec=q1('#glec');
     const fila=(l={})=>{const dd=document.createElement('div');dd.className='lect';
@@ -2717,10 +3217,6 @@ function pintaGuiado(){
     (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
     q1('#gaddl').onclick=()=>fila();
   }
-  if(p.tipo==='causa2') qs('[data-cz]').forEach(b=>b.onclick=()=>{
-    G.d.causa=b.dataset.cz; pintaGuiado(); });
-  if(p.tipo==='categoria') qs('[data-cat]').forEach(b=>b.onclick=()=>{
-    G.d.categoria_agua=b.dataset.cat; pintaGuiado(); });
   if(p.tipo==='servicio') qs('[data-sv]').forEach(b=>b.onclick=()=>{
     G.d.tipo=b.dataset.sv; pintaGuiado(); });
   if(p.tipo==='tipo') qs('[data-t]').forEach(b=>b.onclick=()=>{
@@ -2756,6 +3252,43 @@ function pintaGuiado(){
     (G.d.lecturas||[]).forEach(fila); if(!G.d.lecturas.length) fila();
     q1('#gaddl').onclick=()=>fila();
   }
+  const gsa=q1('#gscauto');
+  if(gsa) gsa.onclick=()=>{
+    const en2=ING(), d2=G.d;
+    const L2=(es,ing)=>en2?ing:es;
+    let t=[];
+    t.push(L2('EVALUACIÓN INICIAL','INITIAL ASSESSMENT'));
+    t.push(d2.causa ? L2('Causa del daño: ','Cause of loss: ')+d2.causa : '');
+    if(d2.notas) t.push(d2.notas);
+    if((d2.areas||[]).length) t.push(L2('Áreas afectadas: ','Affected areas: ')+d2.areas.join(', '));
+    if((d2.material_removido||[]).length){
+      t.push(''); t.push(L2('DEMOLICIÓN Y REMOCIÓN','DEMOLITION AND MATERIAL REMOVAL'));
+      d2.material_removido.forEach(m=>t.push('* '+m+((d2.medidas||{})[m]?': '+d2.medidas[m]:'')));
+    }
+    if(d2.sqft_plastico||d2.zipper!=='no zipper'){
+      t.push(''); t.push('CONTAINMENT');
+      if(d2.sqft_plastico) t.push('* '+d2.sqft_plastico+L2(' sqft de plástico',' sqft of plastic sheeting'));
+      if(d2.zipper && d2.zipper!=='no zipper') t.push('* '+d2.zipper);
+    }
+    if(d2.deshu_inst||d2.air_inst||d2.scrub_inst){
+      t.push(''); t.push(L2('EQUIPO INSTALADO','EQUIPMENT INSTALLED'));
+      if(d2.deshu_inst) t.push('* '+d2.deshu_inst+L2(' deshumidificador(es)',' dehumidifier(s)'));
+      if(d2.air_inst) t.push('* '+d2.air_inst+L2(' air mover(s)',' air mover(s)'));
+      if(d2.scrub_inst) t.push('* '+d2.scrub_inst+L2(' air scrubber(s)',' air scrubber(s)'));
+      if(d2.equipo_desc) t.push(d2.equipo_desc);
+    }
+    if((d2.servicios||[]).length){
+      t.push(''); t.push(L2('SERVICIOS REALIZADOS','SERVICES PERFORMED'));
+      d2.servicios.forEach(x=>t.push('* '+x));
+    }
+    t.push(''); t.push(L2('LO QUE SIGUE','NEXT STEPS'));
+    if((d2.proximo_paso||[]).length) d2.proximo_paso.forEach(x=>t.push('* '+x));
+    if(d2.siguiente_trabajo) t.push(d2.siguiente_trabajo);
+    const txt=t.filter((x,i)=>x!==''||t[i-1]!=='').join('\n');
+    const ta=q1('#g1'); if(ta){ ta.value = (ta.value.trim()? ta.value.trim()+'\n\n':'')+txt; ta.focus(); }
+    toast(ING()?'Draft built from your answers':'Borrador armado con tus respuestas');
+  };
+
   if(p.tipo==='fotos'){
     qs('[data-qf]').forEach(b=>b.onclick=()=>{
       G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==b.dataset.qf); pintaGuiado();
@@ -2817,11 +3350,13 @@ function guardaPaso(){
   }
   if(p.tipo==='cierre2'){ d.notas=v('g2')||v('g1')||'';
     const c3=v('g3'); if(c3!==null) d.cobro_tecnico=c3; }
+  if(p.tipo==='tiposerv'){ const t=v('g1'); if(t!==null) d.tipo_servicio=t; }
+  if(p.tipo==='scope'){ d.scope_texto=v('g1')||''; }
   if(p.tipo==='hallazgos'){ d.hallazgos=v('g1')||''; }
   if(p.tipo==='siguiente'){ d.siguiente_trabajo=v('g1')||''; }
   if(p.tipo==='quienrepara'){ d.quien_repara=v('g1')||''; d.repara_detalle=v('g2')||''; }
   if(p.tipo==='vecinos'){ d.vecinos_detalle=v('g1')||''; }
-  if(p.tipo==='causa2'){ d.causa_detalle=v('g1')||''; }
+  if(p.tipo==='causa2'){ d.causa_detalle=v('g1')||''; const c=v('g2'); if(c!==null) d.causa=c; }
   if(p.tipo==='fechadano'){ d.fecha_dano=v('g1')||''; }
   if(p.tipo==='galones'){ d.galones=v('g1')||''; }
   if(p.tipo==='ambiente'){ d.temp_amb=v('g1')||''; d.hr_amb=v('g2')||''; }
@@ -2856,7 +3391,7 @@ async function enviarGuiado(){
     requiere_plomero:d.requiere_plomero, asbesto:d.asbesto,
     vecinos_afectados:d.vecinos_afectados, vecinos_detalle:d.vecinos_detalle||null,
     mascotas:d.mascotas, senalamiento:d.senalamiento, regresa_manana:d.regresa_manana,
-    tipo_servicio:d.tipo_servicio||null, hallazgos:d.hallazgos||null,
+    tipo_servicio:d.tipo_servicio||null, hallazgos:d.hallazgos||null, scope_texto:d.scope_texto||null,
     proximo_paso:d.proximo_paso||[],
     quien_repara:(d.quien_repara? d.quien_repara+(d.repara_detalle?' · '+d.repara_detalle:'') : null),
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
@@ -2873,6 +3408,16 @@ async function enviarGuiado(){
   const yaHabia=G.prev;
   const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
+
+  // El scope que escribió el técnico pasa al trabajo, para que admin y oficina lo vean
+  if((d.scope_texto||'').trim()){
+    const {data:jx}=await sb.from('jobs').select('scope').eq('id',jobId).maybeSingle();
+    const previo=(jx&&jx.scope||'').trim();
+    const nuevo = previo && !previo.includes(d.scope_texto.trim())
+      ? previo+'\n\n— — —\n'+(ING()?'Field scope by ':'Scope de campo por ')+U.nombre+' · '+fmt(fecha)+'\n'+d.scope_texto.trim()
+      : (previo || d.scope_texto.trim());
+    await sb.from('jobs').update({scope:nuevo}).eq('id',jobId);
+  }
   try{ await avisarReporte(G.job, !yaHabia,
     (G.tipo==='seguimiento' && !d.servicios.length) ? d.situacion : d.servicios, fecha, G.tipo); }catch(e){}
   if(d.material_removido.length){
@@ -2887,7 +3432,7 @@ async function enviarGuiado(){
     const nuevas=[...new Set((G.job.areas||[]).concat(d.areas))];
     await sb.from('jobs').update({areas:nuevas, ocupada:d.ocupada}).eq('id',jobId);
   }
-  cerrar(); toast('Reporte enviado'); render();
+  borrarBorrador(); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
 }
 
 /* ==================== REPORTE EN FORMATO DE CAMPO ==================== */
@@ -2940,6 +3485,7 @@ function verReporteCampo(r, j){
         ${(r.situacion||[]).length?fila('STATUS', (r.situacion||[]).join('  ·  ')):''}
         ${r.tipo_servicio?fila('JOB TYPE', r.tipo_servicio.toUpperCase()):''}
         ${r.hallazgos?bloque('FINDINGS', r.hallazgos):''}
+        ${r.scope_texto?bloque('SCOPE OF WORK', r.scope_texto):''}
         ${(r.proximo_paso||[]).length?fila('NEXT STEPS', (r.proximo_paso||[]).join('  ·  ')):''}
         ${r.quien_repara?bloque('REPAIRS BY', r.quien_repara):''}
         ${r.causa?fila('CAUSE OF LOSS', r.causa):''}
@@ -3482,6 +4028,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
+const VERSION='73';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -3573,6 +4120,11 @@ const TR = {
  'Todavía no hay trabajos':'No jobs yet','Sin trabajos hoy':'No jobs today'
 };
 const T = es => (ING() && TR[es]) ? TR[es] : es;
+// Admin ve inglés arriba y español chico abajo
+const ES_BI = () => U && U.rol==='admin';
+const BI = (es,ing) => ES_BI()
+  ? `${ing}<span class="bi">${es}</span>`
+  : es;
 const etiJob = j => j ? ((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'')) : '';
 function cambiarTema(){
   OSCURO=!OSCURO;
@@ -3863,6 +4415,26 @@ async function vResumen(){
   const engResumen=()=>{
     engancharDep();
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
+    const wd=$('#wadiario');
+    if(wd) wd.onclick=async()=>{
+      const {data:tecs}=await sb.from('usuarios').select('id,nombre,telefono')
+        .eq('rol','tecnico').eq('activo',true).not('telefono','is',null);
+      if(!tecs||!tecs.length) return toast('Ningún técnico tiene teléfono capturado en Equipo.');
+      const porTec={};
+      faltantes.forEach(x=>{ const k=x.job.tecnico_id||'sin'; (porTec[k] ||= []).push(x); });
+      const t = tecs.find(x=>porTec[x.id]) || tecs[0];
+      const suyos = porTec[t.id] || faltantes;
+      const lineas = suyos.map(x=>{
+        const p=(x.job.propiedades?.nombre||x.job.cliente||'')+(x.job.unidad?' Unit '+x.job.unidad:'');
+        return '• '+p+' ('+x.job.folio+') — '+x.dias+' day'+(x.dias===1?'':'s');
+      }).join('\n');
+      const msg='Good morning '+(t.nombre||'').split(' ')[0]+'.\n\n'
+        +'Pending reports as of '+fmt(hoy())+':\n\n'+lineas
+        +'\n\nTotal: '+suyos.reduce((a,x)=>a+x.dias,0)+' report(s).\n\n'
+        +'Please open the app and close them, or mark why you did not go.\n\n'
+        +'Capri Restoration Services';
+      window.open('https://wa.me/'+(t.telefono||'').replace(/[^0-9]/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+    };
     document.querySelectorAll('[data-okn]').forEach(b=>b.onclick=async e=>{
       e.stopPropagation();
       await sb.from('notificaciones').update({leida:true}).eq('id',b.dataset.okn);
@@ -3889,6 +4461,16 @@ async function vResumen(){
     s:x.job.folio+' · '+x.dias+' día'+(x.dias===1?'':'s')+' sin reportar · último '+fmt(x.ultimo)
       +' · '+(x.job.usuarios?.nombre||'sin técnico'),
     job:x.job.id}));
+  // estimados enviados sin respuesta
+  (EST||[]).filter(x=>x.estatus==='enviado').forEach(x=>{
+    const d=x.fecha_envio?dias(x.fecha_envio,h):0;
+    if(d>=2) alertas.push({g:'Estimados sin respuesta', c: d>=7?'r':'m',
+      t:(x.cliente||'')+' · '+cf(x.monto),
+      s:x.folio+' · '+d+' días esperando'+(d>=7?' · YA URGE INSISTIR':' · toca para dar seguimiento')
+        +(x.ultimo_recordatorio?' · último recordatorio '+fmt(x.ultimo_recordatorio):' · sin recordatorios'),
+      est:x.id});
+  });
+
   // trabajos que parecen terminados pero siguen abiertos
   const idsAct=activos.map(x=>x.id);
   if(idsAct.length){
@@ -3941,10 +4523,7 @@ async function vResumen(){
         job:x.id});
   });
   env.filter(x=>x.fecha_envio && dias(x.fecha_envio,h)>=5)
-     .forEach(x=>alertas.push({g:'Estimados',c:'m',
-       t:x.cliente+' · '+cf(x.monto),
-       s:x.folio+' · '+(x.fecha_envio?dias(x.fecha_envio,h)+' días sin respuesta':'enviado')
-         +(x.descripcion?' · '+x.descripcion.slice(0,60):'')}));
+     .forEach(()=>{});
 
   const cl = await traerClima();
   const conDir = activos.filter(x=>x.direccion);
@@ -3981,12 +4560,13 @@ async function vResumen(){
     ${faltantes.length?`<div class="alerta" style="margin-bottom:14px">
       <div class="n">${faltantes.length}</div>
       <div class="t">trabajo${faltantes.length===1?'':'s'} arrastrando días sin reporte · el más viejo lleva ${Math.max(...faltantes.map(x=>x.dias))} día(s)</div>
+      <div class="row no-print" style="margin-top:11px"><button class="btn sm" id="wadiario">Mandarle el resumen al técnico</button></div>
     </div>`:''}
     <div class="eyebrow">Requiere tu atención · ${alertas.length}</div>
     ${(()=>{
       if(!alertas.length) return `<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`;
-      const ORDEN=['Días sin reporte','Reporte de hoy','Trabajo por revisar','¿Ya terminó?','Reportes iniciales',
-        'Recordatorios','Reparaciones','Estimados','Facturación','Avisos nuevos'];
+      const ORDEN=['Días sin reporte','Reporte de hoy','Estimados sin respuesta','Trabajo por revisar','¿Ya terminó?',
+        'Reportes iniciales','Recordatorios','Reparaciones','Estimados','Facturación','Avisos nuevos'];
       const ocultas=leerOcultas();
       const vivas=alertas.filter(a=>a.nid || !ocultas.has(claveAlerta(a)));
       if(!vivas.length) return `<div class="ok">Todo revisado por hoy. Lo que marcaste como hecho vuelve a aparecer mañana si sigue pendiente.</div>`;
@@ -4006,7 +4586,7 @@ async function vResumen(){
             ${k==='Avisos nuevos'?`<button class="btn ghost sm no-print" data-todas="1" style="margin-bottom:9px">Marcar todos como vistos</button>`:''}
             ${v.slice(0,10).map(a=>`
             <div class="fila ${a.c}">
-              <div class="t" ${a.job?`data-job="${a.job}"`:''} style="cursor:${a.job?'pointer':'default'}">
+              <div class="t" ${a.job?`data-job="${a.job}"`:(a.est?`data-ver="${a.est}"`:'')} style="cursor:${(a.job||a.est)?'pointer':'default'}">
                 <b>${esc(a.t)}</b><span class="sub">${esc(a.s)}</span></div>
               <span class="chip ${a.c==='r'?'rojo':a.c==='a'?'azul':'ambar'}">${a.c==='r'?'URGENTE':a.c==='a'?'NUEVO':'PENDIENTE'}</span>
               <button class="btn ghost sm no-print" ${a.nid?`data-okn="${a.nid}"`:`data-oka="${esc(claveAlerta(a))}"`}
@@ -4874,6 +5454,71 @@ async function abrirJob(id){
         </div>`}
       ${EST.length&&EDIT()?'<button class="btn ghost wide no-print" id="nuevoest2">+ Otro estimado para este trabajo</button>':''}
 
+      <div class="eyebrow">Acceso del cliente</div>
+      <div class="card" style="border-left-color:var(--oro)">
+        <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="meta">EL CLIENTE ENTRA CON ESTOS DOS DATOS</div>
+            <div class="row" style="gap:14px;margin-top:6px;align-items:baseline">
+              <div><div class="meta" style="font-size:10px">JOB NUMBER</div>
+                <div class="disp" style="font-size:24px">${esc(j.folio)}</div></div>
+              <div><div class="meta" style="font-size:10px">ACCESS CODE</div>
+                <div class="disp" style="font-size:24px;color:var(--oro);letter-spacing:.1em">${esc(j.codigo_acceso||'—')}</div></div>
+            </div>
+          </div>
+          ${EDIT()?`<div class="row" style="gap:7px">
+            <button class="btn sm" id="cliwa">Mandar al cliente</button>
+            <button class="btn ghost sm" id="clicopy">Copiar</button>
+          </div>`:''}
+        </div>
+        <div class="sub" style="margin-top:10px">Con eso ve reportes, fotos, estimados, factura y documentos. Nunca ve costos ni márgenes.</div>
+        ${EDIT()?`<div class="row no-print" style="margin-top:10px">
+          <button class="btn ghost sm" id="cligen">Cambiar código</button>
+          <a class="btn ghost sm" target="_blank" rel="noopener" href="?cliente=1&job=${encodeURIComponent(j.folio)}">Ver como el cliente</a>
+        </div>`:''}
+      </div>
+
+      <div class="eyebrow">Documentos para el cliente${(j.archivos_cliente||[]).length?' · '+(j.archivos_cliente||[]).length:''}</div>
+      <div class="card">
+        <div class="sub">Sube aquí el reporte fotográfico en PDF, cartas o cualquier documento que el cliente deba ver.</div>
+        ${(j.archivos_cliente||[]).length?`<div style="margin-top:10px">${(j.archivos_cliente||[]).map((a,i)=>`
+          <div class="row" style="justify-content:space-between;border-top:1px solid var(--linea2);padding-top:9px;margin-top:9px">
+            <div style="flex:1;min-width:0"><b>${esc(a.nombre||'Documento')}</b>
+              <div class="meta">${esc(a.tipo||'PDF')}${a.fecha?' · '+fmt(a.fecha):''}</div></div>
+            <div class="row" style="gap:6px">
+              <a class="btn ghost sm" href="${esc(a.url)}" target="_blank" rel="noopener">Abrir</a>
+              ${BORRAR()?`<button class="btn ghost sm" data-qdoc="${i}" style="color:var(--rojo)">✕</button>`:''}
+            </div></div>`).join('')}</div>`:''}
+        ${EDIT()?`<div class="row no-print" style="margin-top:11px">
+          <input id="docfile" type="file" accept="application/pdf,image/*" multiple style="flex:1">
+        </div>`:''}
+      </div>
+
+      <div class="eyebrow">Enlace directo para el manager</div>
+      ${j.link_token?`<div class="card" style="border-left-color:${j.link_activo===false?'var(--rojo)':'var(--verde,var(--azul))'}">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="meta">${j.link_activo===false?'ENLACE DESACTIVADO':'ENLACE ACTIVO'}</div>
+            <div class="mono" style="font-size:13px;word-break:break-all;margin-top:4px;color:var(--azul-d)">${esc(linkPortal(j.link_token))}</div>
+            <div class="meta" style="margin-top:6px">${j.link_vistas||0} vista${(j.link_vistas||0)===1?'':'s'}${j.link_ultima?' · última '+new Date(j.link_ultima).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):' · todavía no lo abren'}</div>
+          </div>
+        </div>
+        ${EDIT()?`<div class="row no-print" style="margin-top:11px;flex-wrap:wrap">
+          <button class="btn sm" id="lkcopy">Copiar enlace</button>
+          <a class="btn ghost sm" target="_blank" rel="noopener" href="${esc(linkPortal(j.link_token))}">Ver como el manager</a>
+          <a class="btn ghost sm" target="_blank" rel="noopener"
+            href="https://wa.me/${(j.managements?.telefono||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(
+              'Hello, here is the live report for '+(j.propiedades?.nombre||j.cliente)+(j.unidad?' Unit '+j.unidad:'')
+              +' — job '+j.folio+(j.po_number?' / PO '+j.po_number:'')+'.\n\n'+linkPortal(j.link_token)
+              +'\n\nIt updates every day with photos, readings and progress. Capri Restoration Services.')}">Mandar por WhatsApp</a>
+          <span style="flex:1"></span>
+          <button class="btn ghost sm" id="lktoggle">${j.link_activo===false?'Reactivar':'Desactivar'}</button>
+        </div>`:''}
+      </div>`:(EDIT()?`<div class="card" style="border-left-color:var(--linea)">
+        <div class="sub">Genera un enlace para que el manager vea el avance del trabajo sin necesidad de contraseña. Solo ve reportes, fotos y estatus — nunca precios ni márgenes.</div>
+        <div class="row no-print" style="margin-top:11px"><button class="btn sm" id="lkgen">Generar enlace del manager</button></div>
+      </div>`:'')}
+
       <div class="eyebrow" id="sec_invoice">Facturación</div>
       ${j.invoice_num||j.invoice_monto?`<div class="card" style="border-left-color:${j.invoice_pagado?'var(--azul)':'var(--ambar)'}">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
@@ -4933,6 +5578,11 @@ async function abrirJob(id){
         ${(r.areas||[]).length?`<div class="meta" style="margin-top:6px">AREAS · ${(r.areas||[]).join(', ')}</div>`:''}
         ${r.tipo_servicio?`<div class="row" style="margin-top:6px"><span class="chip ambar">${esc(r.tipo_servicio.toUpperCase())}</span></div>`:''}
         ${r.hallazgos?`<div class="sub" style="margin-top:6px;color:var(--tinta)"><b>Hallazgos:</b> ${esc(r.hallazgos)}</div>`:''}
+        ${r.scope_texto?`<div class="card" style="border-left-color:var(--oro);margin:9px 0 0">
+          <div class="meta">SCOPE OF WORK · ESCRITO POR ${esc((r.usuarios?.nombre||'EL TÉCNICO').toUpperCase())}</div>
+          <div class="texto clamp" style="margin-top:5px">${esc(r.scope_texto)}</div>
+          <button class="vermas" data-vermas="${r.id}">Ver completo ▾</button>
+        </div>`:''}
         ${(r.proximo_paso||[]).length?`<div class="row" style="margin-top:6px;gap:5px">${(r.proximo_paso||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}</div>`:''}
         ${r.quien_repara?`<div class="ok" style="margin:8px 0 0;padding:10px"><b>Repara:</b> ${esc(r.quien_repara)}</div>`:''}
         ${r.causa?`<div class="meta">CAUSA · ${esc(r.causa)}${r.categoria_agua?' · CATEGORÍA '+esc(r.categoria_agua):''}${r.galones?' · '+esc(r.galones):''}</div>`:''}
@@ -4943,7 +5593,15 @@ async function abrirJob(id){
           ${r.autorizacion?'<span class="chip azul">AUTORIZACIÓN FIRMADA</span>':'<span class="chip rojo">SIN AUTORIZACIÓN</span>'}
         </div>`:''}
         ${(r.temp_amb||r.hr_amb)?`<div class="meta">AMBIENTE · ${esc(r.temp_amb||'—')}°F · ${esc(r.hr_amb||'—')}% HR</div>`:''}
-        <div class="row" style="margin-top:5px;gap:5px">
+        <div class="row" style="margin-top:5px;gap:5px;flex-wrap:wrap">
+          ${r.agua_extraida?'<span class="chip azul">SE SACÓ AGUA</span>':''}
+          ${r.wipe_down?'<span class="chip azul">WIPE DOWN</span>':''}
+          ${r.demo?'<span class="chip ambar">DEMO</span>':''}
+          ${r.removio_pad_base?'<span class="chip ambar">PAD / BASEBOARDS</span>':''}
+          ${(r.deshu_inst||r.air_inst||r.scrub_inst)?`<span class="chip azul">INSTALÓ ${[r.deshu_inst?r.deshu_inst+' DESHU':'',r.air_inst?r.air_inst+' AIR':'',r.scrub_inst?r.scrub_inst+' SCRUB':''].filter(Boolean).join(' · ')}</span>`:''}
+          ${(r.deshu_ret||r.air_ret||r.scrub_ret)?`<span class="chip">RETIRÓ ${[r.deshu_ret?r.deshu_ret+' DESHU':'',r.air_ret?r.air_ret+' AIR':'',r.scrub_ret?r.scrub_ret+' SCRUB':''].filter(Boolean).join(' · ')}</span>`:''}
+          ${r.senalamiento?'<span class="chip">CON SEÑALAMIENTO</span>':''}
+          ${r.fecha_dano?`<span class="chip">DAÑO DEL ${fmt(r.fecha_dano)}</span>`:''}
           ${r.asbesto?'<span class="chip rojo">POSIBLE ASBESTO</span>':''}
           ${r.vecinos_afectados?`<span class="chip rojo">VECINOS AFECTADOS${r.vecinos_detalle?' · '+esc(r.vecinos_detalle):''}</span>`:''}
           ${r.requiere_plomero?'<span class="chip ambar">NECESITA PLOMERO</span>':''}
@@ -4983,6 +5641,72 @@ async function abrirJob(id){
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
+
+  const cwa=$('#cliwa');
+  if(cwa) cwa.onclick=()=>{
+    const tel=(j.managements?.telefono||'').replace(/[^0-9]/g,'');
+    const url=location.origin+location.pathname+'?cliente=1&job='+encodeURIComponent(j.folio);
+    const msg='Hello, you can track the progress of your job online:\n\n'
+      +(j.propiedades?.nombre||j.cliente)+(j.unidad?' · Unit '+j.unidad:'')+'\n\n'
+      +url+'\n\nJob number: '+j.folio+'\nAccess code: '+(j.codigo_acceso||'')
+      +'\n\nYou will see daily reports, photos, readings, estimates and invoice.\n\nCapri Restoration Services';
+    window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
+  };
+  const ccp=$('#clicopy');
+  if(ccp) ccp.onclick=async()=>{
+    const url=location.origin+location.pathname+'?cliente=1&job='+encodeURIComponent(j.folio);
+    const txt=url+'\nJob number: '+j.folio+'\nAccess code: '+(j.codigo_acceso||'');
+    try{ await navigator.clipboard.writeText(txt); toast('Copiado'); }catch(e){ prompt('Copia esto:', txt); }
+  };
+  const cgn=$('#cligen');
+  if(cgn) cgn.onclick=async()=>{
+    if(!confirm('¿Cambiar el código? El código anterior deja de funcionar.')) return;
+    const nuevo=Math.random().toString(36).slice(2,8).toUpperCase();
+    await sb.from('jobs').update({codigo_acceso:nuevo}).eq('id',id);
+    cerrar(); toast('Código nuevo: '+nuevo); abrirJob(id);
+  };
+  const df=$('#docfile');
+  if(df) df.onchange=async e=>{
+    const fs=[...e.target.files]; if(!fs.length) return;
+    toast('Subiendo '+fs.length+' documento(s)…');
+    const lista=(j.archivos_cliente||[]).slice();
+    for(const f of fs){
+      const nm=`doc/${id}/${Date.now()}-${f.name.replace(/[^A-Za-z0-9._-]/g,'_')}`;
+      const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'application/pdf'});
+      if(error){ toast('Error: '+error.message); continue; }
+      lista.push({nombre:f.name, tipo:(f.type||'').includes('pdf')?'PDF':'Imagen',
+        url:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl, fecha:hoy()});
+    }
+    await sb.from('jobs').update({archivos_cliente:lista}).eq('id',id);
+    cerrar(); toast('Documentos subidos'); abrirJob(id);
+  };
+  document.querySelectorAll('[data-qdoc]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Quitar este documento?')) return;
+    const lista=(j.archivos_cliente||[]).filter((x,i)=>i!==Number(b.dataset.qdoc));
+    await sb.from('jobs').update({archivos_cliente:lista}).eq('id',id);
+    cerrar(); toast('Documento quitado'); abrirJob(id);
+  });
+  const lg=$('#lkgen');
+  if(lg) lg.onclick=async()=>{
+    const tok = (j.folio.replace(/[^A-Za-z0-9]/g,'').toLowerCase()||'job')+'-'+
+      Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6);
+    const {error}=await sb.from('jobs').update({link_token:tok, link_activo:true, link_vistas:0}).eq('id',id);
+    if(error) return toast('No se generó: '+error.message);
+    cerrar(); toast('Enlace generado'); abrirJob(id);
+  };
+  const lc=$('#lkcopy');
+  if(lc) lc.onclick=async()=>{
+    const url=linkPortal(j.link_token);
+    try{ await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
+    catch(e){ prompt('Copia el enlace:', url); }
+  };
+  const lt=$('#lktoggle');
+  if(lt) lt.onclick=async()=>{
+    const nuevo = j.link_activo===false;
+    if(!nuevo && !confirm('¿Desactivar el enlace? El manager ya no va a poder verlo.')) return;
+    await sb.from('jobs').update({link_activo:nuevo}).eq('id',id);
+    cerrar(); toast(nuevo?'Enlace reactivado':'Enlace desactivado'); abrirJob(id);
+  };
   document.querySelectorAll('[data-justi]').forEach(b=>b.onclick=()=>{
     cerrar(); marcarNoFui(id, b.dataset.justi, j.tecnico_id || null);
   });
@@ -5075,6 +5799,12 @@ async function abrirJob(id){
     cerrar(); abrirJob(id);
   });
   R.forEach(r=>{ if((r.fotos||[]).length) engancharDescargas(r.fotos); });
+  document.querySelectorAll('[data-vermas]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const t=b.previousElementSibling;
+    const ab=t.classList.toggle('clamp');
+    b.textContent = ab ? 'Ver completo ▾' : 'Ver menos ▴';
+  });
   document.querySelectorAll('[data-vr],[data-vr2]').forEach(b=>b.onclick=()=>{
     const rr=R.find(x=>x.id===(b.dataset.vr||b.dataset.vr2)); if(rr) verReporteCampo(rr,j);
   });
@@ -5705,6 +6435,24 @@ async function abrirEstimado(id){
       ${jobLig?`<div class="ok" style="margin-top:14px">Ya convertido en el job <b>${esc(jobLig.folio)}</b> — ${esc(jobLig.cliente)}</div>`:''}
 
       <div style="height:16px"></div>
+      ${x.estatus==='enviado'?(()=>{
+        const d=x.fecha_envio?dias(x.fecha_envio,hoy()):0;
+        const tel=(x.telefono||'').replace(/[^0-9]/g,'');
+        const msg='Hola, le escribo de Capri Restoration para dar seguimiento al estimado '+x.folio
+          +' de '+(x.cliente||'')+' por '+cf(x.monto)+', enviado el '+fmt(x.fecha_envio)
+          +'.\n\n¿Ya tuvieron oportunidad de revisarlo? Quedamos al pendiente de su aprobación para programar el trabajo.\n\nGracias.';
+        return `<div class="${d>=7?'alerta':'ok'}" style="margin-bottom:14px">
+          <div class="n" style="font-size:34px">${d}</div>
+          <div class="t">días esperando respuesta${x.ultimo_recordatorio?' · último recordatorio '+fmt(x.ultimo_recordatorio):' · todavía no le insistes'}</div>
+          ${EDIT()?`<div class="row no-print" style="margin-top:11px">
+            ${tel?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" id="wains">Insistir por WhatsApp</a>`:''}
+            <button class="btn ghost sm" data-est-resp="aceptado">Lo aprobaron</button>
+            <button class="btn ghost sm" data-est-resp="rechazado">Lo rechazaron</button>
+          </div>`:''}
+        </div>`;})():''}
+      ${x.notas_seguimiento?`<div class="card" style="border-left-color:var(--ambar)">
+        <div class="meta">SEGUIMIENTO</div>
+        <div class="sub" style="color:var(--tinta)">${esc(x.notas_seguimiento)}</div></div>`:''}
       ${EDIT()?`<div class="row no-print">
         <button class="btn ghost" style="flex:1" id="ed2">Editar</button>
         <button class="btn ghost" style="flex:1" onclick="window.print()">Imprimir / PDF</button>
@@ -5721,6 +6469,19 @@ async function abrirEstimado(id){
     </div></div>`;
 
   engancharDescargas(x.fotos||[]);
+  const wa=$('#wains');
+  if(wa) wa.onclick=async()=>{ await sb.from('estimados').update({ultimo_recordatorio:hoy()}).eq('id',id); };
+  document.querySelectorAll('[data-est-resp]').forEach(b=>b.onclick=async()=>{
+    const nuevo=b.dataset.estResp;
+    const nota=prompt(nuevo==='aceptado'
+      ? '¿Quién lo aprobó y cuándo empiezan? (opcional)'
+      : '¿Por qué lo rechazaron? (opcional)') || '';
+    const up={estatus:nuevo, fecha_respuesta:hoy()};
+    if(nota.trim()) up.notas_seguimiento=(x.notas_seguimiento?x.notas_seguimiento+'\n':'')+fmt(hoy())+' · '+nota.trim();
+    const {error}=await sb.from('estimados').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast(nuevo==='aceptado'?'Estimado aprobado':'Estimado rechazado'); render();
+  });
   $('#c1').onclick=$('#c2').onclick=cerrar;
   const ed2=$('#ed2'); if(ed2) ed2.onclick=()=>formEstimado(id);
   const del2=$('#del2'); if(del2) del2.onclick=async()=>{
@@ -6032,6 +6793,30 @@ window.addEventListener('unhandledrejection', ev=>{
   try{ toast('Error: '+((ev.reason&&ev.reason.message)||ev.reason||'').toString().slice(0,90)); }catch(x){}
 });
 
+/* Borrador: guarda el avance por si se cierra el reporte a medias */
+function claveBorrador(){
+  if(!G) return null;
+  return 'jr31_bor_' + (U?U.id:'x') + '_' + (G.modo==='intake' ? 'intake' : (G.job?G.job.id:'x')) + '_' + G.fecha;
+}
+function guardarBorrador(){
+  try{
+    const k=claveBorrador(); if(!k) return;
+    localStorage.setItem(k, JSON.stringify({paso:G.paso, tipo:G.tipo, d:G.d, ts:Date.now()}));
+  }catch(e){}
+}
+function leerBorrador(jobId, fecha, modo){
+  try{
+    const k='jr31_bor_'+(U?U.id:'x')+'_'+(modo==='intake'?'intake':jobId)+'_'+fecha;
+    const raw=localStorage.getItem(k); if(!raw) return null;
+    const b=JSON.parse(raw);
+    if(Date.now()-(b.ts||0) > 1000*60*60*72){ localStorage.removeItem(k); return null; }
+    return b;
+  }catch(e){ return null; }
+}
+function borrarBorrador(){
+  try{ const k=claveBorrador(); if(k) localStorage.removeItem(k); }catch(e){}
+}
+
 /* Acciones globales: funcionan sin importar cuándo se pinte la pantalla */
 document.addEventListener('click', e=>{
   if(!U) return;
@@ -6042,6 +6827,67 @@ function accionGlobal(e){
   const el = k => e.target.closest('['+k+']');
   const idEl = id => e.target.closest('#'+id);
   const F = () => hoy();
+
+  // ===== Controles del cuestionario · siempre responden =====
+  const enCuest = G && G.pasos && document.getElementById('gnext');
+  if(enCuest){
+    const paso = G.pasos[G.paso] || {};
+    const repinta = (recalcular) => {
+      if(recalcular){ const pa=G.paso; pasosGuiado(); G.paso=Math.min(pa,G.pasos.length-1); }
+      guardarBorrador(); pintaGuiado();
+    };
+
+    const rk = el('data-rk');
+    if(rk){ e.preventDefault();
+      const k=rk.dataset.rk, val=rk.dataset.rv==='1';
+      if(k==='ocupada_b') G.d.ocupada = val?'ocupada':'vacia'; else G.d[k]=val;
+      return repinta(k==='vecinos_afectados'||k==='agua_extraida'); }
+
+    const ps = el('data-ps');
+    if(ps){ e.preventDefault();
+      const v=ps.dataset.ps; G.d.proximo_paso=G.d.proximo_paso||[];
+      const i=G.d.proximo_paso.indexOf(v);
+      if(i>=0) G.d.proximo_paso.splice(i,1); else G.d.proximo_paso.push(v);
+      return repinta(true); }
+
+    const tt = el('data-t');
+    if(tt){ e.preventDefault(); G.tipo=tt.dataset.t; pasosGuiado(); return repinta(); }
+
+    const oo = el('data-o');
+    if(oo){ e.preventDefault(); G.d.ocupada=oo.dataset.o; return repinta(); }
+
+    const svv = el('data-sv');
+    if(svv){ e.preventDefault(); G.d.tipo=svv.dataset.sv; return repinta(); }
+
+    const bb = el('data-b');
+    if(bb){ e.preventDefault();
+      const val = bb.dataset.b==='1';
+      if(bb.closest('#q_ah2')) G.d.after_hours=val;
+      else if(paso.k) G.d[paso.k]=val;
+      return repinta(paso.k==='agua_extraida'); }
+
+    const cc = el('data-c');
+    if(cc){ e.preventDefault();
+      const k = paso.k || 'material_removido';
+      const v = cc.dataset.c, arr = G.d[k] || (G.d[k]=[]), i=arr.indexOf(v);
+      if(i>=0) arr.splice(i,1); else arr.push(v);
+      return repinta(k==='material_removido'||k==='areas'); }
+
+    const addC = el('data-add');
+    if(addC){ e.preventDefault();
+      const nombre=prompt(ING()?'Type the name:':'Escribe el nombre:');
+      if(!nombre||!nombre.trim()) return;
+      const v=nombre.trim(), k=paso.k||'material_removido';
+      const listaCat = paso.cat ? G[paso.cat] : G.mcat;
+      const tabla = paso.tabla || 'materiales_catalogo';
+      if(listaCat && !listaCat.includes(v)){ listaCat.push(v); sb.from(tabla).insert({nombre:v}).then(()=>{},()=>{}); }
+      G.d[k]=G.d[k]||[]; if(!G.d[k].includes(v)) G.d[k].push(v);
+      return repinta(true); }
+
+    const qf = el('data-qf');
+    if(qf){ e.preventDefault();
+      G.d.fotos=G.d.fotos.filter(f=>fotoU(f)!==qf.dataset.qf); return repinta(); }
+  }
 
   const ir = el('data-ir');
   if(ir){ e.preventDefault(); const d=ir.dataset.ir;
@@ -6095,12 +6941,20 @@ function accionGlobal(e){
   if(idEl('btn_ini') || idEl('binicial')){ e.preventDefault(); return pickerInicial(); }
   if(idEl('lev')){ e.preventDefault(); cerrar(); return levantamientoInicial(); }
   if(idEl('miruta')){ e.preventDefault(); return rutaDelTecnico(); }
+  if(idEl('btn_brief')){ e.preventDefault(); return resumenDiario(false); }
   if(idEl('irmapa')){ e.preventDefault(); V='mapa'; return render(); }
 }
 
-const g=sessionStorage.getItem('jr31');
-if(g){ U=JSON.parse(g); PUERTA=U.rol; DEP=U.departamento==='ambos'?'restoration':U.departamento;
-  V = U.rol==='tecnico' ? 'dia' : 'resumen'; render(); } else portada();
+const _p = new URLSearchParams(location.search);
+if(tokenURL()){
+  portalCliente(tokenURL());
+} else if(_p.has('cliente') || _p.has('job')){
+  buscarCliente(_p.get('job')||'');
+} else {
+  const g=sessionStorage.getItem('jr31');
+  if(g){ U=JSON.parse(g); PUERTA=U.rol; DEP=U.departamento==='ambos'?'restoration':U.departamento;
+    V = U.rol==='tecnico' ? 'dia' : 'resumen'; render(); } else portada();
+}
 </script>
 </body>
 </html>
