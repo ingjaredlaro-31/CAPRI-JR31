@@ -2193,7 +2193,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v74 · acceso del cliente</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v75 · envío al manager</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4044,7 +4044,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='74';
+const VERSION='75';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5470,7 +5470,7 @@ async function abrirJob(id){
         </div>`}
       ${EST.length&&EDIT()?'<button class="btn ghost wide no-print" id="nuevoest2">+ Otro estimado para este trabajo</button>':''}
 
-      <div class="eyebrow">Acceso del cliente</div>
+      <div class="eyebrow">Acceso del cliente · ${esc(j.folio)}</div>
       <div class="card" style="border-left-color:var(--oro)">
         <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
           <div>
@@ -5483,11 +5483,12 @@ async function abrirJob(id){
             </div>
           </div>
           ${EDIT()?`<div class="row" style="gap:7px">
-            <button class="btn sm" id="cliwa">Mandar al cliente</button>
+            <button class="btn sm" id="cliwa">Mandar al manager</button>
             <button class="btn ghost sm" id="clicopy">Copiar</button>
           </div>`:''}
         </div>
-        <div class="sub" style="margin-top:10px">Con eso ve reportes, fotos, estimados, factura y documentos. Nunca ve costos ni márgenes.</div>
+        <div class="sub" style="margin-top:10px">Este código es <b>solo de este trabajo</b>. El manager ve reportes, fotos, estimados, factura y documentos únicamente de ${esc(j.propiedades?.nombre||j.cliente)}${j.unidad?' Unit '+esc(j.unidad):''}. Nunca ve costos ni márgenes, ni ningún otro trabajo.</div>
+        ${j.link_vistas?`<div class="ok" style="margin-top:10px;padding:10px">Lo han abierto <b>${j.link_vistas} ${j.link_vistas===1?'vez':'veces'}</b>${j.link_ultima?' · última '+new Date(j.link_ultima).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>`:'<div class="sub" style="margin-top:8px;color:var(--gris)">Todavía no lo han abierto.</div>'}
         ${EDIT()?`<div class="row no-print" style="margin-top:10px">
           <button class="btn ghost sm" id="cligen">Cambiar código</button>
           <a class="btn ghost sm" target="_blank" rel="noopener" href="?cliente=1&job=${encodeURIComponent(j.folio)}">Ver como el cliente</a>
@@ -5659,15 +5660,7 @@ async function abrirJob(id){
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
 
   const cwa=$('#cliwa');
-  if(cwa) cwa.onclick=()=>{
-    const tel=(j.managements?.telefono||'').replace(/[^0-9]/g,'');
-    const url=location.origin+location.pathname+'?cliente=1&job='+encodeURIComponent(j.folio);
-    const msg='Hello, you can track the progress of your job online:\n\n'
-      +(j.propiedades?.nombre||j.cliente)+(j.unidad?' · Unit '+j.unidad:'')+'\n\n'
-      +url+'\n\nJob number: '+j.folio+'\nAccess code: '+(j.codigo_acceso||'')
-      +'\n\nYou will see daily reports, photos, readings, estimates and invoice.\n\nCapri Restoration Services';
-    window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
-  };
+  if(cwa) cwa.onclick=()=>enviarAccesoCliente(j);
   const ccp=$('#clicopy');
   if(ccp) ccp.onclick=async()=>{
     const url=location.origin+location.pathname+'?cliente=1&job='+encodeURIComponent(j.folio);
@@ -5933,6 +5926,78 @@ async function formFinanzas(id){
     const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Control financiero guardado'); abrirJob(id);
+  };
+}
+
+async function enviarAccesoCliente(j){
+  let contactos=[];
+  if(j.propiedad_id){
+    const {data}=await sb.from('contactos').select('nombre,puesto,telefono,email').eq('propiedad_id',j.propiedad_id);
+    contactos=(data||[]).filter(x=>x.telefono||x.email);
+  }
+  if(j.managements?.telefono) contactos.push({nombre:j.managements.nombre||'Management', puesto:'management', telefono:j.managements.telefono});
+  if(j.telefono) contactos.push({nombre:j.cliente||'Contacto del trabajo', puesto:'del job', telefono:j.telefono});
+
+  const url=location.origin+location.pathname+'?cliente=1&job='+encodeURIComponent(j.folio);
+  const prop=(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'');
+  const msg = nombre => 'Hello'+(nombre?' '+nombre.split(' ')[0]:'')+',\n\n'
+    +'You can now track the progress of this job online, updated daily:\n\n'
+    +prop+'\n'+(j.po_number?'PO '+j.po_number+'\n':'')+'\n'
+    +url+'\n\n'
+    +'Job number: '+j.folio+'\n'
+    +'Access code: '+(j.codigo_acceso||'')+'\n\n'
+    +'You will find daily reports, photos by area, moisture readings, estimates and invoice.\n\n'
+    +'Capri Restoration Services Inc';
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${esc(j.folio)}</div>
+    <div class="disp">Mandar el acceso</div>
+    <div style="color:#C3D6F7">${esc(prop)}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="card" style="border-left-color:var(--oro)">
+        <div class="row" style="gap:18px">
+          <div><div class="meta" style="font-size:10px">JOB NUMBER</div>
+            <div class="disp" style="font-size:22px">${esc(j.folio)}</div></div>
+          <div><div class="meta" style="font-size:10px">ACCESS CODE</div>
+            <div class="disp" style="font-size:22px;color:var(--oro);letter-spacing:.1em">${esc(j.codigo_acceso||'')}</div></div>
+        </div>
+      </div>
+
+      ${contactos.length?`<div class="eyebrow">¿A quién se lo mandas?</div>
+        ${contactos.map((c,i)=>`<div class="fila a">
+          <div class="t"><b>${esc(c.nombre||'Contacto')}</b>
+          <span class="sub">${esc(c.puesto||'')}${c.telefono?' · '+esc(c.telefono):''}</span></div>
+          <div class="row" style="gap:6px">
+            ${c.telefono?`<a class="btn sm" target="_blank" rel="noopener"
+              href="https://wa.me/${(c.telefono||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg(c.nombre))}">WhatsApp</a>`:''}
+            ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Job '+j.folio+' · '+prop)}&body=${encodeURIComponent(msg(c.nombre))}">Correo</a>`:''}
+          </div></div>`).join('')}`
+        :`<div class="alerta"><div class="t">Esta propiedad no tiene contactos capturados. Agrégalos en Managements para mandarlo con un toque.</div></div>`}
+
+      <div class="eyebrow">O mándalo a otro número</div>
+      <div class="row">
+        <input id="otro_tel" placeholder="619 555 0134" style="flex:1">
+        <button class="btn sm" id="otro_go">WhatsApp</button>
+      </div>
+
+      <div class="eyebrow">El mensaje que se manda</div>
+      <div class="card"><div class="texto" style="font-size:15px">${esc(msg(''))}</div></div>
+      <button class="btn ghost wide" id="copiar_msg" style="margin-top:10px">Copiar el mensaje</button>
+
+      <div style="height:16px"></div>
+      <button class="btn ghost wide" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();abrirJob(j.id);};
+  $('#otro_go').onclick=()=>{
+    const t=($('#otro_tel').value||'').replace(/[^0-9]/g,'');
+    if(t.length<10) return toast('Escribe el número completo.');
+    window.open('https://wa.me/'+t+'?text='+encodeURIComponent(msg('')),'_blank');
+  };
+  $('#copiar_msg').onclick=async()=>{
+    try{ await navigator.clipboard.writeText(msg('')); toast('Mensaje copiado'); }
+    catch(e){ prompt('Copia el mensaje:', msg('')); }
   };
 }
 
