@@ -1498,6 +1498,9 @@ function pintaPortal(data){
       <div class="row no-print" style="margin-top:10px">
         <button class="btn ghost wide" id="p_otro">Look up another job</button>
       </div>
+      <div class="row no-print" style="margin-top:10px">
+        <button class="btn ghost wide" id="p_idioma" style="font-size:15px">${ING()?'Ver en español':'View in English'}</button>
+      </div>
 
       <div class="pfoot">
         <div class="disp" style="font-size:17px">CAPRI RESTORATION SERVICES INC</div>
@@ -1515,6 +1518,12 @@ function pintaPortal(data){
 
   const po=document.getElementById('p_otro');
   if(po) po.onclick=()=>{ try{ localStorage.removeItem('jr31_cli'); }catch(e){} buscarCliente(); };
+  const pi=document.getElementById('p_idioma');
+  if(pi) pi.onclick=()=>{
+    IDIOMA = ING() ? 'es' : 'en';
+    try{ localStorage.setItem('jr31_idioma', IDIOMA); }catch(e){}
+    pintaPortal(data);
+  };
   window.addEventListener('beforeprint', ()=>document.querySelectorAll('details.rep').forEach(d=>d.open=true));
 }
 
@@ -2085,6 +2094,34 @@ async function marcarNoFui(jobId, fecha, tecOverride){
   pinta();
 }
 
+/* ==================== FECHAS DEL TRABAJO ==================== */
+function inicioJob(j){ return (j.fecha_inicio||j.created_at||hoy()).slice(0,10); }
+
+function antiguedad(j){
+  const ini=inicioJob(j);
+  const d=dias(ini,hoy())+1;
+  const txt = (typeof ING==='function' && ING())
+    ? 'Started '+fmt(ini)+' · day '+d+' of the job'
+    : 'Inició '+fmt(ini)+' · día '+d+' del trabajo';
+  return {ini, d, txt};
+}
+
+function diasFaltantes(job, fechasConReporte, maxDias){
+  const arranque = (job.fecha_inicio||job.created_at||hoy()).slice(0,10);
+  const tope = hace(maxDias||20);
+  const desde = arranque > tope ? arranque : tope;
+  const h = hoy();
+  const temprano = new Date().getHours() < HORA_AVISO;
+  const out=[];
+  let d=new Date(desde+'T12:00:00'), fin=new Date(h+'T12:00:00');
+  while(d<=fin){
+    const f=iso(d);
+    if(!fechasConReporte.has(f) && !(f===h && temprano)) out.push(f);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+
 /* ==================== TÉCNICO · REPORTES POR MOSAICO ==================== */
 let RNIVEL='mgmt', RMG=null, RPROP=null;
 
@@ -2383,6 +2420,7 @@ function shell(html){
       <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
+        <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
@@ -2394,7 +2432,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v83 · auditoría</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v84 · idioma escogible</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2407,6 +2445,7 @@ function shell(html){
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
+  const bi2=$('#idioma'); if(bi2) bi2.onclick=cambiarIdioma;
   if(document.getElementById('reloj')) arrancarReloj();
   if(POST){ const f=POST; POST=null; setTimeout(f,40); }
   const fab=$('#fab');
@@ -4162,7 +4201,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='83';
+const VERSION='84';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -4222,7 +4261,18 @@ function engancharDescargas(lista){
     }
   });
 }
-const ING = () => U && U.rol==='tecnico';
+let IDIOMA = 'auto';
+try{ IDIOMA = localStorage.getItem('jr31_idioma') || 'auto'; }catch(e){}
+const ING = () => {
+  if(IDIOMA === 'en') return true;
+  if(IDIOMA === 'es') return false;
+  return !!(U && U.rol==='tecnico');   // automático: el técnico en inglés
+};
+function cambiarIdioma(){
+  IDIOMA = ING() ? 'es' : 'en';
+  try{ localStorage.setItem('jr31_idioma', IDIOMA); }catch(e){}
+  render();
+}
 const TR = {
  'Inicio':'Home','Trabajos':'Jobs','Reporte':'Report','Agenda':'Schedule','Historial':'History','Avisos':'Alerts','Salir':'Log out',
  'Buenos días':'Good morning','Buenas tardes':'Good afternoon','Buenas noches':'Good evening',
