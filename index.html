@@ -1457,7 +1457,7 @@ async function resumenDiario(auto){
 }
 
 /* ==================== TÉCNICO · INICIO ==================== */
-let TTAB='activos', JTAB='activos';
+let TTAB='mios', JTAB='activos';
 
 async function vTecInicio(){
   const h=hoy();
@@ -1588,69 +1588,79 @@ async function vTecInicio(){
 
 /* ==================== TÉCNICO · TRABAJOS ==================== */
 async function vTecTrabajos(){
-  const miDep = U.departamento==='ambos' ? 'restoration' : U.departamento;
-  const {data}=await sb.from('jobs')
-    .select('*, propiedades(nombre), managements(nombre)')
-    .not('estatus','in','("terminado","facturado")')
-    .order('created_at',{ascending:false}).limit(120);
-  const {data:mias}=await sb.from('asignaciones').select('job_id').eq('tecnico_id',U.id).gte('fecha',hace(60));
-  const mios=new Set((mias||[]).map(x=>x.job_id));
+  const dep = U.departamento==='ambos'?null:U.departamento;
+  const h=hoy();
+  let q = sb.from('jobs').select('*, managements(nombre), propiedades(nombre)')
+    .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false});
+  if(dep) q = q.eq('departamento',dep);
+  const {data}=await q;
   const J=data||[];
-  const {data:rh}=await sb.from('reportes').select('job_id').eq('fecha',hoy());
-  const repHoyIds=new Set((rh||[]).map(x=>x.job_id));
-  const idsJ=J.map(x=>x.id);
-  const fechasJob={};
-  if(idsJ.length){
-    const {data:rr}=await sb.from('reportes').select('job_id,fecha').in('job_id',idsJ).limit(600);
-    (rr||[]).forEach(x=>(fechasJob[x.job_id] ||= new Set()).add(x.fecha));
-  }
+  if(!J.length) return `<div class="empty"><div class="disp">${ING()?'No active jobs':'Sin trabajos activos'}</div>
+    <p>${ING()?'Every open job in your area shows up here.':'Aquí ves todos los jobs abiertos de tu área.'}</p></div>`;
 
-  const activos = J.filter(x=>x.departamento===miDep && x.estatus!=='reconstruccion');
-  const reparando = J.filter(x=>x.departamento===miDep && x.estatus==='reconstruccion');
-  const cleaning = J.filter(x=>x.departamento==='cleaning');
+  const {data:mias}=await sb.from('asignaciones').select('job_id').eq('tecnico_id',U.id).gte('fecha',hace(30));
+  const mios=new Set((mias||[]).map(x=>x.job_id));
+  const {data:rr}=await sb.from('reportes').select('job_id,fecha').in('job_id',J.map(x=>x.id)).limit(900);
+  const fechas={}; (rr||[]).forEach(x=>(fechas[x.job_id] ||= new Set()).add(x.fecha));
 
-  const lista = TTAB==='activos'?activos : TTAB==='reparando'?reparando : cleaning;
+  const debe = j => diasFaltantes(j, fechas[j.id]||new Set()).length;
+  const total = J.reduce((a,x)=>a+debe(x),0);
 
   setTimeout(()=>{
-    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{TTAB=b.dataset.t;render();});
+    document.querySelectorAll('#ttabs button').forEach(b=>b.onclick=()=>{TTAB=b.dataset.tt;render();});
   },0);
 
-  const tarjeta=j=>{
-    const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
-    return `<div class="card ${j.departamento==='cleaning'?'rojo':''}" data-vj="${j.id}" style="cursor:pointer">
-      <div class="row" style="justify-content:space-between">
+  const mis = J.filter(x=>mios.has(x.id) || x.tecnico_id===U.id);
+  const otros = J.filter(x=>!mis.includes(x));
+  const lista = TTAB==='mios' ? mis : TTAB==='deben' ? J.filter(x=>debe(x)>0) : J;
+
+  const tarjeta = j => {
+    const d = debe(j);
+    const repHoy = (fechas[j.id]||new Set()).has(h);
+    const faltas = diasFaltantes(j, fechas[j.id]||new Set());
+    return `<div class="jobcard ${d>2?'rojo':d?'ambar':'azul'}" data-vj="${j.id}">
+      <div class="jc-top">
         <span class="folio">${esc(j.folio)}</span>
-        ${mios.has(j.id)?'<span class="chip azul">ASIGNADO A MÍ</span>':`<span class="chip">${esc(j.estatus)}</span>`}</div>
-      <div class="tit">${esc(prop)}</div>
-      <div class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.direccion||'')}</div>
-      <div class="meta" style="margin-top:4px">${esc(antiguedad(j).txt)}</div>
-      <div class="row" style="margin-top:7px">
-        ${(()=>{const d=diasFaltantes(j,fechasJob[j.id]||new Set()).length;
-          return d?`<span class="chip rojo">DEBE ${d} REPORTE${d>1?'S':''}</span>`:'<span class="chip azul">AL CORRIENTE</span>';})()}
-        ${repHoyIds.has(j.id)?'<span class="chip azul">REPORTADO HOY</span>':'<span class="chip rojo">SIN REPORTE HOY</span>'}
-        <span class="chip">${esc(j.tipo)}</span>
-        <span class="chip ${j.ocupada==='ocupada'?'rojo':''}">${esc((j.ocupada||'vacia').toUpperCase())}</span>
-        ${(j.areas||[]).length?`<span class="chip">${(j.areas||[]).length} ÁREAS</span>`:''}
-      </div>
-      ${(()=>{const f=diasFaltantes(j,fechasJob[j.id]||new Set());
-        if(!f.length) return '';
-        return `<div class="chips" style="margin-top:8px">${f.slice(-8).map(x=>
-          `<button type="button" data-rg2="${j.id}" data-f2="${x}"
-            style="border-color:var(--rojo-b);background:var(--rojo-l);color:var(--rojo-d);font-size:14px;padding:7px 11px">${x.slice(8)} ${MESCORTO[+x.slice(5,7)-1]}</button>`).join('')}</div>`;})()}
-      </div>`;
+        <div class="row" style="gap:6px">
+          ${(mios.has(j.id)||j.tecnico_id===U.id)?`<span class="jc-chip azul">${ING()?'MINE':'MÍO'}</span>`:''}
+          ${repHoy?`<span class="jc-chip verde">${ING()?'REPORTED TODAY':'REPORTADO HOY'}</span>`
+                  :`<span class="jc-chip rojo">${ING()?'NO REPORT TODAY':'SIN REPORTE HOY'}</span>`}
+        </div></div>
+      <div class="jc-body">
+        <div class="jc-tit">${esc(j.propiedades?.nombre||j.cliente)}</div>
+        <div class="jc-dir">${esc(j.direccion||'')}${j.unidad?' · <b>Unit '+esc(j.unidad)+'</b>':''}${j.ciudad?', '+esc(j.ciudad):''}</div>
+        <div class="jc-meta">${esc(antiguedad(j).txt.toUpperCase())}</div>
+        <div class="jc-meta">${esc((j.tipo||'').toUpperCase())}${j.managements?.nombre?' · '+esc(j.managements.nombre.toUpperCase()):''}</div>
+
+        ${d?`<div class="jc-chips">
+          <span class="jc-chip rojo">${d} ${ING()?(d===1?'REPORT DUE':'REPORTS DUE'):(d===1?'REPORTE PENDIENTE':'REPORTES PENDIENTES')}</span>
+        </div>
+        <div class="chips" style="margin-top:9px">${faltas.slice(-6).map(f=>
+          `<button type="button" data-rg2="${j.id}" data-f2="${f}"
+            style="border-color:${f===h?'var(--oro)':'var(--rojo-b)'};background:${f===h?'rgba(224,179,78,.14)':'var(--rojo-l)'};color:${f===h?'var(--oro)':'var(--rojo-d)'};font-size:14px;padding:8px 12px">
+            ${f===h?(ING()?'TODAY':'HOY'):f.slice(8)+' '+MESCORTO[+f.slice(5,7)-1]}</button>`).join('')}</div>`
+        :`<div class="jc-chips"><span class="jc-chip verde">${ING()?'UP TO DATE':'AL CORRIENTE'}</span></div>`}
+
+        <div class="row no-print" style="margin-top:12px">
+          <a class="btn ghost sm" target="_blank" rel="noopener"
+            href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([j.direccion,j.ciudad,'CA'].filter(Boolean).join(', '))}">${ING()?'Route':'Ruta'}</a>
+          <button class="btn ghost sm" data-vj="${j.id}">${ING()?'Open job':'Ver trabajo'}</button>
+          <span style="flex:1"></span>
+          <button class="btn sm" data-rg="${j.id}" data-f="${h}">${repHoy?(ING()?'Edit':'Corregir'):(ING()?'Report':'Reportar')}</button>
+        </div>
+      </div></div>`;
   };
 
-  const debeTotal=J.filter(x=>x.departamento===miDep).reduce((a,x)=>a+diasFaltantes(x,fechasJob[x.id]||new Set()).length,0);
-  return `${debeTotal?`<div class="alerta" style="margin-bottom:12px">
-      <div class="n">${debeTotal}</div>
-      <div class="t">reporte${debeTotal===1?'':'s'} que debes en total · toca la fecha roja de cada trabajo</div></div>`:''}
-    <div class="tabs">
-      <button data-t="activos" class="${TTAB==='activos'?'on':''}">Activos<span class="c">${activos.length}</span></button>
-      <button data-t="reparando" class="${TTAB==='reparando'?'on':''}">Reparación<span class="c">${reparando.length}</span></button>
-      <button data-t="cleaning" class="${TTAB==='cleaning'?'on':''}">Cleaning<span class="c" style="color:var(--rojo)">${cleaning.length}</span></button>
+  return `${total?`<div class="alerta" style="margin-bottom:14px">
+      <div class="n">${total}</div>
+      <div class="t">${ING()?'reports pending across all your jobs':'reportes pendientes en todos tus trabajos'}</div></div>`:''}
+    <div class="tabs" id="ttabs">
+      <button data-tt="mios" class="${TTAB==='mios'?'on':''}">${ING()?'Mine':'Míos'}<span class="c">${mis.length}</span></button>
+      <button data-tt="deben" class="${TTAB==='deben'?'on':''}">${ING()?'Pending':'Pendientes'}<span class="c" style="color:var(--rojo)">${J.filter(x=>debe(x)>0).length}</span></button>
+      <button data-tt="todos" class="${TTAB==='todos'?'on':''}">${ING()?'All':'Todos'}<span class="c">${J.length}</span></button>
     </div>
-    ${TTAB==='cleaning'?'<div class="sub" style="margin-bottom:10px">Trabajos del departamento de cleaning, solo para que sepas cuáles hay.</div>':''}
-    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">Nada por aquí</div><p>No hay trabajos en esta lista.</p></div>`}`;
+    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">${ING()?'Nothing here':'Nada aquí'}</div>
+      <p>${ING()?'Switch tabs to see other jobs.':'Cambia de pestaña para ver otros trabajos.'}</p></div>`}`;
 }
 
 async function verJobTecnico(id){
@@ -2193,7 +2203,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v76 · botones corregidos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v77 · trabajos del técnico</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3959,7 +3969,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='76';
+const VERSION='77';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
