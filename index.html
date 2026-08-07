@@ -395,6 +395,13 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 .pcab .tt{font-family:var(--disp);font-weight:800;font-size:34px;color:#fff;line-height:1.02;margin-top:9px;text-transform:uppercase}
 .pcab .psub{font-size:16px;color:#C3D6F7;margin-top:5px}
 .pbody{padding:22px 18px 0}
+.pnav{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:20px}
+.pnav a{flex:1;min-width:110px;background:var(--sup);border:1px solid var(--linea);border-radius:12px;
+  padding:13px 12px;text-align:center;text-decoration:none;color:var(--tinta);
+  font-family:var(--disp);font-weight:700;font-size:16px;text-transform:uppercase;transition:all .15s}
+.pnav a:hover{border-color:var(--oro);background:var(--sup2)}
+.pnav a .n{display:block;font-family:var(--mono);font-size:23px;font-weight:600;color:var(--oro);margin-bottom:2px}
+@media print{.pnav{display:none}}
 .pblk{margin-top:12px;padding-top:11px;border-top:1px solid var(--linea2)}
 .ptab{width:100%;border-collapse:collapse;margin-top:6px;font-size:15px}
 .ptab th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--gris);text-align:left;
@@ -1331,6 +1338,14 @@ function pintaPortal(data){
 
       <div class="barra" style="height:14px;margin-bottom:18px"><i style="width:${pct}%;background:var(--oro)"></i></div>
 
+      <div class="pnav no-print">
+        ${R.length?`<a href="#s_reportes"><span class="n">${R.length}</span>Daily reports</a>`:''}
+        ${EST.length?`<a href="#s_est"><span class="n">${EST.length}</span>Estimates</a>`:''}
+        ${j.invoice?`<a href="#s_inv"><span class="n">1</span>Invoice</a>`:''}
+        ${(j.archivos||[]).length?`<a href="#s_doc"><span class="n">${(j.archivos||[]).length}</span>Documents</a>`:''}
+        ${fotoTodas.length?`<a href="#s_reportes"><span class="n">${fotoTodas.length}</span>Photos</a>`:''}
+      </div>
+
       <div class="eyebrow">Job progress</div>
       <div class="etapas">${ETAPAS_EN.map((e,i)=>{
         const ok=listo(e.k), act=(i===idxAct);
@@ -1341,13 +1356,13 @@ function pintaPortal(data){
       ${j.scope?`<div class="eyebrow">Scope of work</div>
         <div class="card" style="border-left-color:var(--azul)"><div class="texto">${esc(j.scope)}</div></div>`:''}
 
-      ${(j.archivos||[]).length?`<div class="eyebrow">Documents · ${(j.archivos||[]).length}</div>
+      ${(j.archivos||[]).length?`<div class="eyebrow" id="s_doc">Documents · ${(j.archivos||[]).length}</div>
         ${(j.archivos||[]).map(a=>`<div class="fila a">
-          <div class="t"><b>${esc(a.nombre||'Document')}</b>
+          <div class="t"><b>▤ ${esc(a.nombre||'Document')}</b>
           <span class="sub">${esc(a.tipo||'PDF')}${a.fecha?' · '+dCorta(a.fecha):''}</span></div>
-          <a class="btn ghost sm" href="${esc(a.url)}" target="_blank" rel="noopener">Open</a></div>`).join('')}`:''}
+          <a class="btn sm" href="${esc(a.url)}" target="_blank" rel="noopener" download>Open</a></div>`).join('')}`:''}
 
-      ${EST.length?`<div class="eyebrow">Estimates · ${EST.length}</div>
+      ${EST.length?`<div class="eyebrow" id="s_est">Estimates · ${EST.length}</div>
         ${EST.map(e=>`<div class="card" style="border-left-color:${e.estatus==='aceptado'?'var(--verde,var(--azul))':e.estatus==='rechazado'?'var(--gris)':'var(--oro)'}">
           <div class="row" style="justify-content:space-between;align-items:flex-start">
             <div style="flex:1;min-width:0">
@@ -1366,11 +1381,12 @@ function pintaPortal(data){
               <td class="mono">${esc(x.cant||1)} ${esc(x.unidad||'')}</td>
               <td class="mono">${cf(x.precio)}</td>
               <td class="mono">${cf(Number(x.cant||1)*Number(x.precio||0))}</td></tr>`).join('')}</tbody></table>`:''}
-          ${(e.archivos||[]).length?`<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">${(e.archivos||[]).map(a=>
-            `<a class="btn ghost sm" href="${esc(a.url||a)}" target="_blank" rel="noopener">Open document</a>`).join('')}</div>`:''}
+          ${(e.archivos||[]).length?`<div class="row no-print" style="gap:8px;margin-top:12px;flex-wrap:wrap">${(e.archivos||[]).map((a,k)=>
+            `<a class="btn sm" href="${esc(a.url||a)}" target="_blank" rel="noopener" download>
+              ▤ ${esc(a.nombre||('Estimate PDF'+((e.archivos||[]).length>1?' '+(k+1):'')))}</a>`).join('')}</div>`:''}
         </div>`).join('')}`:''}
 
-      ${j.invoice?`<div class="eyebrow">Invoice</div>
+      ${j.invoice?`<div class="eyebrow" id="s_inv">Invoice</div>
         <div class="card" style="border-left-color:${j.invoice.pagado?'var(--verde,var(--azul))':'var(--oro)'}">
           <div class="row" style="justify-content:space-between;align-items:flex-start">
             <div>
@@ -1390,7 +1406,7 @@ function pintaPortal(data){
           <div class="t"><b>${esc(x.nombre)}</b><span class="sub">${esc(x.detalle||'')}${x.cantidad?' · '+esc(x.cantidad):''}</span></div>
           <span class="chip ${x.estatus==='terminada'?'azul':'ambar'}">${esc(String(x.estatus).toUpperCase())}</span></div>`).join('')}`:''}
 
-      <div class="eyebrow">Daily reports · ${R.length}</div>
+      <div class="eyebrow" id="s_reportes">Daily reports · ${R.length}</div>
       <div class="sub" style="margin-bottom:10px">Tap any date to see the full report for that day.</div>
       ${R.length?R.map(tarjetaReporte).join(''):'<div class="empty"><div class="disp">No reports yet</div></div>'}
 
@@ -2259,7 +2275,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v78 · portada con mascota</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v79 · portal completo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4025,7 +4041,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='78';
+const VERSION='79';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
