@@ -81,7 +81,7 @@ body.dark nav button.on{color:var(--oro);border-top-color:var(--oro)}
 body.dark .side button.on{background:linear-gradient(90deg,rgba(224,179,78,.20),transparent);color:var(--oro);border-left-color:var(--oro)}
 body.dark .franja.split i:first-child{background:var(--oro)}
 body.dark .hero .franja2 i:first-child,body.dark .dinero .franja2 i:first-child{background:var(--oro)}
-body.dark .top{background:#0C121E}
+body.dark .top{background:linear-gradient(180deg,#0F1622 0%,#0A0F19 100%)}
 body.dark .kpi .v{color:var(--tinta)}
 body.dark .chips button.on{background:rgba(224,179,78,.15);border-color:var(--oro);color:var(--oro)}
 body.dark .si-no button.on{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
@@ -134,8 +134,10 @@ body.dark .logo-img{filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
 body.dark .puerta{background:#121824;border-color:#1F2836}
 body.dark .puerta:hover{background:#171F2D}
 body.dark .dinero .celda{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.09)}
-.temabtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;
-  font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.temabtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#C3D0E3;
+  width:44px;height:44px;border-radius:12px;font-size:18px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:all .15s}
+.temabtn:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:#0A0E15}
 html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
@@ -146,8 +148,28 @@ button,input,select,textarea{font-family:inherit;font-size:18px}
 button{color:var(--tinta)}
 a{color:var(--azul)}
 
-.top{background:var(--azul);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
-  display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(27,86,211,.18)}
+.top{background:linear-gradient(180deg,#101827 0%,#0C121E 100%);color:#fff;
+  padding:15px 20px 16px;padding-top:calc(15px + env(safe-area-inset-top));
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid #1E2838;box-shadow:0 4px 22px rgba(0,0,0,.35);position:relative}
+.top::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;
+  background:linear-gradient(90deg,var(--oro) 0%,var(--oro) 46%,transparent 46%,transparent 54%,var(--rojo) 54%,var(--rojo) 100%)}
+.top .marca{font-family:var(--mono);font-size:10.5px!important;letter-spacing:.26em!important;
+  color:#8494AD!important;text-transform:uppercase}
+.top .tt{font-family:var(--disp);font-weight:800;font-size:31px!important;line-height:1!important;
+  color:#fff;margin-top:3px;letter-spacing:.01em}
+.top .tt .bi{font-family:var(--body);font-size:12.5px;font-weight:400;letter-spacing:.04em;
+  text-transform:none;color:#7C8AA3;margin-top:2px}
+.top .quien{text-align:right;line-height:1.2}
+.top .quien b{font-family:var(--disp);font-size:19px;font-weight:700;color:#fff;display:block}
+.top .quien span{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--oro);text-transform:uppercase}
+.top .quien a{color:#7C8AA3;font-size:12.5px;text-decoration:none;margin-left:8px}
+.top .quien a:hover{color:var(--rojo)}
+@media(max-width:640px){
+  .top{padding:12px 14px 13px}
+  .top .tt{font-size:25px!important}
+  .top .quien b{font-size:15px}
+}
 .top .marca{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:#C3D6F7}
 .top .t{font-family:var(--disp);font-weight:800;font-size:24px;line-height:1.05}
 .top .who{text-align:right;font-size:12.5px;color:#C3D6F7;line-height:1.3}
@@ -232,7 +254,10 @@ textarea{min-height:80px;resize:vertical}
 footer{padding:30px 14px 38px;text-align:center;border-top:1px solid var(--linea);margin-top:40px}
 footer .n{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
 footer .s{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#9AA3AF;margin-top:4px}
-.homebtn{background:rgba(255,255,255,.16);border:0;color:#fff;width:42px;height:42px;border-radius:10px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.homebtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#C3D0E3;
+  width:44px;height:44px;border-radius:12px;font-size:19px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:all .15s}
+.homebtn:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)}
 .homebtn:active{transform:scale(.94)}
 .campana{position:relative;font-size:18px}
 .campana .badge{position:absolute;top:-4px;right:-4px;background:var(--rojo);color:#fff;
@@ -2094,6 +2119,109 @@ async function marcarNoFui(jobId, fecha, tecOverride){
   pinta();
 }
 
+/* ==================== BUSCADOR GLOBAL ==================== */
+let QBUS='';
+async function vBuscar(){
+  const en=ING(), L=(es,ing)=>en?ing:es;
+  setTimeout(()=>{
+    const inp=$('#q_txt');
+    if(inp){
+      inp.oninput=()=>{ QBUS=inp.value; clearTimeout(window._qt); window._qt=setTimeout(()=>pintaBusca(),260); };
+      inp.onkeydown=e=>{ if(e.key==='Enter') pintaBusca(); };
+      inp.focus();
+      if(QBUS) pintaBusca();
+    }
+    document.querySelectorAll('[data-qsug]').forEach(b=>b.onclick=()=>{
+      QBUS=b.dataset.qsug; const i=$('#q_txt'); if(i) i.value=QBUS; pintaBusca();
+    });
+  },0);
+
+  return `<div class="card" style="border-left-color:var(--oro)">
+      <label style="margin-top:0">${L('Busca por unidad, propiedad, folio, dirección o management','Search by unit, property, job number, address or management')}</label>
+      <input id="q_txt" value="${esc(QBUS)}" placeholder="${L('Unit 70-207 · SETA · CAP-1005 · Parkway','Unit 70-207 · SETA · CAP-1005 · Parkway')}"
+        style="font-size:20px;padding:15px 16px" autocomplete="off">
+      <div class="chips" style="margin-top:10px">
+        <button type="button" data-qsug="unit">${L('Por unidad','By unit')}</button>
+        <button type="button" data-qsug="CAP-">${L('Por folio','By job number')}</button>
+      </div>
+    </div>
+    <div id="q_res" style="margin-top:16px"></div>`;
+}
+
+async function pintaBusca(){
+  const cont=document.getElementById('q_res'); if(!cont) return;
+  const en=ING(), L=(es,ing)=>en?ing:es;
+  const q=(QBUS||'').trim();
+  if(q.length<2){ cont.innerHTML=`<div class="sub">${L('Escribe al menos 2 letras o números.','Type at least 2 characters.')}</div>`; return; }
+  cont.innerHTML=`<div class="sub">${L('Buscando…','Searching…')}</div>`;
+
+  const like='%'+q.replace(/\s+/g,'%')+'%';
+  const {data,error}=await sb.from('jobs')
+    .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)')
+    .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},direccion.ilike.${like},po_number.ilike.${like}`)
+    .order('created_at',{ascending:false}).limit(60);
+  if(error){ cont.innerHTML=`<div class="alerta"><div class="t">${esc(error.message)}</div></div>`; return; }
+
+  let J=data||[];
+  // también busca por nombre de propiedad y management
+  const {data:extra}=await sb.from('jobs')
+    .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)')
+    .order('created_at',{ascending:false}).limit(400);
+  const ql=q.toLowerCase();
+  (extra||[]).forEach(j=>{
+    if(J.some(x=>x.id===j.id)) return;
+    const txt=[(j.propiedades?.nombre||''),(j.managements?.nombre||''),(j.propiedades?.direccion||''),(j.propiedades?.ciudad||'')].join(' ').toLowerCase();
+    if(txt.includes(ql)) J.push(j);
+  });
+
+  if(!J.length){
+    cont.innerHTML=`<div class="empty"><div class="masc-busto masc-vacio"></div>
+      <div class="disp">${L('Nada encontrado','Nothing found')}</div>
+      <p>${L('Prueba con el número de unidad, el folio o el nombre de la propiedad.','Try the unit number, job number or property name.')}</p></div>`;
+    return;
+  }
+
+  // agrupar por unidad para ver el historial
+  const U2={};
+  J.forEach(j=>{
+    const k=(j.propiedades?.nombre||j.cliente||'')+'|'+(j.unidad||'—');
+    (U2[k] ||= {prop:j.propiedades?.nombre||j.cliente, unidad:j.unidad,
+      dir:j.propiedades?.direccion||j.direccion, ciudad:j.propiedades?.ciudad||j.ciudad,
+      mgmt:j.managements?.nombre, jobs:[]}).jobs.push(j);
+  });
+  const claves=Object.keys(U2).sort((a,b)=>U2[b].jobs.length-U2[a].jobs.length);
+
+  cont.innerHTML=`<div class="eyebrow">${L('Resultados','Results')} · ${J.length} ${J.length===1?L('trabajo','job'):L('trabajos','jobs')} · ${claves.length} ${claves.length===1?L('unidad','unit'):L('unidades','units')}</div>
+    ${claves.map(k=>{
+      const u=U2[k];
+      const act=u.jobs.filter(x=>!['terminado','facturado'].includes(x.estatus)).length;
+      const fac=u.jobs.filter(x=>x.estatus==='facturado').length;
+      const total=u.jobs.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+      const ult=u.jobs[0];
+      return `<div class="mos ${act?'m':'a'} plano" style="margin-bottom:12px">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="mos-t" style="padding-right:0">${esc(u.prop)}${u.unidad?' · Unit '+esc(u.unidad):''}</div>
+            <div class="mos-s">${esc(u.dir||'')}${u.ciudad?', '+esc(u.ciudad):''}${u.mgmt?' · '+esc(u.mgmt):''}</div>
+          </div>
+          <span class="jc-chip ${act?'ambar':'verde'}">${u.jobs.length} ${u.jobs.length===1?L('TRABAJO','JOB'):L('TRABAJOS','JOBS')}</span>
+        </div>
+        <div class="mos-b">
+          ${act?`<span class="jc-chip ambar">${act} ${L('ACTIVO','ACTIVE')}${act>1?'S':''}</span>`:''}
+          ${fac?`<span class="jc-chip verde">${fac} ${L('FACTURADO','BILLED')}${fac>1?'S':''}</span>`:''}
+          ${(total&&VE_DINERO())?`<span class="jc-chip">${cf(total)} ${L('HISTÓRICO','TOTAL')}</span>`:''}
+          <span class="jc-chip">${L('ÚLTIMO','LAST')} ${fmt(inicioJob(ult))}</span>
+        </div>
+        <div class="eyebrow" style="margin:14px 0 8px">${L('Historial de esta unidad','History of this unit')}</div>
+        ${u.jobs.map(j=>`<div class="fila ${j.estatus==='facturado'?'a':!['terminado','facturado'].includes(j.estatus)?'m':''}"
+            data-${U.rol==='tecnico'?'vj':'job'}="${j.id}">
+          <div class="t"><b>${esc(j.folio)} · ${esc(j.tipo)}</b>
+          <span class="sub">${esc(antiguedad(j).txt)}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}${(j.invoice_monto&&VE_DINERO())?' · '+cf(j.invoice_monto):''}</span></div>
+          <span class="chip ${j.estatus==='facturado'?'azul':''}">${esc(j.estatus.toUpperCase())}</span>
+        </div>`).join('')}
+      </div>`;}).join('')}`;
+}
+
 /* ==================== FECHAS DEL TRABAJO ==================== */
 function inicioJob(j){ return (j.fecha_inicio||j.created_at||hoy()).slice(0,10); }
 
@@ -2396,9 +2524,9 @@ function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
 function shell(html){
   const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
   const tabs = U.rol==='tecnico'
-    ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['schedule',T('Agenda')],['hist',T('Historial')]]
+    ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]]
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
@@ -2417,7 +2545,7 @@ function shell(html){
     </div>
     <div class="wrap">
       <div class="fondo-tex"></div>
-      <div class="top" ${azulRojo?'style="background:var(--rojo)"':''}>
+      <div class="top">
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
@@ -2426,13 +2554,17 @@ function shell(html){
           <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
-        <div class="who"><b>${esc(U.nombre)}</b>${esc(U.rol)}${esTec?` · <a href="#" id="out" style="color:#C3D6F7">salir</a>`:''}</div>
+        <div class="quien">
+          <b>${esc((U.nombre||'').split('·')[0].trim())}</b>
+          <span>${esc(esTec?(depTec==='cleaning'?'Cleaning':'Restoration'):U.rol)}</span>
+          <a href="#" id="out">${ING()?'log out':'salir'}</a>
+        </div>
       </div>
       <div class="franja split"><i></i><i></i></div>
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v84 · idioma escogible</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v85 · mosaico y buscador</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2488,6 +2620,7 @@ async function render(){
     if(U.rol==='tecnico'){
       if(V==='dia')      return shell(await vTecInicio());
       if(V==='trabajos') return shell(await vTecTrabajos());
+      if(V==='buscar')   return shell(await vBuscar());
       if(V==='reporte')  return shell(await vTecReporte());
       if(V==='schedule') return shell(await vSchedule());
       if(V==='mapa')     return shell(await vMapa());
@@ -2500,6 +2633,7 @@ async function render(){
     if(V==='mgmt')      return shell(await vManagements());
     if(V==='mapa')      return shell(await vMapa());
     if(V==='dia')       return shell(await vControl());
+    if(V==='buscar')    return shell(await vBuscar());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
@@ -3976,6 +4110,7 @@ const IC={
   inicial:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6"/>',
   mapa:'<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/>',
   jobs:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+  buscar:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   mgmt:'<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h2M9 13h2M13 9h2M13 13h2M9 21v-4h6v4"/>',
   schedule:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 18h3"/>',
   estimados:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
@@ -4201,7 +4336,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='84';
+const VERSION='85';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5005,92 +5140,151 @@ async function formContacto(id, mgId, props){
 }
 
 /* ==================== JOBS ==================== */
+let JNIVEL='mgmt', JMG=null, JPROP=null;
+
 async function vJobs(){
   const [{data:jobs},{data:reps},{data:parts},{data:ests}] = await Promise.all([
-    sb.from('jobs').select('*, managements(nombre), usuarios(nombre), propiedades(nombre)')
-      .eq('departamento',DEP).order('created_at',{ascending:false}).limit(150),
-    sb.from('reportes').select('job_id,fecha'),
+    sb.from('jobs').select('*, managements(id,nombre), usuarios(nombre), propiedades(id,nombre,direccion,ciudad)')
+      .eq('departamento',DEP).order('created_at',{ascending:false}).limit(400),
+    sb.from('reportes').select('job_id,fecha').limit(2000),
     sb.from('partidas').select('job_id,estatus,revisado,costo,cobro'),
     sb.from('estimados').select('job_id,estatus,monto')
   ]);
-  const J=jobs||[];
+  const TODOS=jobs||[];
   const nRep={}, part={}, est={};
   (reps||[]).forEach(x=>nRep[x.job_id]=(nRep[x.job_id]||0)+1);
   (parts||[]).forEach(x=>(part[x.job_id] ||= []).push(x));
   (ests||[]).forEach(x=>(est[x.job_id] ||= []).push(x));
 
   const etapa=j=>{
-    const man=j.docs||[];
-    const P=part[j.id]||[], E=est[j.id]||[];
-    const auto={
-      inicial:(nRep[j.id]||0)>0, reportes:(nRep[j.id]||0)>0,
+    const man=j.docs||[], P=part[j.id]||[], E=est[j.id]||[];
+    const auto={inicial:(nRep[j.id]||0)>0, reportes:(nRep[j.id]||0)>0,
       estimado:E.some(x=>['enviado','aceptado'].includes(x.estatus)),
-      reparando:P.some(x=>['asignada','proceso'].includes(x.estatus)) || (P.length>0 && P.every(x=>x.estatus==='terminada')),
-      aceptado:E.some(x=>x.estatus==='aceptado')
-    };
-    const listo=k=> man.includes('-'+k) ? false : (man.includes(k) || !!auto[k]);
+      reparando:P.some(x=>['asignada','proceso'].includes(x.estatus))||(P.length>0&&P.every(x=>x.estatus==='terminada')),
+      aceptado:E.some(x=>x.estatus==='aceptado')};
+    const listo=k=> man.includes('-'+k)?false:(man.includes(k)||!!auto[k]);
     const hechas=ETAPAS.filter(e=>listo(e.k)).length;
     const idx=ETAPAS.findIndex(e=>!listo(e.k));
-    return {pct:Math.round(hechas*100/ETAPAS.length), hechas,
-      nombre: idx<0?'Completo':ETAPAS[idx].t, tieneEst:auto.estimado, E, P};
+    return {pct:Math.round(hechas*100/ETAPAS.length), hechas, nombre: idx<0?'Completo':ETAPAS[idx].t,
+      tieneEst:auto.estimado, E, P, revisar:P.filter(x=>x.estatus==='terminada'&&!x.revisado).length};
   };
 
-  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus));
-  const facturados=J.filter(x=>x.estatus==='facturado');
-  const terminados=J.filter(x=>x.estatus==='terminado');
-  const lista = JTAB==='activos'?activos : JTAB==='terminados'?terminados : JTAB==='facturados'?facturados : J;
+  const J = JTAB==='activos' ? TODOS.filter(x=>!['terminado','facturado'].includes(x.estatus))
+          : JTAB==='terminados' ? TODOS.filter(x=>x.estatus==='terminado')
+          : JTAB==='facturados' ? TODOS.filter(x=>x.estatus==='facturado') : TODOS;
 
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
-    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{JTAB=b.dataset.t;render();});
-    document.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.job)); },0);
+    document.querySelectorAll('#jtabs button').forEach(b=>b.onclick=()=>{JTAB=b.dataset.t;JNIVEL='mgmt';JMG=null;JPROP=null;render();});
+    document.querySelectorAll('[data-jmg]').forEach(b=>b.onclick=()=>{JMG=b.dataset.jmg;JNIVEL='prop';render();});
+    document.querySelectorAll('[data-jpr]').forEach(b=>b.onclick=()=>{JPROP=b.dataset.jpr;JNIVEL='unidad';render();});
+    const bk=$('#j_back'); if(bk) bk.onclick=()=>{
+      if(JNIVEL==='unidad'){JNIVEL='prop';JPROP=null;} else if(JNIVEL==='prop'){JNIVEL='mgmt';JMG=null;}
+      render();
+    };
+  },0);
 
-  const tarjeta=j=>{
-    const e=etapa(j);
-    const tc=e.P.reduce((a,x)=>a+Number(x.costo||0),0), tb=e.P.reduce((a,x)=>a+Number(x.cobro||0),0);
-    const revisar=e.P.filter(x=>x.estatus==='terminada'&&!x.revisado).length;
-    const ingreso=Number(j.invoice_monto||0)||Number(j.monto_cobrar||0)||tb;
-    const gana=ingreso ? ingreso - tc - Number(j.pago_tecnico||0) - Number(j.otros_gastos||0) : null;
-    const col = j.estatus==='facturado' ? 'verde' : (e.pct>=67?'azul':e.pct>=34?'ambar':'rojo');
-    const colBar = j.estatus==='facturado' ? '#1FA35A' : (e.pct>=67?'var(--azul)':e.pct>=34?'var(--ambar)':'var(--rojo)');
-    const colTxt = j.estatus==='facturado' ? '#0F6B38' : (e.pct>=67?'var(--azul-d)':e.pct>=34?'var(--ambar-d)':'var(--rojo-d)');
-    return `<div class="jobcard ${col}" data-job="${j.id}">
-      <div class="jc-top">
-        <span class="folio" style="font-size:15px">${esc(j.folio)}</span>
-        <div class="row" style="gap:7px">
-          <span class="jc-chip ${j.origen==='management'?'azul':j.origen==='aseguranza'?'rojo':''}">${esc((j.origen||'—').toUpperCase())}</span>
-          <span class="jc-chip ${j.estatus==='facturado'?'verde':j.estatus==='terminado'?'azul':'negro'}">${esc(j.estatus.toUpperCase())}</span>
-        </div></div>
-      <div class="jc-body">
-        <div class="jc-tit">${esc(j.propiedades?.nombre||j.cliente)}</div>
-        <div class="jc-dir">${esc(j.direccion||'')}${j.unidad?' · <b>Unit '+esc(j.unidad)+'</b>':''}</div>
-        <div class="jc-meta">${esc(antiguedad(j).txt.toUpperCase())}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre.toUpperCase()):' · SIN TÉCNICO'}</div>
+  const pestanas=`<div class="tabs" id="jtabs" style="margin-top:14px">
+      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--oro)">${TODOS.filter(x=>!['terminado','facturado'].includes(x.estatus)).length}</span></button>
+      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${TODOS.filter(x=>x.estatus==='terminado').length}</span></button>
+      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--verde,var(--azul))">${TODOS.filter(x=>x.estatus==='facturado').length}</span></button>
+      <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${TODOS.length}</span></button>
+    </div>`;
 
-        <div class="jc-etapa">
-          <span class="nom" style="color:${colTxt}">${esc(e.nombre)}</span>
-          <span class="pc" style="color:${colTxt}">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
-        <div class="jc-barra"><i style="width:${e.pct}%;background:${colBar}"></i></div>
+  const cabeza = selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button>':''}`+pestanas;
 
-        <div class="jc-chips">
+  if(!J.length) return cabeza+`<div class="empty"><div class="masc-busto masc-vacio"></div>
+    <div class="disp">Nada en esta lista</div><p>Cambia de pestaña para ver otros trabajos.</p></div>`;
+
+  // ---------- NIVEL 1 · MANAGEMENTS ----------
+  if(JNIVEL==='mgmt'){
+    const G={};
+    J.forEach(j=>{
+      const k=j.managements?.id||'otros';
+      (G[k] ||= {nombre:j.managements?.nombre||'Particulares y aseguranzas', jobs:[]}).jobs.push(j);
+    });
+    const claves=Object.keys(G).sort((a,b)=>G[b].jobs.length-G[a].jobs.length);
+    return cabeza+`<div class="eyebrow">Escoge el management · ${claves.length}</div>
+      <div class="mosaico">${claves.map(k=>{
+        const g=G[k];
+        const props=new Set(g.jobs.map(x=>x.propiedades?.id||x.cliente)).size;
+        const rev=g.jobs.reduce((a,x)=>a+etapa(x).revisar,0);
+        const sinEst=g.jobs.filter(x=>!etapa(x).tieneEst).length;
+        const din=g.jobs.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+        return `<button class="mos ${rev?'r':sinEst?'m':'a'}" data-jmg="${k}">
+          <div class="mos-ic">${svgIC('mgmt')}</div>
+          <div class="mos-t">${esc(g.nombre)}</div>
+          <div class="mos-s">${props} ${props===1?'propiedad':'propiedades'} · ${g.jobs.length} ${g.jobs.length===1?'trabajo':'trabajos'}</div>
+          <div class="mos-b">
+            ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
+            ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
+            ${(din&&VE_DINERO())?`<span class="jc-chip verde">${cf(din)} FACTURADO</span>`:''}
+            ${(!rev&&!sinEst)?'<span class="jc-chip verde">TODO EN ORDEN</span>':''}
+          </div></button>`;}).join('')}</div>`;
+  }
+
+  // ---------- NIVEL 2 · PROPIEDADES ----------
+  if(JNIVEL==='prop'){
+    const suyos=J.filter(j=>(j.managements?.id||'otros')===JMG);
+    const nomMg=suyos[0]?.managements?.nombre||'Particulares y aseguranzas';
+    const P={};
+    suyos.forEach(j=>{
+      const k=j.propiedades?.id||('x'+(j.cliente||''));
+      (P[k] ||= {nombre:j.propiedades?.nombre||j.cliente, dir:j.propiedades?.direccion||j.direccion,
+        ciudad:j.propiedades?.ciudad||j.ciudad, jobs:[]}).jobs.push(j);
+    });
+    const claves=Object.keys(P).sort((a,b)=>P[b].jobs.length-P[a].jobs.length);
+    return `<button class="btn ghost wide no-print" id="j_back" style="margin-bottom:14px">‹ Todos los managements</button>
+      <div class="eyebrow">${esc(nomMg)} · ${claves.length} ${claves.length===1?'propiedad':'propiedades'}</div>
+      <div class="mosaico">${claves.map(k=>{
+        const p=P[k];
+        const rev=p.jobs.reduce((a,x)=>a+etapa(x).revisar,0);
+        const sinEst=p.jobs.filter(x=>!etapa(x).tieneEst).length;
+        return `<button class="mos ${rev?'r':sinEst?'m':'a'}" data-jpr="${k}">
+          <div class="mos-ic">${svgIC('mgmt')}</div>
+          <div class="mos-t">${esc(p.nombre)}</div>
+          <div class="mos-s">${esc(p.dir||'')}${p.ciudad?', '+esc(p.ciudad):''}</div>
+          <div class="mos-b">
+            <span class="jc-chip">${p.jobs.length} ${p.jobs.length===1?'UNIDAD':'UNIDADES'}</span>
+            ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
+            ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
+          </div></button>`;}).join('')}</div>`;
+  }
+
+  // ---------- NIVEL 3 · UNIDADES ----------
+  const dePro=J.filter(j=>(j.propiedades?.id||('x'+(j.cliente||'')))===JPROP);
+  const nomPr=dePro[0]?.propiedades?.nombre||dePro[0]?.cliente||'';
+  return `<button class="btn ghost wide no-print" id="j_back" style="margin-bottom:14px">‹ Propiedades</button>
+    <div class="eyebrow">${esc(nomPr)} · ${dePro.length} ${dePro.length===1?'unidad':'unidades'}</div>
+    <div class="mosaico ancho">${dePro.map(j=>{
+      const e=etapa(j);
+      const tc=e.P.reduce((a,x)=>a+Number(x.costo||0),0), tb=e.P.reduce((a,x)=>a+Number(x.cobro||0),0);
+      const ingreso=Number(j.invoice_monto||0)||Number(j.monto_cobrar||0)||tb;
+      const gana=ingreso?ingreso-tc-Number(j.pago_tecnico||0)-Number(j.otros_gastos||0):null;
+      const col=j.estatus==='facturado'?'a':(e.pct>=67?'a':e.pct>=34?'m':'r');
+      const colBar=j.estatus==='facturado'?'var(--verde,var(--azul))':(e.pct>=67?'var(--verde,var(--azul))':e.pct>=34?'var(--oro)':'var(--rojo)');
+      return `<div class="mos ${col}" data-job="${j.id}">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="folio">${esc(j.folio)}</div>
+            <div class="mos-t" style="margin-top:3px;padding-right:0">${j.unidad?'Unit '+esc(j.unidad):esc(j.cliente)}</div>
+            <div class="mos-s">${esc(j.tipo)} · ${esc(antiguedad(j).txt)}</div>
+            <div class="mos-s">${j.usuarios?.nombre?esc(j.usuarios.nombre):'sin técnico asignado'}</div>
+          </div>
+          <span class="jc-chip ${j.estatus==='facturado'?'verde':j.estatus==='terminado'?'azul':''}">${esc(j.estatus.toUpperCase())}</span>
+        </div>
+        <div class="row" style="margin-top:12px;justify-content:space-between;align-items:baseline">
+          <span class="disp" style="font-size:19px;color:${colBar}">${esc(e.nombre)}</span>
+          <span class="mono" style="font-size:16px;color:${colBar}">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
+        <div class="barra" style="margin-top:7px;height:11px"><i style="width:${e.pct}%;background:${colBar}"></i></div>
+        <div class="mos-b">
           <span class="jc-chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
-          ${e.P.length?`<span class="jc-chip ${e.P.every(x=>x.estatus==='terminada')?'verde':'ambar'}">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:'<span class="jc-chip">SIN REPARACIONES</span>'}
-          ${revisar?`<span class="jc-chip rojo">${revisar} POR REVISAR</span>`:''}
-          ${(j.areas||[]).length?`<span class="jc-chip">${(j.areas||[]).length} ÁREAS</span>`:''}
+          ${e.P.length?`<span class="jc-chip ${e.P.every(x=>x.estatus==='terminada')?'verde':'ambar'}">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:''}
+          ${e.revisar?`<span class="jc-chip rojo">${e.revisar} POR REVISAR</span>`:''}
           ${j.invoice_num?`<span class="jc-chip ${j.invoice_pagado?'verde':'ambar'}">${j.invoice_pagado?'PAGADO':'POR COBRAR'} ${cf(j.invoice_monto)}</span>`:''}
           ${(gana!==null&&VE_DINERO())?`<span class="jc-chip ${gana>0?'verde':'rojo'}">GANANCIA ${cf(gana)}</span>`:''}
         </div>
-      </div></div>`;
-  };
-
-  return selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button>':''}
-    <div class="tabs" style="margin-top:14px">
-      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--ambar-d)">${activos.length}</span></button>
-      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${terminados.length}</span></button>
-      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--azul)">${facturados.length}</span></button>
-      <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${J.length}</span></button>
-    </div>
-    ${lista.map(tarjeta).join('') || `<div class="empty"><div class="disp">Nada en esta lista</div>
-      <p>${J.length?'Tienes '+J.length+' jobs en total. Cambia de pestaña.':'Registra el primero.'}</p></div>`}`;
+      </div>`;}).join('')}</div>`;
 }
 
 async function nuevoFolio(dep){
