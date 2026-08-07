@@ -2361,7 +2361,7 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['schedule',T('Agenda')],['hist',T('Historial')]]
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')],['equipo',BI('Equipo','Team')]]
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
@@ -2394,7 +2394,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v82 · mosaico de reportes</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v83 · auditoría</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2464,7 +2464,8 @@ async function render(){
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
-    if(V==='equipo')    return shell(await vEquipo());
+    if(V==='equipo')    return ES_ADMIN() ? shell(await vEquipo())
+                        : shell('<div class="empty"><div class="disp">Sin acceso</div><p>La sección de Equipo es solo para administración.</p></div>');
   }catch(e){ console.error(e); shell(`<div class="empty"><div class="disp">No se pudo cargar</div><p>${esc(e.message||e)}</p></div>`); }
 }
 
@@ -4161,7 +4162,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='82';
+const VERSION='83';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
