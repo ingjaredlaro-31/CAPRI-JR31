@@ -389,6 +389,43 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
   text-transform:none;color:var(--gris);margin-top:1px;line-height:1.2}
 .side button .bi{color:#6B7280}
 .side button.on .bi{color:rgba(255,255,255,.65)}
+/* Tarjeta de reporte con fecha grande */
+.repcard{background:var(--sup);border:1px solid var(--linea);border-left:5px solid var(--verde,var(--azul));
+  border-radius:0 14px 14px 0;margin-bottom:13px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.repcard.inicial{border-left-color:var(--rojo)}
+.repcard.nofue{border-left-color:var(--oro)}
+.rc-head{display:flex;align-items:center;gap:15px;padding:14px 17px;background:var(--sup2);
+  border-bottom:1px solid var(--linea)}
+.rc-fecha{flex-shrink:0;text-align:center;background:var(--sup);border:1px solid var(--linea);
+  border-radius:11px;padding:8px 12px;min-width:66px}
+.rc-fecha .d{display:block;font-family:var(--disp);font-weight:800;font-size:31px;line-height:.92;color:var(--tinta)}
+.rc-fecha .m{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--oro);margin-top:2px}
+.rc-fecha .w{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--gris);margin-top:1px}
+.rc-info{flex:1;min-width:0}
+.rc-tipo{font-family:var(--disp);font-weight:700;font-size:22px;line-height:1.05;text-transform:uppercase}
+.rc-meta{font-family:var(--mono);font-size:12.5px;color:var(--gris);margin-top:3px}
+.rc-est{flex-shrink:0}
+.rc-body{padding:14px 17px}
+.rc-body .meta{margin-top:6px}
+.rc-pie{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 17px;
+  background:var(--sup2);border-top:1px solid var(--linea)}
+@media(max-width:560px){
+  .rc-head{gap:11px;padding:12px 14px}
+  .rc-fecha{min-width:56px;padding:7px 9px}
+  .rc-fecha .d{font-size:26px}
+  .rc-tipo{font-size:18px}
+  .rc-body,.rc-pie{padding:12px 14px}
+}
+
+/* Notas y comentarios */
+.notacard{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--gris);
+  border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:10px}
+.notacard.mia{border-left-color:var(--oro)}
+.nc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.nc-autor{font-family:var(--disp);font-weight:700;font-size:18px;text-transform:uppercase}
+.nc-fecha{font-family:var(--mono);font-size:12px;color:var(--gris);white-space:nowrap}
+.nc-pie{display:flex;gap:7px;margin-top:10px}
+
 /* Pulso del día */
 .pulso{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:6px}
 @media(min-width:700px){.pulso{grid-template-columns:repeat(2,1fr)}}
@@ -2089,10 +2126,17 @@ async function verJobTecnico(id){
           <div class="t"><b>${esc(x.nombre)}</b><span class="sub">${esc(x.contratistas?.nombre||'sin contratista')}</span></div>
           <span class="chip ${c}">${t}</span></div>`;}).join('')}`:''}
       <div class="eyebrow">Comentarios del trabajo</div>
-      <div id="nt_lista">${(NT||[]).map(n=>`<div class="card" style="border-left-color:var(--linea)">
-        <div class="sub" style="color:var(--tinta)">${esc(n.texto)}</div>
-        <div class="meta" style="margin-top:4px">${esc(n.autor||'')} · ${new Date(n.created_at).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-      </div>`).join('')||'<div class="sub">Sin comentarios todavía.</div>'}</div>
+      <div id="nt_lista">${(NT||[]).map(n=>`<div class="notacard ${n.usuario_id===U.id?'mia':''}">
+        <div class="nc-top">
+          <span class="nc-autor">${esc(n.autor||'—')}</span>
+          <span class="nc-fecha">${new Date(n.created_at).toLocaleString(ING()?'en-US':'es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}${n.editada?(ING()?' · edited':' · editada'):''}</span>
+        </div>
+        <div class="texto" style="font-size:16px">${esc(n.texto)}</div>
+        ${n.usuario_id===U.id?`<div class="nc-pie no-print">
+          <button class="btn ghost sm" data-mined="${n.id}">${ING()?'Edit':'Editar'}</button>
+          <button class="btn ghost sm" data-mindel="${n.id}" style="color:var(--rojo)">${ING()?'Delete':'Borrar'}</button>
+        </div>`:''}
+      </div>`).join('')||`<div class="sub">${ING()?'No comments yet.':'Sin comentarios todavía.'}</div>`}</div>
       <div class="row no-print" style="margin-top:8px">
         <input id="nt_tec" placeholder="Deja un comentario para oficina…" style="flex:1">
         <button class="btn sm" id="nt_add">Enviar</button>
@@ -2110,6 +2154,20 @@ async function verJobTecnico(id){
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#rep').onclick=()=>{cerrar();reporteGuiado(id,hoy());};
+  $('#sheet').querySelectorAll('[data-mined]').forEach(b=>b.onclick=async()=>{
+    const n=(NT||[]).find(x=>x.id===b.dataset.mined); if(!n) return;
+    const t=prompt(ING()?'Edit your comment:':'Edita tu comentario:', n.texto);
+    if(t===null || !t.trim()) return;
+    const {error}=await sb.from('notas').update({texto:t.trim(), editada:true}).eq('id',n.id);
+    if(error) return toast('Error: '+error.message);
+    cerrar(); toast(ING()?'Comment updated':'Comentario actualizado'); verJobTecnico(id);
+  });
+  $('#sheet').querySelectorAll('[data-mindel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm(ING()?'Delete this comment?':'¿Borrar este comentario?')) return;
+    const {error}=await sb.from('notas').delete().eq('id',b.dataset.mindel);
+    if(error) return toast('Error: '+error.message);
+    cerrar(); toast(ING()?'Comment deleted':'Comentario borrado'); verJobTecnico(id);
+  });
   const na=$('#nt_add');
   if(na) na.onclick=async()=>{
     const t=$('#nt_tec').value.trim(); if(!t) return;
@@ -2716,7 +2774,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v87 · carga del día</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v88 · reportes y notas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4525,7 +4583,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='87';
+const VERSION='88';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6153,12 +6211,21 @@ async function abrirJob(id){
         <div class="row no-print" style="margin-top:10px"><button class="btn sm" id="edinv">Registrar invoice</button></div>
       </div>`:'<div class="sub">Sin invoice registrado.</div>')}
 
-      <div class="eyebrow">Notas y comentarios</div>
-      <div>${N.map(n=>`<div class="card" style="border-left-color:var(--linea)">
-        <div class="sub" style="color:var(--tinta)">${esc(n.texto)}</div>
-        <div class="meta" style="margin-top:4px">${esc(n.autor||'')} · ${new Date(n.created_at).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="eyebrow">Notas y comentarios · ${N.length}</div>
+      <div>${N.map(n=>`<div class="notacard ${n.usuario_id===U.id?'mia':''}">
+        <div class="nc-top">
+          <span class="nc-autor">${esc(n.autor||'—')}</span>
+          <span class="nc-fecha">${new Date(n.created_at).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})}${n.editada?' · editada':''}</span>
+        </div>
+        <div class="texto" style="font-size:16px">${esc(n.texto)}</div>
+        ${EDIT()?`<div class="nc-pie no-print">
+          <button class="btn ghost sm" data-notaed="${n.id}">Editar</button>
+          ${BORRAR()||n.usuario_id===U.id?`<button class="btn ghost sm" data-notadel="${n.id}" style="color:var(--rojo)">Borrar</button>`:''}
+        </div>`:''}
       </div>`).join('')||'<div class="sub">Sin notas todavía.</div>'}</div>
-      ${EDIT()?'<div class="row no-print"><input id="nt" placeholder="Escribe una nota…" style="flex:1"><button class="btn sm" id="an">Agregar</button></div>':''}
+      ${EDIT()?`<div class="row no-print" style="margin-top:10px">
+        <input id="nt" placeholder="Escribe una nota…" style="flex:1">
+        <button class="btn sm" id="an">Agregar</button></div>`:''}
 
       <div class="eyebrow">Recordatorios</div>
       <div>${RC.map(r=>{
@@ -6172,12 +6239,32 @@ async function abrirJob(id){
 
       <div class="eyebrow" id="sec_reportes">Reportes recibidos · ${R.length}</div>
       ${EDIT()?'<button class="btn ghost wide no-print" id="addrep" style="margin-bottom:12px">+ Capturar reporte por un técnico</button>':''}
-      ${R.slice().reverse().map(r=>`<div class="card">
-        <div class="row" style="justify-content:space-between"><span class="chip">${fmt(r.fecha)}</span>
-        <span class="meta">${esc(r.usuarios?.nombre||'')} · ${esc(r.hora_entrada||'')}${r.hora_salida?' → '+esc(r.hora_salida):''}</span></div>
-        <div class="row" style="margin-top:6px;gap:5px">
-          ${r.asistio===false?`<span class="chip ambar">NO SE VISITÓ · ${esc(r.motivo_no||'')}</span>`
-            :`<span class="chip ${r.tipo_reporte==='inicial'?'rojo':''}">${r.tipo_reporte==='inicial'?'INICIAL':'SEGUIMIENTO'}</span>`}
+      ${R.slice().reverse().map(r=>{
+        const noFue = r.asistio===false;
+        const dd = new Date(r.fecha+'T12:00:00');
+        const dia = dd.getDate();
+        const mes = MESCORTO[dd.getMonth()].toUpperCase();
+        const sem = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'][dd.getDay()];
+        return `<div class="repcard ${noFue?'nofue':(r.tipo_reporte==='inicial'?'inicial':'')}">
+        <div class="rc-head">
+          <div class="rc-fecha">
+            <span class="d">${dia}</span>
+            <span class="m">${mes}</span>
+            <span class="w">${sem}</span>
+          </div>
+          <div class="rc-info">
+            <div class="rc-tipo">${noFue?'No se visitó':(r.tipo_reporte==='inicial'?'Reporte inicial':'Reporte de seguimiento')}</div>
+            <div class="rc-meta">${fmt(r.fecha)}${r.usuarios?.nombre?' · '+esc(r.usuarios.nombre):''}</div>
+            ${(r.hora_entrada||r.hora_salida)?`<div class="rc-meta">En sitio ${esc(r.hora_entrada||'—')}${r.hora_salida?' → '+esc(r.hora_salida):''}</div>`:''}
+          </div>
+          <div class="rc-est">
+            ${noFue?'<span class="jc-chip ambar">NO SE VISITÓ</span>'
+              :`<span class="jc-chip ${r.tipo_reporte==='inicial'?'rojo':'verde'}">${r.tipo_reporte==='inicial'?'INICIAL':'OK'}</span>`}
+          </div>
+        </div>
+        <div class="rc-body">
+        ${noFue?`<div class="alerta" style="margin:0 0 10px"><div class="t"><b>Motivo:</b> ${esc(r.motivo_no||'')}${r.notas?' — '+esc(r.notas):''}</div></div>`:''}
+        <div class="row" style="gap:5px;flex-wrap:wrap">
           ${(r.situacion||[]).map(x=>`<span class="chip ambar">${esc(x)}</span>`).join('')}
           ${(r.servicios||[]).map(x=>`<span class="chip azul">${esc(x)}</span>`).join('')}
           ${r.after_hours?'<span class="chip ambar">AFTER HOURS</span>':''}
@@ -6226,14 +6313,15 @@ async function abrirJob(id){
         ${r.siguiente_trabajo?`<div class="ok" style="margin:8px 0 0;padding:9px"><b>Next:</b> ${esc(r.siguiente_trabajo)}</div>`:''}
         ${r.notas?`<div class="sub" style="margin-top:6px;color:var(--tinta)">${esc(r.notas)}</div>`:''}
         ${(r.fotos||[]).length?`<div style="margin-top:9px">${galeriaHTML(r.fotos)}</div>`:''}
-        <div class="row no-print" style="margin-top:9px">
+        </div>
+        <div class="rc-pie no-print">
           <button class="btn ghost sm" data-vr="${r.id}">Ver formato / PDF</button>
           ${EDIT()?`<button class="btn ghost sm" data-er="${r.id}">Editar</button>
           <button class="btn ghost sm" data-ar="${r.id}">Acusar recibo</button>`:''}
           ${BORRAR()?`<span style="flex:1"></span>
           <button class="btn ghost sm" data-br="${r.id}" style="color:var(--rojo)">Borrar</button>`:''}
         </div>
-      </div>`).join('')||'<div class="sub">Aún no hay reportes.</div>'}
+      </div>`;}).join('')||'<div class="sub">Aún no hay reportes.</div>'}
 
       <div style="height:20px"></div>
       <button class="btn ghost wide no-print" id="c2">Cerrar</button>
@@ -6313,6 +6401,20 @@ async function abrirJob(id){
   document.querySelectorAll('[data-caprep]').forEach(b=>b.onclick=()=>{
     if(!j.tecnico_id) return toast('Primero asígnale un técnico encargado al trabajo.');
     cerrar(); reporteGuiado(id, b.dataset.caprep, null, j.tecnico_id);
+  });
+  document.querySelectorAll('[data-notaed]').forEach(b=>b.onclick=async()=>{
+    const n=N.find(x=>x.id===b.dataset.notaed); if(!n) return;
+    const t=prompt('Edita la nota:', n.texto);
+    if(t===null || !t.trim()) return;
+    const {error}=await sb.from('notas').update({texto:t.trim(), editada:true}).eq('id',n.id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Nota actualizada'); abrirJob(id);
+  });
+  document.querySelectorAll('[data-notadel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Borrar esta nota?')) return;
+    const {error}=await sb.from('notas').delete().eq('id',b.dataset.notadel);
+    if(error) return toast('No se borró: '+error.message);
+    cerrar(); toast('Nota borrada'); abrirJob(id);
   });
   const ar1=$('#addrep');
   if(ar1) ar1.onclick=async()=>{
