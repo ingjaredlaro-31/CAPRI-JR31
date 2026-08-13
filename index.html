@@ -1081,6 +1081,383 @@ async function revisarFaltantes(){
   return pendientes;
 }
 
+/* ==================== CONTRATISTA · SU PROPIA APP ==================== */
+async function miAsistenciaC(){
+  const {data}=await sb.from('asistencias').select('*').eq('contratista_id',U.id).eq('fecha',hoy()).maybeSingle();
+  return data||null;
+}
+
+async function checarC(tipo){
+  toast('Tomando tu ubicación…');
+  const g=await ubicame();
+  const ahora=new Date().toISOString();
+  let dir='';
+  if(g){ try{
+    const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+g.lat+'&lon='+g.lng);
+    const d=await r.json();
+    dir=(d.address?.road?d.address.road+' ':'')+(d.address?.house_number||'')+(d.address?.city?', '+d.address.city:'');
+  }catch(e){} }
+  const prev=await miAsistenciaC();
+
+  if(tipo==='entrada'){
+    if(prev && prev.entrada) return toast('Ya registraste tu entrada hoy.');
+    const {error}=await sb.from('asistencias').upsert(
+      {contratista_id:U.id, nombre:U.nombre, fecha:hoy(), entrada:ahora,
+       ent_lat:g?.lat||null, ent_lng:g?.lng||null, ent_dir:dir||null},
+      {onConflict:'contratista_id,fecha'});
+    if(error) return toast('Error: '+error.message);
+    await sb.from('notificaciones').insert({tipo:'checada', clave:'centr-'+U.id+'-'+hoy(),
+      titulo:'Entrada · '+U.nombre+' (contratista)',
+      texto:hhmm(ahora)+(dir?' · '+dir:''), para_rol:'admin'});
+    tono('normal'); toast('Entrada registrada a las '+hhmm(ahora));
+  } else {
+    if(!prev || !prev.entrada) return toast('Primero registra tu entrada.');
+    if(prev.salida) return toast('Ya registraste tu salida hoy.');
+    const {count}=await sb.from('partes_contratista').select('*',{count:'exact',head:true})
+      .eq('contratista_id',U.id).eq('fecha',hoy());
+    if(!count) return toast('Antes de salir, anota qué trabajo hiciste hoy.');
+    const min=Math.round((new Date(ahora)-new Date(prev.entrada))/60000);
+    const {error}=await sb.from('asistencias').update({salida:ahora, minutos:min,
+      sal_lat:g?.lat||null, sal_lng:g?.lng||null, sal_dir:dir||null}).eq('id',prev.id);
+    if(error) return toast('Error: '+error.message);
+    await sb.from('notificaciones').insert({tipo:'checada', clave:'csal-'+U.id+'-'+hoy(),
+      titulo:'Salida · '+U.nombre+' (contratista)',
+      texto:hhmm(ahora)+' · '+horasTxt(min)+(dir?' · '+dir:''), para_rol:'admin'});
+    tono('normal'); toast('Salida registrada · '+horasTxt(min));
+  }
+  render();
+}
+
+async function vContraInicio(){
+  const h=hoy();
+  const [{data:asis},{data:partes},{data:parts}] = await Promise.all([
+    sb.from('asistencias').select('*').eq('contratista_id',U.id).eq('fecha',h).maybeSingle(),
+    sb.from('partes_contratista').select('*, jobs(folio,unidad,cliente, propiedades(nombre))')
+      .eq('contratista_id',U.id).gte('fecha',hace(7)).order('fecha',{ascending:false}),
+    sb.from('partidas').select('*, jobs(folio,unidad,cliente,direccion, propiedades(nombre))')
+      .eq('contratista_id',U.id).neq('estatus','terminada')
+  ]);
+  const a=asis||null, PT=partes||[], MIS=parts||[];
+  const hoyPartes=PT.filter(x=>x.fecha===h);
+  const dentro = a && a.entrada && !a.salida;
+
+  setTimeout(()=>{
+    document.querySelectorAll('[data-parte]').forEach(b=>b.onclick=()=>formParte(b.dataset.parte||null));
+    document.querySelectorAll('[data-vparte]').forEach(b=>b.onclick=()=>formParte(b.dataset.vparte));
+  },0);
+
+  let out = heroHTML(null, MIS.length, hoyPartes.length, 'contratista');
+
+  // reloj
+  out += `<div class="reloj ${dentro?'on':a&&a.salida?'fin':''}">
+    <div class="rj-l">
+      <div class="rj-est">${dentro?'TRABAJANDO':a&&a.salida?'JORNADA CERRADA':'SIN REGISTRAR'}</div>
+      <div class="rj-h">${horasTxt(dentro?Math.round((Date.now()-new Date(a.entrada))/60000):(a?.minutos||0))}</div>
+      <div class="rj-d">${a&&a.entrada?'Entrada '+hhmm(a.entrada):'Toca para iniciar tu jornada'}${a&&a.salida?' · salida '+hhmm(a.salida):''}</div>
+      ${a&&a.ent_dir?`<div class="rj-g">📍 ${esc(a.ent_dir)}</div>`:''}
+    </div>
+    <div class="rj-r">
+      ${!a||!a.entrada?'<button class="btn wide" id="ckc_in">Registrar entrada</button>'
+        :dentro?'<button class="btn wide rojo" id="ckc_out">Registrar salida</button>'
+        :'<span class="jc-chip verde">COMPLETO</span>'}
+    </div></div>`;
+
+  // aviso del parte diario
+  if(!hoyPartes.length){
+    out += `<div class="alerta" style="margin-bottom:14px">
+      <div class="disp" style="font-size:21px;color:var(--rojo)">Falta tu parte de hoy</div>
+      <div class="t">Anota qué trabajo hiciste. Sin esto no se puede autorizar tu pago del día.</div>
+    </div>`;
+  } else {
+    out += `<div class="ok" style="margin-bottom:14px">Ya registraste ${hoyPartes.length} trabajo${hoyPartes.length===1?'':'s'} de hoy.</div>`;
+  }
+
+  out += `<button class="destacado no-print" data-parte="">
+      <div class="et">PARTE DIARIO</div>
+      <div class="tt">Anotar trabajo de hoy</div>
+      <div class="ss">Qué hiciste, dónde y cuánto es</div>
+      <div class="fl">›</div>
+    </button>`;
+
+  // trabajos asignados
+  out += `<div class="eyebrow">Trabajos que traigo · ${MIS.length}</div>`;
+  out += MIS.length ? MIS.map(p=>`<div class="card ${p.estatus==='proceso'?'ambar':''}">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${esc(p.jobs?.folio||'')}</span>
+        <span class="chip ${ESTAT_PART[p.estatus]?ESTAT_PART[p.estatus][1]:''}">${ESTAT_PART[p.estatus]?ESTAT_PART[p.estatus][0]:esc(p.estatus)}</span></div>
+      <div class="tit">${esc(p.jobs?.propiedades?.nombre||p.jobs?.cliente||'')}${p.jobs?.unidad?' · Unit '+esc(p.jobs.unidad):''}</div>
+      <div class="sub" style="color:var(--tinta)"><b>${esc(p.nombre)}</b>${p.cantidad?' · '+esc(p.cantidad):''}</div>
+      <div class="sub">${esc(p.detalle||'')}</div>
+      <div class="row" style="margin-top:11px">
+        ${p.jobs?.direccion?`<a class="btn ghost sm" target="_blank" rel="noopener"
+          href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.jobs.direccion)}">Ruta</a>`:''}
+        <span style="flex:1"></span>
+        <button class="btn sm" data-parte="" data-pid="${p.id}">Reportar avance</button>
+      </div></div>`).join('')
+    : '<div class="sub">No traes reparaciones asignadas ahorita.</div>';
+
+  // historial
+  out += `<div class="eyebrow">Mis partes de la semana · ${PT.length}</div>`;
+  out += PT.length ? PT.map(x=>`<div class="fila ${x.terminado?'a':'m'}" data-vparte="${x.id}">
+      <div class="t"><b>${fmt(x.fecha)} · ${esc(x.descripcion).slice(0,48)}</b>
+      <span class="sub">${esc(x.jobs?.propiedades?.nombre||x.jobs?.cliente||'sin trabajo')}${x.jobs?.unidad?' · Unit '+esc(x.jobs.unidad):''}${x.monto?' · '+cf(x.monto):''}</span></div>
+      <span class="chip ${x.terminado?'azul':'ambar'}">${x.terminado?'TERMINADO':'EN PROCESO'}</span>
+    </div>`).join('') : '<div class="sub">Todavía no has registrado partes esta semana.</div>';
+
+  return out;
+}
+
+async function formParte(id, pidPre){
+  let p={fecha:hoy(), descripcion:'', avance:'', terminado:false, monto:'', ayudantes:0, horas:'', materiales:'', notas:'', fotos:[], job_id:'', partida_id:''};
+  if(id){ const {data}=await sb.from('partes_contratista').select('*').eq('id',id).single(); p=data; }
+  if(pidPre) p.partida_id=pidPre;
+
+  const {data:mis}=await sb.from('partidas')
+    .select('id,nombre,detalle,cantidad,job_id, jobs(folio,unidad,cliente, propiedades(nombre))')
+    .eq('contratista_id',U.id).neq('estatus','terminada');
+  const MIS=mis||[];
+  if(p.partida_id && !p.job_id){ const x=MIS.find(y=>y.id===p.partida_id); if(x) p.job_id=x.job_id; }
+
+  const pinta=()=>{
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div style="min-width:0"><div class="mono" style="color:#C3D6F7">PARTE DIARIO · ${fmt(p.fecha).toUpperCase()}</div>
+      <div class="disp">${id?'Editar parte':'¿Qué trabajo hiciste?'}</div>
+      <div style="color:#C3D6F7">${esc(U.nombre)}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <label style="margin-top:0">Fecha</label>
+        <input id="p_f" type="date" value="${esc(p.fecha)}" max="${hoy()}" style="font-family:var(--mono);font-size:18px">
+
+        <label>¿En qué trabajo?</label>
+        <select id="p_pid">
+          <option value="">— otro trabajo / no está en la lista —</option>
+          ${MIS.map(x=>`<option value="${x.id}" ${p.partida_id===x.id?'selected':''}>
+            ${esc(x.jobs?.propiedades?.nombre||x.jobs?.cliente||'')}${x.jobs?.unidad?' Unit '+esc(x.jobs.unidad):''} · ${esc(x.nombre)}</option>`).join('')}
+        </select>
+
+        <label>¿Qué hiciste? · obligatorio</label>
+        <textarea id="p_desc" style="min-height:120px;font-size:17px" placeholder="Instalé drywall 2x2 en la cocina, puse texture y quedó listo para pintar.">${esc(p.descripcion||'')}</textarea>
+
+        <label>¿Quedó terminado?</label>
+        <div class="si-no" id="p_term">
+          <button data-t="1" class="${p.terminado?'on':''}">Sí, terminado</button>
+          <button data-t="0" class="${!p.terminado?'on':''}">Sigue en proceso</button>
+        </div>
+        ${!p.terminado?`<label>¿Qué falta?</label>
+          <input id="p_av" value="${esc(p.avance||'')}" placeholder="Falta la segunda mano de texture">`:''}
+
+        <div class="g2">
+          <div><label>Horas trabajadas</label><input class="num" id="p_hr" value="${esc(p.horas||'')}" placeholder="6"></div>
+          <div><label>Ayudantes</label><input class="num" id="p_ay" type="number" min="0" value="${p.ayudantes||0}"></div>
+        </div>
+
+        <label>¿Cuánto es este trabajo?</label>
+        <input class="num" id="p_mo" type="number" step="0.01" value="${p.monto??''}" placeholder="0.00"
+          style="font-family:var(--mono);font-size:24px;text-align:left">
+        <div class="sub" style="margin-top:6px">Lo que vas a cobrar por lo que hiciste hoy. Oficina lo revisa antes de pagar.</div>
+
+        <label>Materiales que pusiste</label>
+        <input id="p_mat" value="${esc(p.materiales||'')}" placeholder="2 hojas de drywall, cinta y compuesto">
+
+        <div class="eyebrow">Fotos del trabajo</div>
+        <input id="p_ft" type="file" accept="image/*" multiple capture="environment">
+        <div id="p_th" style="margin-top:10px"></div>
+
+        <label>Notas para oficina</label>
+        <textarea id="p_nt" placeholder="Lo que deban saber">${esc(p.notas||'')}</textarea>
+
+        <div style="height:18px"></div>
+        <button class="btn wide" id="p_sv">${id?'Guardar cambios':'Enviar parte'}</button>
+        <div style="height:10px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+
+    $('#c1').onclick=$('#c2').onclick=()=>{cerrar();render();};
+    $('#sheet').querySelectorAll('#p_term [data-t]').forEach(b=>b.onclick=()=>{
+      p.terminado=b.dataset.t==='1'; leer(); pinta();
+    });
+    const pintaFt=()=>{
+      const g=fotosPorArea(p.fotos);
+      $('#p_th').innerHTML=(p.fotos||[]).length?`<div class="thumbs">${(p.fotos||[]).map(f=>
+        `<div style="position:relative"><img src="${esc(fotoU(f))}">
+        <button type="button" data-qf2="${esc(fotoU(f))}" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;
+          border-radius:50%;border:0;background:var(--rojo);color:#fff;font-size:14px;cursor:pointer;line-height:1">×</button></div>`).join('')}</div>`:'';
+      $('#p_th').querySelectorAll('[data-qf2]').forEach(b=>b.onclick=()=>{
+        p.fotos=p.fotos.filter(f=>fotoU(f)!==b.dataset.qf2); pintaFt();
+      });
+    };
+    pintaFt();
+    $('#p_ft').onchange=async e=>{
+      const fs=[...e.target.files]; if(!fs.length) return;
+      toast('Subiendo '+fs.length+' foto(s)…');
+      for(const f of fs){
+        const nm=`parte/${U.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+        const {error}=await sb.storage.from('capri').upload(nm,f,{contentType:f.type||'image/jpeg'});
+        if(error){ toast('Error: '+error.message); continue; }
+        p.fotos.push({u:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl, a:'Trabajo'});
+      }
+      pintaFt(); toast('Listo');
+    };
+    const leer=()=>{
+      p.fecha=$('#p_f').value||hoy();
+      p.partida_id=$('#p_pid').value||null;
+      p.descripcion=$('#p_desc').value;
+      const av=$('#p_av'); if(av) p.avance=av.value;
+      p.horas=$('#p_hr').value; p.ayudantes=+$('#p_ay').value||0;
+      p.monto=$('#p_mo').value; p.materiales=$('#p_mat').value; p.notas=$('#p_nt').value;
+    };
+    $('#p_sv').onclick=async()=>{
+      leer();
+      if(!p.descripcion.trim()) return toast('Escribe qué trabajo hiciste.');
+      const x=MIS.find(y=>y.id===p.partida_id);
+      const dat={contratista_id:U.id, fecha:p.fecha, descripcion:p.descripcion.trim(),
+        partida_id:p.partida_id||null, job_id:x?x.job_id:(p.job_id||null),
+        avance:p.avance||null, terminado:p.terminado,
+        monto:p.monto===''?null:Number(p.monto), ayudantes:p.ayudantes,
+        horas:p.horas===''?null:Number(p.horas), materiales:p.materiales||null,
+        notas:p.notas||null, fotos:p.fotos};
+      const {error} = id ? await sb.from('partes_contratista').update(dat).eq('id',id)
+                         : await sb.from('partes_contratista').insert(dat);
+      if(error) return toast('No se guardó: '+error.message);
+      if(p.terminado && p.partida_id)
+        await sb.from('partidas').update({estatus:'terminada', fecha_fin:p.fecha}).eq('id',p.partida_id);
+      await sb.from('notificaciones').insert({tipo:'parte',
+        titulo:'Parte de '+U.nombre,
+        texto:fmt(p.fecha)+' · '+p.descripcion.slice(0,70)+(p.monto?' · '+cf(p.monto):''),
+        job_id:dat.job_id, para_rol:'admin'});
+      cerrar(); toast('Parte enviado'); render();
+    };
+  };
+  pinta();
+}
+
+async function vContraPartes(){
+  const {data}=await sb.from('partes_contratista')
+    .select('*, jobs(folio,unidad,cliente, propiedades(nombre))')
+    .eq('contratista_id',U.id).order('fecha',{ascending:false}).limit(90);
+  const P=data||[];
+  const mes=P.filter(x=>x.fecha>=hace(30));
+  const total=mes.reduce((a,x)=>a+Number(x.monto||0),0);
+  const pend=mes.filter(x=>!x.revisado).reduce((a,x)=>a+Number(x.monto||0),0);
+
+  setTimeout(()=>{
+    document.querySelectorAll('[data-vparte]').forEach(b=>b.onclick=()=>formParte(b.dataset.vparte));
+    const np=$('#np'); if(np) np.onclick=()=>formParte(null);
+  },0);
+
+  const G={};
+  P.forEach(x=>(G[x.fecha] ||= []).push(x));
+
+  return `<div class="kpis" style="margin-bottom:14px">
+      <div class="kpi a"><div class="l">Trabajos del mes</div><div class="v">${mes.length}</div><div class="p">últimos 30 días</div></div>
+      <div class="kpi m"><div class="l">Total del mes</div><div class="v" style="font-size:30px">${cf(total)}</div><div class="p">lo que reportaste</div></div>
+      <div class="kpi ${pend?'r':''}"><div class="l">Por revisar</div><div class="v" style="font-size:30px">${cf(pend)}</div><div class="p">oficina no lo ha cerrado</div></div>
+    </div>
+    <button class="btn wide no-print" id="np" style="margin-bottom:16px">+ Anotar trabajo de hoy</button>
+    ${Object.keys(G).map(f=>`
+      <div class="eyebrow">${fmt(f)} · ${G[f].length} ${G[f].length===1?'trabajo':'trabajos'}${
+        G[f].reduce((a,x)=>a+Number(x.monto||0),0)?' · '+cf(G[f].reduce((a,x)=>a+Number(x.monto||0),0)):''}</div>
+      ${G[f].map(x=>`<div class="card ${x.revisado?'':'ambar'}" data-vparte="${x.id}" style="cursor:pointer">
+        <div class="row" style="justify-content:space-between">
+          <span class="folio">${esc(x.jobs?.folio||'sin trabajo')}</span>
+          <div class="row" style="gap:5px">
+            <span class="chip ${x.terminado?'azul':'ambar'}">${x.terminado?'TERMINADO':'EN PROCESO'}</span>
+            ${x.revisado?'<span class="chip azul">REVISADO</span>':'<span class="chip">POR REVISAR</span>'}
+          </div></div>
+        <div class="tit">${esc(x.jobs?.propiedades?.nombre||x.jobs?.cliente||'—')}${x.jobs?.unidad?' · Unit '+esc(x.jobs.unidad):''}</div>
+        <div class="texto" style="font-size:16px;margin-top:5px">${esc(x.descripcion)}</div>
+        ${x.avance?`<div class="sub" style="margin-top:5px"><b>Falta:</b> ${esc(x.avance)}</div>`:''}
+        <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+          ${x.monto?`<span class="chip ambar">${cf(x.monto)}</span>`:''}
+          ${x.horas?`<span class="chip">${x.horas} HORAS</span>`:''}
+          ${x.ayudantes?`<span class="chip">${x.ayudantes} AYUDANTE${x.ayudantes>1?'S':''}</span>`:''}
+          ${(x.fotos||[]).length?`<span class="chip">${(x.fotos||[]).length} FOTOS</span>`:''}
+        </div></div>`).join('')}`).join('') ||
+      '<div class="empty"><div class="masc-busto masc-vacio"></div><div class="disp">Sin partes todavía</div><p>Anota tu primer trabajo del día.</p></div>'}`;
+}
+
+async function vContraHoras(){
+  const {data}=await sb.from('asistencias').select('*').eq('contratista_id',U.id)
+    .gte('fecha',hace(30)).order('fecha',{ascending:false});
+  const A=data||[];
+  const min=A.reduce((a,x)=>a+(x.minutos||0),0);
+  return `<div class="kpis" style="margin-bottom:14px">
+      <div class="kpi a"><div class="l">Horas del mes</div><div class="v" style="font-size:32px">${horasTxt(min)}</div><div class="p">últimos 30 días</div></div>
+      <div class="kpi"><div class="l">Días trabajados</div><div class="v">${A.filter(x=>x.minutos).length}</div><div class="p">jornadas cerradas</div></div>
+    </div>
+    <div class="eyebrow">Mis jornadas</div>
+    ${A.length?A.map(x=>`<div class="fila ${x.salida?'a':'m'}">
+      <div class="t"><b>${fmt(x.fecha)}</b>
+      <span class="sub">${hhmm(x.entrada)} → ${x.salida?hhmm(x.salida):'sin cerrar'}${x.ent_dir?' · '+esc(x.ent_dir):''}</span></div>
+      <span class="chip ${x.salida?'azul':'ambar'}">${x.minutos?horasTxt(x.minutos):'ABIERTO'}</span>
+    </div>`).join('') : '<div class="sub">Todavía no has checado.</div>'}`;
+}
+
+/* ==================== ADMIN · PARTES DE CONTRATISTAS ==================== */
+async function vPartes(){
+  const [{data:partes},{data:cons}] = await Promise.all([
+    sb.from('partes_contratista').select('*, jobs(folio,unidad,cliente, propiedades(nombre)), contratistas(nombre)')
+      .gte('fecha',hace(45)).order('fecha',{ascending:false}),
+    sb.from('contratistas').select('*').eq('activo',true).order('nombre')
+  ]);
+  const P=partes||[], C=cons||[];
+  const h=hoy();
+  const sinRevisar=P.filter(x=>!x.revisado);
+  const hoyP=P.filter(x=>x.fecha===h);
+  const sinHoy=C.filter(c=>!hoyP.some(x=>x.contratista_id===c.id));
+  const totalPend=sinRevisar.reduce((a,x)=>a+Number(x.monto||0),0);
+
+  setTimeout(()=>{
+    document.querySelectorAll('[data-rev]').forEach(b=>b.onclick=async()=>{
+      await sb.from('partes_contratista').update({revisado:true}).eq('id',b.dataset.rev);
+      toast('Parte revisado'); render();
+    });
+    document.querySelectorAll('[data-wacon]').forEach(b=>{});
+  },0);
+
+  return `<div class="kpis" style="margin-bottom:14px">
+      <div class="kpi ${sinHoy.length?'r':'a'}"><div class="l">No han reportado hoy</div>
+        <div class="v" style="color:${sinHoy.length?'var(--rojo)':'var(--verde,var(--azul))'}">${sinHoy.length}</div>
+        <div class="p">de ${C.length} contratistas</div></div>
+      <div class="kpi"><div class="l">Partes de hoy</div><div class="v">${hoyP.length}</div><div class="p">trabajos reportados</div></div>
+      <div class="kpi ${sinRevisar.length?'m':''}"><div class="l">Por revisar</div><div class="v">${sinRevisar.length}</div><div class="p">partes sin cerrar</div></div>
+      ${VE_DINERO()?`<div class="kpi m"><div class="l">Por autorizar</div><div class="v" style="font-size:28px">${cf(totalPend)}</div><div class="p">en partes sin revisar</div></div>`:''}
+    </div>
+
+    ${sinHoy.length?`<div class="eyebrow">No han reportado hoy · ${sinHoy.length}</div>
+      ${sinHoy.map(c=>`<div class="fila r">
+        <div class="t"><b>${esc(c.nombre)}</b><span class="sub">${esc(c.oficio||c.telefono||'')}</span></div>
+        ${c.telefono?`<a class="btn ghost sm" target="_blank" rel="noopener"
+          href="https://wa.me/${(c.telefono||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(
+            'Hola '+(c.nombre||'').split(' ')[0]+', no has anotado tu trabajo de hoy en la app. Por favor entra y registra qué hiciste para poder autorizar tu pago.')}">Recordar</a>`:''}
+      </div>`).join('')}`:''}
+
+    <div class="eyebrow">Partes recibidos · ${P.length}</div>
+    ${P.length?P.map(x=>`<div class="card ${x.revisado?'':'ambar'}">
+      <div class="row" style="justify-content:space-between">
+        <span class="folio">${fmt(x.fecha)} · ${esc(x.contratistas?.nombre||'')}</span>
+        <div class="row" style="gap:5px">
+          <span class="chip ${x.terminado?'azul':'ambar'}">${x.terminado?'TERMINADO':'EN PROCESO'}</span>
+          ${x.revisado?'<span class="chip azul">REVISADO</span>':''}
+        </div></div>
+      <div class="tit">${esc(x.jobs?.propiedades?.nombre||x.jobs?.cliente||'sin trabajo ligado')}${x.jobs?.unidad?' · Unit '+esc(x.jobs.unidad):''}</div>
+      <div class="texto" style="font-size:16px;margin-top:5px">${esc(x.descripcion)}</div>
+      ${x.avance?`<div class="sub" style="margin-top:5px"><b>Falta:</b> ${esc(x.avance)}</div>`:''}
+      ${x.materiales?`<div class="sub"><b>Materiales:</b> ${esc(x.materiales)}</div>`:''}
+      ${x.notas?`<div class="sub"><b>Nota:</b> ${esc(x.notas)}</div>`:''}
+      <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+        ${(x.monto&&VE_DINERO())?`<span class="chip ambar">${cf(x.monto)}</span>`:''}
+        ${x.horas?`<span class="chip">${x.horas} HORAS</span>`:''}
+        ${x.ayudantes?`<span class="chip">${x.ayudantes} AYUDANTE${x.ayudantes>1?'S':''}</span>`:''}
+      </div>
+      ${(x.fotos||[]).length?`<div style="margin-top:10px">${galeriaHTML(x.fotos)}</div>`:''}
+      ${(EDIT()&&!x.revisado)?`<div class="row no-print" style="margin-top:11px">
+        <button class="btn sm" data-rev="${x.id}">Marcar revisado</button>
+        ${x.job_id?`<button class="btn ghost sm" data-job="${x.job_id}">Abrir trabajo</button>`:''}
+      </div>`:''}
+    </div>`).join('') : '<div class="empty"><div class="disp">Sin partes</div><p>Los contratistas todavía no reportan.</p></div>'}`;
+}
+
 /* ==================== RELOJ CHECADOR ==================== */
 function hhmm(ts){
   if(!ts) return '—';
@@ -2874,7 +3251,8 @@ let PUERTA = null;
 const PUERTAS = {
   admin:   {t:'Administración', s:'Julio y Jared · control total', c:'var(--azul)'},
   oficina: {t:'Oficina',        s:'Consulta y seguimiento',        c:'#0B0D11'},
-  tecnico: {t:'Técnico',        s:'Reportes y ruta del día',       c:'var(--rojo)'}
+  tecnico: {t:'Técnico',        s:'Reportes y ruta del día',       c:'var(--rojo)'},
+  contratista:{t:'Contratista',  s:'Checar y reportar tu trabajo',   c:'var(--oro)'}
 };
 
 function portada(){
@@ -2989,6 +3367,17 @@ async function entrar(){
   const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
   if(!u||!p) return errLogin('Escribe usuario y contraseña.');
   errLogin('Verificando…');
+  if(PUERTA==='contratista'){
+    const {data:c,error:ec} = await sb.from('contratistas').select('*').eq('username',u)
+      .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
+    if(ec) return errLogin('No hay conexión con la base de datos.');
+    if(!c) return errLogin('Usuario o contraseña incorrectos.');
+    U={id:c.id, nombre:c.nombre, rol:'contratista', departamento:'ambos',
+       telefono:c.telefono, tarifa_hora:c.tarifa_hora, tipo_pago:c.tipo_pago};
+    sessionStorage.setItem('jr31',JSON.stringify(U));
+    DEP='restoration';
+    return bienvenida(U, ()=>{ V='dia'; render(); });
+  }
   const {data,error} = await sb.from('usuarios').select('*').eq('username',u)
     .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
   if(error) return errLogin('No hay conexión con la base de datos.');
@@ -3010,11 +3399,13 @@ function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
 function shell(html){
   const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
   const tabs = U.rol==='tecnico'
-    ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]]
+    ? (U.rol==='contratista'
+       ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
+       : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
-  const esTec = U.rol==='tecnico';
+  const esTec = U.rol==='tecnico' || U.rol==='contratista';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
   $('#root').innerHTML = `
@@ -3051,7 +3442,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v89 · reloj checador</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v90 · contratistas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3114,6 +3505,11 @@ async function render(){
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
+      if(U.rol==='contratista'){
+        if(V==='cpartes') return shell(await vContraPartes());
+        if(V==='choras')  return shell(await vContraHoras());
+        return shell(await vContraInicio());
+      }
       if(V==='dia')      return shell(await vTecInicio());
       if(V==='trabajos') return shell(await vTecTrabajos());
       if(V==='buscar')   return shell(await vBuscar());
@@ -3130,6 +3526,7 @@ async function render(){
     if(V==='mapa')      return shell(await vMapa());
     if(V==='dia')       return shell(await vControl());
     if(V==='horas')     return shell(await vHoras());
+    if(V==='partes')    return shell(await vPartes());
     if(V==='buscar')    return shell(await vBuscar());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -4637,6 +5034,9 @@ const IC={
   jobs:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
   buscar:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   horas:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  cpartes:'<path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h4"/>',
+  partes:'<path d="M2 20h20"/><path d="M6 20V9l6-5 6 5v11"/><path d="M10 20v-6h4v6"/>',
+  choras:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
   mgmt:'<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h2M9 13h2M13 9h2M13 13h2M9 21v-4h6v4"/>',
   schedule:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 18h3"/>',
   estimados:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
@@ -4862,7 +5262,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='89';
+const VERSION='90';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5138,7 +5538,7 @@ async function ubicarManual(jobId){
 async function vMapa(){
   const h=hoy();
   let items=[], titulo='';
-  const esTec = U.rol==='tecnico';
+  const esTec = U.rol==='tecnico' || U.rol==='contratista';
   const miDep = esTec ? (U.departamento==='ambos'?'restoration':U.departamento) : DEP;
   if(MODO_MAPA==='hoy'){
     let q=sb.from('asignaciones')
@@ -7795,13 +8195,41 @@ async function formContratista(id){
       <label>Nombre</label><input id="c_n" value="${esc(c.nombre||'')}">
       <label>Especialidad</label><input id="c_e" placeholder="Drywall · pintura" value="${esc(c.especialidad||'')}">
       <label>Teléfono</label><input id="c_t" type="tel" value="${esc(c.telefono||'')}">
+
+      <div class="eyebrow">Acceso a la app</div>
+      <div class="sub" style="margin-bottom:8px">Con esto el contratista puede checar entrada y salida, y anotar sus trabajos del día.</div>
+      <label>Usuario</label>
+      <input id="c_u" value="${esc(c.username||'')}" placeholder="miguel" autocapitalize="none"
+        style="font-family:var(--mono);font-size:18px">
+      <label>Contraseña ${c.username?'· déjala vacía para no cambiarla':''}</label>
+      <input id="c_p" type="text" placeholder="${c.username?'sin cambios':'capri2026'}"
+        style="font-family:var(--mono);font-size:18px">
+
+      <div class="eyebrow">Pago</div>
+      <label>Cómo se le paga</label>
+      <select id="c_tp">
+        <option value="por_trabajo" ${c.tipo_pago!=='por_hora'?'selected':''}>Por trabajo</option>
+        <option value="por_hora" ${c.tipo_pago==='por_hora'?'selected':''}>Por hora</option>
+      </select>
+      <label>Tarifa por hora · si aplica</label>
+      <input class="num" id="c_th" type="number" step="0.01" value="${c.tarifa_hora??''}" placeholder="0.00">
+
+      ${c.username?`<div class="ok" style="margin-top:14px">
+        <b>Entra por la puerta de Contratista</b> con el usuario <b>${esc(c.username)}</b>.
+      </div>`:''}
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#sv').onclick=async()=>{
-    const p={nombre:$('#c_n').value.trim(),especialidad:$('#c_e').value.trim()||null,telefono:$('#c_t').value.trim()||null};
+    const p={nombre:$('#c_n').value.trim(),especialidad:$('#c_e').value.trim()||null,telefono:$('#c_t').value.trim()||null,
+      username:$('#c_u').value.trim().toLowerCase()||null,
+      tipo_pago:$('#c_tp').value,
+      tarifa_hora:$('#c_th').value===''?null:Number($('#c_th').value)};
     if(!p.nombre) return toast('Ponle nombre.');
+    const clave=$('#c_p').value.trim();
+    if(clave) p.password_hash=await sha256(clave);
+    if(p.username && !clave && !c.password_hash) return toast('Ponle una contraseña al usuario.');
     const q=id?sb.from('contratistas').update(p).eq('id',id):sb.from('contratistas').insert(p);
     const {error}=await q; if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Contratista guardado'); render();
@@ -8001,6 +8429,8 @@ function accionGlobal(e){
   if(idEl('btn_brief')){ e.preventDefault(); return resumenDiario(false); }
   if(idEl('ck_in')){ e.preventDefault(); return checar('entrada'); }
   if(idEl('ck_out')){ e.preventDefault(); return checar('salida'); }
+  if(idEl('ckc_in')){ e.preventDefault(); return checarC('entrada'); }
+  if(idEl('ckc_out')){ e.preventDefault(); return checarC('salida'); }
   if(idEl('irmapa')){ e.preventDefault(); V='mapa'; return render(); }
 }
 
