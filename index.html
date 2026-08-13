@@ -389,6 +389,22 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
   text-transform:none;color:var(--gris);margin-top:1px;line-height:1.2}
 .side button .bi{color:#6B7280}
 .side button.on .bi{color:rgba(255,255,255,.65)}
+/* Reloj checador */
+.reloj{display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  background:linear-gradient(150deg,#182234 0%,#0E1523 70%);border:1px solid #1E293C;
+  border-left:5px solid var(--gris);border-radius:0 14px 14px 0;padding:18px 20px;margin-bottom:14px;
+  box-shadow:0 8px 26px rgba(0,0,0,.32)}
+.reloj.on{border-left-color:var(--verde,var(--azul))}
+.reloj.fin{border-left-color:var(--oro)}
+.rj-l{flex:1;min-width:190px}
+.rj-est{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#8494AD}
+.rj-h{font-family:var(--disp);font-weight:800;font-size:42px;line-height:1;color:#fff;margin-top:2px}
+.reloj.on .rj-h{color:#8FE9BC}
+.rj-d{font-size:15px;color:#C3D6F7;margin-top:4px}
+.rj-g{font-family:var(--mono);font-size:12.5px;color:#8494AD;margin-top:5px}
+.rj-r{flex:0 0 200px;min-width:170px}
+@media(max-width:560px){.rj-r{flex:1 1 100%}}
+
 /* Tarjeta de reporte con fecha grande */
 .repcard{background:var(--sup);border:1px solid var(--linea);border-left:5px solid var(--verde,var(--azul));
   border-radius:0 14px 14px 0;margin-bottom:13px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)}
@@ -1063,6 +1079,265 @@ async function revisarFaltantes(){
       .eq('tipo','faltante').eq('leida',false).in('job_id',limpiar);
   }
   return pendientes;
+}
+
+/* ==================== RELOJ CHECADOR ==================== */
+function hhmm(ts){
+  if(!ts) return '—';
+  return new Date(ts).toLocaleTimeString(ING()?'en-US':'es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+function horasTxt(min){
+  if(!min && min!==0) return '—';
+  const h=Math.floor(min/60), m=min%60;
+  return h+'h '+String(m).padStart(2,'0')+'m';
+}
+
+function ubicame(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res(null);
+    const t=setTimeout(()=>res(null), 9000);
+    navigator.geolocation.getCurrentPosition(
+      p=>{ clearTimeout(t); res({lat:p.coords.latitude, lng:p.coords.longitude}); },
+      ()=>{ clearTimeout(t); res(null); },
+      {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
+  });
+}
+
+async function miAsistencia(){
+  const {data}=await sb.from('asistencias').select('*').eq('usuario_id',U.id).eq('fecha',hoy()).maybeSingle();
+  return data||null;
+}
+
+async function checar(tipo){
+  const en=ING(), L=(es,ing)=>en?ing:es;
+  toast(L('Tomando tu ubicación…','Getting your location…'));
+  const g=await ubicame();
+  const ahora=new Date().toISOString();
+  let dir='';
+  if(g){
+    try{
+      const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+g.lat+'&lon='+g.lng);
+      const d=await r.json();
+      dir=(d.address?.road?d.address.road+' ':'')+(d.address?.house_number||'')+(d.address?.city?', '+d.address.city:'');
+    }catch(e){}
+  }
+
+  const prev=await miAsistencia();
+
+  if(tipo==='entrada'){
+    if(prev && prev.entrada) return toast(L('Ya registraste tu entrada hoy.','You already clocked in today.'));
+    const p={usuario_id:U.id, nombre:U.nombre, fecha:hoy(), entrada:ahora,
+      ent_lat:g?.lat||null, ent_lng:g?.lng||null, ent_dir:dir||null};
+    const {error}=await sb.from('asistencias').upsert(p,{onConflict:'usuario_id,fecha'});
+    if(error) return toast('Error: '+error.message);
+    await sb.from('notificaciones').insert({
+      tipo:'checada', clave:'ent-'+U.id+'-'+hoy(),
+      titulo:'Entrada · '+U.nombre,
+      texto:hhmm(ahora)+(dir?' · '+dir:'')+(g?'':' · sin GPS'),
+      para_rol:'admin'});
+    tono('normal');
+    toast(L('Entrada registrada a las ','Clocked in at ')+hhmm(ahora));
+  } else {
+    if(!prev || !prev.entrada) return toast(L('Primero registra tu entrada.','Clock in first.'));
+    if(prev.salida) return toast(L('Ya registraste tu salida hoy.','You already clocked out today.'));
+    const min=Math.round((new Date(ahora)-new Date(prev.entrada))/60000);
+    const {error}=await sb.from('asistencias').update({salida:ahora, minutos:min,
+      sal_lat:g?.lat||null, sal_lng:g?.lng||null, sal_dir:dir||null}).eq('id',prev.id);
+    if(error) return toast('Error: '+error.message);
+    await sb.from('notificaciones').insert({
+      tipo:'checada', clave:'sal-'+U.id+'-'+hoy(),
+      titulo:'Salida · '+U.nombre,
+      texto:hhmm(ahora)+' · '+horasTxt(min)+(dir?' · '+dir:''),
+      para_rol:'admin'});
+    tono('normal');
+    toast(L('Salida registrada · ','Clocked out · ')+horasTxt(min));
+  }
+  render();
+}
+
+function relojHTML(a){
+  const en=ING(), L=(es,ing)=>en?ing:es;
+  const dentro = a && a.entrada && !a.salida;
+  const cerrado = a && a.salida;
+  const min = dentro ? Math.round((Date.now()-new Date(a.entrada))/60000) : (a?.minutos||0);
+  return `<div class="reloj ${dentro?'on':cerrado?'fin':''}">
+    <div class="rj-l">
+      <div class="rj-est">${dentro?L('TRABAJANDO','ON THE CLOCK'):cerrado?L('JORNADA CERRADA','SHIFT CLOSED'):L('SIN REGISTRAR','NOT CLOCKED IN')}</div>
+      <div class="rj-h">${horasTxt(min)}</div>
+      <div class="rj-d">${a&&a.entrada?L('Entrada ','In ')+hhmm(a.entrada):L('Toca para iniciar tu jornada','Tap to start your shift')}${a&&a.salida?' · '+L('salida ','out ')+hhmm(a.salida):''}</div>
+      ${a&&a.ent_dir?`<div class="rj-g">📍 ${esc(a.ent_dir)}</div>`:''}
+    </div>
+    <div class="rj-r">
+      ${!a||!a.entrada?`<button class="btn wide" id="ck_in">${L('Registrar entrada','Clock in')}</button>`
+        :dentro?`<button class="btn wide rojo" id="ck_out">${L('Registrar salida','Clock out')}</button>`
+        :`<span class="jc-chip verde">${L('COMPLETO','DONE')}</span>`}
+    </div>
+  </div>`;
+}
+
+/* ==================== HORAS · VISTA DEL ADMIN ==================== */
+let HSEM = 0;
+async function vHoras(){
+  const base=new Date(hoy()+'T12:00:00');
+  base.setDate(base.getDate() - base.getDay() + 1 + HSEM*7);
+  const lun=iso(base);
+  const finD=new Date(base); finD.setDate(finD.getDate()+6);
+  const dom=iso(finD);
+
+  const [{data:asis},{data:users}] = await Promise.all([
+    sb.from('asistencias').select('*').gte('fecha',lun).lte('fecha',dom).order('fecha'),
+    sb.from('usuarios').select('id,nombre,rol,puesto,tarifa_hora,activo').neq('rol','admin').order('nombre')
+  ]);
+  const A=asis||[], US=(users||[]).filter(x=>x.activo!==false);
+
+  const porUser={};
+  A.forEach(a=>(porUser[a.usuario_id] ||= []).push(a));
+
+  const dias7=[]; for(let i=0;i<7;i++){ const d=new Date(base); d.setDate(d.getDate()+i); dias7.push(iso(d)); }
+  const nomDia=f=>new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short'}).toUpperCase();
+
+  setTimeout(()=>{
+    const p=$('#h_prev'), n=$('#h_next'), hy=$('#h_hoy');
+    if(p) p.onclick=()=>{HSEM--;render();};
+    if(n) n.onclick=()=>{HSEM++;render();};
+    if(hy) hy.onclick=()=>{HSEM=0;render();};
+    document.querySelectorAll('[data-edas]').forEach(b=>b.onclick=()=>editarAsistencia(b.dataset.edas));
+    document.querySelectorAll('[data-newas]').forEach(b=>b.onclick=()=>editarAsistencia(null, b.dataset.newas, b.dataset.f));
+    const ex=$('#h_export'); if(ex) ex.onclick=()=>exportarHoras(US, porUser, dias7, lun, dom);
+  },0);
+
+  const totalMin = A.reduce((a,x)=>a+(x.minutos||0),0);
+  const totalPago = US.reduce((acc,u)=>{
+    const min=(porUser[u.id]||[]).reduce((a,x)=>a+(x.minutos||0),0);
+    return acc + (min/60)*Number(u.tarifa_hora||0);
+  },0);
+
+  return `<div class="row no-print" style="gap:9px;margin-bottom:14px">
+      <button class="btn ghost sm" id="h_prev">‹ Semana anterior</button>
+      <button class="btn ghost sm" id="h_hoy">Esta semana</button>
+      <button class="btn ghost sm" id="h_next">Semana siguiente ›</button>
+      <span style="flex:1"></span>
+      <button class="btn ghost sm" id="h_export">Exportar</button>
+    </div>
+
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi a"><div class="l">Semana</div>
+        <div class="v" style="font-size:26px">${fmt(lun).slice(0,5)} — ${fmt(dom).slice(0,5)}</div>
+        <div class="p">${HSEM===0?'semana en curso':HSEM<0?Math.abs(HSEM)+' semana(s) atrás':'próxima semana'}</div></div>
+      <div class="kpi"><div class="l">Horas totales</div>
+        <div class="v">${horasTxt(totalMin)}</div><div class="p">de todo el equipo</div></div>
+      <div class="kpi"><div class="l">Días trabajados</div>
+        <div class="v">${A.filter(x=>x.minutos).length}</div><div class="p">jornadas cerradas</div></div>
+      ${VE_DINERO()?`<div class="kpi m"><div class="l">Nómina estimada</div>
+        <div class="v" style="font-size:30px">${cf(totalPago)}</div>
+        <div class="p">según la tarifa de cada quien</div></div>`:''}
+    </div>
+
+    ${US.map(u=>{
+      const mias=porUser[u.id]||[];
+      const min=mias.reduce((a,x)=>a+(x.minutos||0),0);
+      const pago=(min/60)*Number(u.tarifa_hora||0);
+      const abierto=mias.find(x=>x.entrada&&!x.salida);
+      return `<div class="card ${abierto?'ambar':''}">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="tit">${esc(u.nombre)}</div>
+            <div class="meta">${esc(u.puesto||u.rol)}${u.tarifa_hora&&VE_DINERO()?' · '+cf(u.tarifa_hora)+'/hora':''}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="disp" style="font-size:27px;color:var(--oro)">${horasTxt(min)}</div>
+            ${(pago&&VE_DINERO())?`<div class="meta">${cf(pago)}</div>`:''}
+            ${abierto?'<span class="jc-chip ambar">EN TURNO</span>':''}
+          </div>
+        </div>
+        <table class="ptab" style="margin-top:12px">
+          <thead><tr><th>Día</th><th>Entrada</th><th>Salida</th><th>Horas</th><th></th></tr></thead>
+          <tbody>${dias7.map(f=>{
+            const a=mias.find(x=>x.fecha===f);
+            const esHoy=f===hoy();
+            return `<tr style="${esHoy?'background:rgba(224,179,78,.07)':''}">
+              <td><b class="mono">${nomDia(f)}</b> <span class="meta">${f.slice(8)}</span></td>
+              <td class="mono">${a?hhmm(a.entrada):'—'}</td>
+              <td class="mono">${a&&a.salida?hhmm(a.salida):(a&&a.entrada?'<span style="color:var(--oro)">abierto</span>':'—')}</td>
+              <td class="mono"><b>${a&&a.minutos?horasTxt(a.minutos):'—'}</b></td>
+              <td style="text-align:right">${EDIT()?(a
+                ?`<button class="btn ghost sm no-print" data-edas="${a.id}" style="padding:5px 9px;font-size:13px">Ajustar</button>`
+                :`<button class="btn ghost sm no-print" data-newas="${u.id}" data-f="${f}" style="padding:5px 9px;font-size:13px">+</button>`):''}</td>
+            </tr>`;}).join('')}</tbody>
+        </table>
+      </div>`;}).join('') || '<div class="empty"><div class="disp">Sin personal</div><p>Da de alta a tu gente en Equipo.</p></div>'}`;
+}
+
+async function editarAsistencia(id, userId, fecha){
+  let a={usuario_id:userId, fecha:fecha||hoy(), entrada:null, salida:null};
+  let nom='';
+  if(id){
+    const {data}=await sb.from('asistencias').select('*').eq('id',id).single();
+    a=data; nom=data.nombre||'';
+  } else {
+    const {data}=await sb.from('usuarios').select('nombre').eq('id',userId).single();
+    nom=data?.nombre||'';
+  }
+  const hm = ts => ts ? new Date(ts).toTimeString().slice(0,5) : '';
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${fmt(a.fecha).toUpperCase()}</div>
+    <div class="disp">${esc(nom)}</div>
+    <div style="color:#C3D6F7">Ajuste de horas</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="g2">
+        <div><label>Entrada</label><input id="a_ent" type="time" value="${hm(a.entrada)}" style="font-size:21px"></div>
+        <div><label>Salida</label><input id="a_sal" type="time" value="${hm(a.salida)}" style="font-size:21px"></div>
+      </div>
+      <label>Nota del ajuste</label>
+      <input id="a_nt" value="${esc(a.notas||'')}" placeholder="Se le olvidó checar salida, confirmó por teléfono">
+      ${a.ent_dir?`<div class="card" style="margin-top:12px"><div class="meta">DONDE CHECÓ ENTRADA</div>
+        <div class="sub" style="color:var(--tinta)">📍 ${esc(a.ent_dir)}</div></div>`:''}
+      ${a.sal_dir?`<div class="card"><div class="meta">DONDE CHECÓ SALIDA</div>
+        <div class="sub" style="color:var(--tinta)">📍 ${esc(a.sal_dir)}</div></div>`:''}
+      <div style="height:18px"></div>
+      <button class="btn wide" id="a_sv">Guardar</button>
+      ${id&&BORRAR()?'<div style="height:10px"></div><button class="btn ghost wide" id="a_del" style="color:var(--rojo)">Borrar registro</button>':''}
+      <div style="height:10px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{cerrar();render();};
+  $('#a_sv').onclick=async()=>{
+    const e=$('#a_ent').value, sl=$('#a_sal').value;
+    if(!e) return toast('Pon al menos la hora de entrada.');
+    const ent=new Date(a.fecha+'T'+e+':00').toISOString();
+    const sal=sl?new Date(a.fecha+'T'+sl+':00').toISOString():null;
+    const min=sal?Math.round((new Date(sal)-new Date(ent))/60000):null;
+    const p={usuario_id:a.usuario_id, nombre:nom, fecha:a.fecha, entrada:ent, salida:sal,
+      minutos:min, notas:$('#a_nt').value.trim()||null, ajustado_por:U.nombre};
+    const {error}= id ? await sb.from('asistencias').update(p).eq('id',id)
+                      : await sb.from('asistencias').upsert(p,{onConflict:'usuario_id,fecha'});
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Horas guardadas'); render();
+  };
+  const ad=$('#a_del');
+  if(ad) ad.onclick=async()=>{
+    if(!confirm('¿Borrar este registro de horas?')) return;
+    await sb.from('asistencias').delete().eq('id',id);
+    cerrar(); toast('Registro borrado'); render();
+  };
+}
+
+function exportarHoras(US, porUser, dias7, lun, dom){
+  let t='NOMBRE,PUESTO,'+dias7.map(f=>f).join(',')+',TOTAL HORAS,TARIFA,PAGO\n';
+  US.forEach(u=>{
+    const mias=porUser[u.id]||[];
+    const min=mias.reduce((a,x)=>a+(x.minutos||0),0);
+    const cols=dias7.map(f=>{ const a=mias.find(x=>x.fecha===f); return a&&a.minutos?(a.minutos/60).toFixed(2):''; });
+    t+=`"${u.nombre}","${u.puesto||u.rol}",${cols.join(',')},${(min/60).toFixed(2)},${u.tarifa_hora||''},${((min/60)*Number(u.tarifa_hora||0)).toFixed(2)}\n`;
+  });
+  const b=new Blob([t],{type:'text/csv;charset=utf-8'});
+  const a2=document.createElement('a');
+  a2.href=URL.createObjectURL(b);
+  a2.download='horas_'+lun+'_a_'+dom+'.csv';
+  a2.click();
+  toast('Archivo descargado');
 }
 
 /* ==================== PULSO DEL DÍA ==================== */
@@ -1839,6 +2114,7 @@ async function vTecInicio(){
   const enRec=mios.filter(x=>x.estatus==='reconstruccion').length;
   const cl=await traerClima();
 
+  const asisHoy = await miAsistencia();
   const misJobs=[];
   {
     const {data:asHoy}=await sb.from('asignaciones')
@@ -1884,6 +2160,7 @@ async function vTecInicio(){
     (jj||[]).forEach(x=>{ debeT+=diasFaltantes(x, fx[x.id]||new Set()).length; });
   }
 
+  out += relojHTML(asisHoy);
   out += `<button class="destacado no-print" id="btn_ini">
       <div class="et">${ING()?'NEW ASSESSMENT':'NUEVO LEVANTAMIENTO'}</div>
       <div class="tt">${T('Reporte inicial de trabajo')}</div>
@@ -2735,7 +3012,7 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]]
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico';
   const depTec = esTec ? U.departamento : DEP;
@@ -2774,7 +3051,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v88 · reportes y notas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v89 · reloj checador</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -2852,6 +3129,7 @@ async function render(){
     if(V==='mgmt')      return shell(await vManagements());
     if(V==='mapa')      return shell(await vMapa());
     if(V==='dia')       return shell(await vControl());
+    if(V==='horas')     return shell(await vHoras());
     if(V==='buscar')    return shell(await vBuscar());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -4358,6 +4636,7 @@ const IC={
   mapa:'<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/>',
   jobs:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
   buscar:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  horas:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
   mgmt:'<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h2M9 13h2M13 9h2M13 13h2M9 21v-4h6v4"/>',
   schedule:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 18h3"/>',
   estimados:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
@@ -4583,7 +4862,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='88';
+const VERSION='89';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7720,6 +7999,8 @@ function accionGlobal(e){
   if(idEl('lev')){ e.preventDefault(); cerrar(); return levantamientoInicial(); }
   if(idEl('miruta')){ e.preventDefault(); return rutaDelTecnico(); }
   if(idEl('btn_brief')){ e.preventDefault(); return resumenDiario(false); }
+  if(idEl('ck_in')){ e.preventDefault(); return checar('entrada'); }
+  if(idEl('ck_out')){ e.preventDefault(); return checar('salida'); }
   if(idEl('irmapa')){ e.preventDefault(); V='mapa'; return render(); }
 }
 
