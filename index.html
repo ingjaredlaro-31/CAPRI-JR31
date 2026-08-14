@@ -3289,10 +3289,10 @@ async function vTecReporte(){
       <div class="n">${totalDebe}</div>
       <div class="t">${L('reportes pendientes en total','reports pending in total')}</div></div>`:
       `<div class="ok" style="margin-bottom:14px">${L('Estás al corriente en todos tus trabajos.','You are up to date on every job.')}</div>`}
-    <div class="row no-print" style="margin-bottom:16px">
+    ${CANDADO()==='cleaning'?'':`<div class="row no-print" style="margin-bottom:16px">
       <button class="btn" style="flex:1" id="binicial">${L('Reporte inicial','Initial report')}</button>
       <button class="btn ghost" style="flex:1" id="lev">${L('Trabajo nuevo','New job')}</button>
-    </div>`;
+    </div>`}`;
 
   // ---------- NIVEL 1 · MANAGEMENTS ----------
   if(RNIVEL==='mgmt'){
@@ -3570,7 +3570,9 @@ function shell(html){
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
       ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']])
+      // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
+      .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
   const esTec = U.rol==='tecnico' || U.rol==='contratista';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
@@ -3617,7 +3619,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v98 · agenda Carpet + trabajo especial</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v99 · formulario Carpet propio</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3699,6 +3701,7 @@ async function render(){
     }
     // Candado de área: quien está encerrado en un departamento no entra a las
     // secciones globales de la empresa (horas, contratistas, equipo).
+    if(CANDADO()==='cleaning' && V==='inicial'){ V='resumen'; return render(); }
     if(CANDADO() && ['horas','partes','equipo'].includes(V))
       return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Esta sección es de administración general. Tu cuenta es solo de '+esc(CANDADO()==='cleaning'?'Carpet Department':CANDADO())+'.</p></div>');
     if(V==='notif')     return shell(await vNotificaciones());
@@ -4052,6 +4055,10 @@ let G = null;
 
 async function levantamientoInicial(){
   const dep = U.departamento==='ambos' ? 'restoration' : U.departamento;
+  if(dep==='cleaning'){
+    cerrar();
+    return toast('Carpet no levanta reportes iniciales. Entra a tu trabajo asignado y deja tu reporte ahí.');
+  }
   const [{data:mgs},{data:props},{data:acat},{data:mcat},{data:scat}] = await Promise.all([
     sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
     sb.from('propiedades').select('*').order('nombre'),
@@ -5583,7 +5590,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='98';
+const VERSION='99';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6720,6 +6727,10 @@ async function formJob(id, pre){
   const MG=mgs||[], PR=props||[], TEC=tecsJ||[];
   let ACAT=(acat||[]).map(x=>x.nombre), MCAT=(mcat||[]).map(x=>x.nombre);
   let AREAS=(j.areas||[]).slice(), REMOV=(j.removido||[]).slice();
+  let CSERV=(j.servicios_carpet||[]).slice();
+  const SERVCARP=['Carpet cleaning','Upholstery cleaning','Tile and grout','Power wash / pressure washing',
+    'Area rug cleaning','Pet odor treatment','Stain removal','Carpet protector','Grout sealing',
+    'Move out deep clean','Hardwood floor cleaning','Mattress cleaning','Otro'];
   let OCUP=j.ocupada||'vacia', EXTR=!!j.extraccion;
   ACAT=[...new Set(ACAT.concat(AREAS))]; MCAT=[...new Set(MCAT.concat(REMOV))];
   const c=(k,l,t='text')=>`<label>${l}</label><input id="f_${k}" type="${t}" value="${esc(j[k]||'')}">`;
@@ -6745,7 +6756,7 @@ async function formJob(id, pre){
 
       <div class="eyebrow">Datos del trabajo</div>
       <label>Departamento</label>
-      <select id="f_departamento">${['restoration','cleaning'].map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <select id="f_departamento" ${CANDADO()?'disabled':''}>${(CANDADO()?[CANDADO()]:['restoration','cleaning']).map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       <label>Tipo de servicio inicial</label>
       <select id="f_tipo">${TIPOS[j.departamento].map(t=>`<option ${j.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
       ${c('folio','Folio')}
@@ -6766,9 +6777,10 @@ async function formJob(id, pre){
         <button data-oc="vacia">Vacía</button>
       </div>
 
-      <div class="eyebrow">Áreas afectadas</div>
+      <div class="eyebrow" id="ey_areas">Áreas afectadas</div>
       <div class="chips" id="areas"></div>
 
+      <div id="bl_rest">
       <div class="eyebrow">Trabajo inicial</div>
       <label>¿Se hizo water extraction?</label>
       <div class="si-no" id="extr">
@@ -6782,6 +6794,13 @@ async function formJob(id, pre){
 
       <label>¿Se removió material? Marca todo lo que se quitó</label>
       <div class="chips" id="remov"></div>
+      </div>
+
+      <div id="bl_carp">
+        <div class="eyebrow">Servicios de Carpet</div>
+        <label>¿Qué trabajo se va a hacer? Marca todos los que apliquen</label>
+        <div class="chips" id="cserv"></div>
+      </div>
 
       <div id="bl_seg">
         <div class="eyebrow">Aseguranza</div>
@@ -6868,6 +6887,20 @@ async function formJob(id, pre){
   };
   pintarChips('#areas',ACAT,AREAS,async v=>{ await sb.from('areas_catalogo').insert({nombre:v}); });
   pintarChips('#remov',MCAT,REMOV,async v=>{ await sb.from('materiales_catalogo').insert({nombre:v}); });
+  pintarChips('#cserv',SERVCARP,CSERV,async v=>{});
+
+  // El formulario cambia según el área. Carpet no pregunta de agua ni de demolición.
+  const pintarDep=()=>{
+    const esCln = $('#f_departamento').value==='cleaning';
+    $('#bl_rest').style.display = esCln?'none':'';
+    $('#bl_carp').style.display = esCln?'':'none';
+    $('#ey_areas').textContent = esCln?'Áreas a trabajar':'Áreas afectadas';
+    const sc=$('#f_scope');
+    if(sc) sc.placeholder = esCln
+      ? 'Ej.\n\nCarpet cleaning en sala, comedor y 2 recámaras\nHot water extraction + pre-spray\nTratamiento de manchas en sala\nDeodorizer por mascota\n\n13 escalones\nAprox. 850 sqft'
+      : 'Date of Service: July 24, 2026\n\nInitial Assessment\nA moisture inspection was performed…\n\nDemolition and Material Removal\n* Drywall removal: Guest Bedroom 1ft x 1ft…\n\nEquipment installed:\n* 2 Dehumidifiers\n* 2 Air Movers';
+  };
+  pintarDep();
 
   const pintarOcup=()=>document.querySelectorAll('#ocup [data-oc]').forEach(b=>
     b.className = b.dataset.oc===OCUP ? (OCUP==='ocupada'?'on r':'on') : '');
@@ -6886,6 +6919,7 @@ async function formJob(id, pre){
   $('#f_propiedad_id').onchange=tomarProp;
   $('#f_departamento').onchange=e=>{
     $('#f_tipo').innerHTML=TIPOS[e.target.value].map(t=>`<option>${t}</option>`).join('');
+    pintarDep();
   };
   pintarOrigen(); pintarProps();
 
@@ -6903,8 +6937,15 @@ async function formJob(id, pre){
     p.estatus = id ? $('#f_estatus').value : 'activo';
     p.fecha_inicio=$('#f_fecha_inicio').value||hoy();
     p.fecha_perdida=p.fecha_inicio;
-    p.ocupada=OCUP; p.areas=AREAS; p.removido=REMOV;
-    p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
+    p.ocupada=OCUP; p.areas=AREAS;
+    if(p.departamento==='cleaning'){
+      // Un trabajo de Carpet no lleva demolición ni extracción de agua.
+      p.removido=[]; p.extraccion=false; p.extraccion_notas=null;
+      p.servicios_carpet=CSERV;
+    } else {
+      p.removido=REMOV; p.servicios_carpet=null;
+      p.extraccion=EXTR; p.extraccion_notas=EXTR?($('#f_extraccion_notas').value.trim()||null):null;
+    }
     if(pre && pre.estimado_id) p.estimado_id=pre.estimado_id;
     if(!p.folio||!p.cliente||!p.direccion) return toast('Faltan folio, cliente y dirección.');
     const q = id ? sb.from('jobs').update(p).eq('id',id) : sb.from('jobs').insert(p).select().single();
