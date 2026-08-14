@@ -389,6 +389,32 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
   text-transform:none;color:var(--gris);margin-top:1px;line-height:1.2}
 .side button .bi{color:#6B7280}
 .side button.on .bi{color:rgba(255,255,255,.65)}
+/* Secciones plegables del trabajo */
+.secc{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--linea);
+  border-radius:0 13px 13px 0;margin-bottom:11px;overflow:hidden}
+.secc[open]{border-left-color:var(--oro)}
+.secc > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:13px;
+  padding:16px 18px;user-select:none;transition:background .15s}
+.secc > summary::-webkit-details-marker{display:none}
+.secc > summary:hover{background:var(--sup2)}
+.secc .s-ic{flex-shrink:0;opacity:.5}
+.secc .s-ic svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
+.secc .s-t{flex:1;font-family:var(--disp);font-weight:700;font-size:22px;text-transform:uppercase;
+  letter-spacing:.01em;line-height:1.05}
+.secc .s-r{font-family:var(--mono);font-size:13px;color:var(--gris);white-space:nowrap}
+.secc .s-fl{color:var(--gris);font-size:15px;transition:transform .2s;flex-shrink:0}
+.secc[open] .s-fl{transform:rotate(180deg)}
+.secc .s-b{padding:2px 18px 18px}
+.secc .s-b .eyebrow:first-child{margin-top:6px}
+.secc.urg{border-left-color:var(--rojo)}
+.secc.urg .s-t{color:var(--rojo-d)}
+.secc.ok{border-left-color:var(--verde,var(--azul))}
+@media(max-width:560px){
+  .secc > summary{padding:14px 15px;gap:10px}
+  .secc .s-t{font-size:19px}
+  .secc .s-b{padding:2px 15px 16px}
+}
+
 /* Reloj checador */
 .reloj{display:flex;gap:16px;align-items:center;flex-wrap:wrap;
   background:linear-gradient(150deg,#182234 0%,#0E1523 70%);border:1px solid #1E293C;
@@ -3442,7 +3468,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v90 · contratistas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v91 · trabajo plegable</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5262,7 +5288,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='90';
+const VERSION='91';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6519,6 +6545,55 @@ async function formJob(id, pre){
 }
 
 /* ==================== DETALLE DEL JOB ==================== */
+function plegarSecciones(){
+  const cont = document.querySelector('#sheet .sheet-body');
+  if(!cont) return;
+  const marcas = [...cont.querySelectorAll('[data-sx]')];
+  if(!marcas.length) return;
+  marcas.forEach((m,i)=>{
+    const [titulo, icono, flag] = m.dataset.sx.split('|');
+    const det = document.createElement('details');
+    det.className = 'secc';
+    if(flag==='abierta') det.open = true;
+    const sum = document.createElement('summary');
+    sum.innerHTML = `<span class="s-ic">${svgIC(icono||'jobs')}</span>
+      <span class="s-t">${titulo}</span><span class="s-r"></span><span class="s-fl">▾</span>`;
+    det.appendChild(sum);
+    const caja = document.createElement('div');
+    caja.className = 's-b';
+    det.appendChild(caja);
+    m.parentNode.insertBefore(det, m);
+    // mover todo lo que sigue hasta el próximo marcador
+    let nodo = m.nextSibling;
+    while(nodo && !(nodo.nodeType===1 && nodo.hasAttribute && nodo.hasAttribute('data-sx'))){
+      const sig = nodo.nextSibling;
+      caja.appendChild(nodo);
+      nodo = sig;
+    }
+    m.remove();
+    // resumen automático: cuenta lo que hay dentro
+    const chips = caja.querySelectorAll('.chip, .jc-chip').length;
+    const filas = caja.querySelectorAll('.card, .fila, .repcard, .notacard, .etapa').length;
+    const urg = caja.querySelectorAll('.alerta, .chip.rojo, .jc-chip.rojo').length;
+    if(filas) sum.querySelector('.s-r').textContent = filas + (filas===1?' punto':' puntos');
+    if(urg) det.classList.add('urg');
+  });
+}
+
+function secc(o){
+  const {ic, t, resumen, cuerpo, abierta, clase} = o;
+  if(!cuerpo || !String(cuerpo).trim()) return '';
+  return `<details class="secc ${clase||''}" ${abierta?'open':''}>
+    <summary>
+      <span class="s-ic">${svgIC(ic||'jobs')}</span>
+      <span class="s-t">${esc(t)}</span>
+      ${resumen?`<span class="s-r">${resumen}</span>`:''}
+      <span class="s-fl">▾</span>
+    </summary>
+    <div class="s-b">${cuerpo}</div>
+  </details>`;
+}
+
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas), usuarios(nombre,telefono)').eq('id',id).single(),
@@ -6625,7 +6700,8 @@ async function abrirJob(id){
       <div class="eyebrow">Fechas clave</div>
       ${bloqueFechas(j,R,P.concat(SV),A)}
 
-      <div class="eyebrow">Historial completo del trabajo</div>
+      <i data-sx="Historial y calendario|hist"></i>
+      <div class="eyebrow" style="margin-top:6px">Historial completo del trabajo</div>
       ${bloqueLinea(j,R,P.concat(SV),N,A)}
 
       ${(()=>{
@@ -6671,7 +6747,8 @@ async function abrirJob(id){
       ${j.extraccion_notas?`<div class="eyebrow">Water extraction</div><p class="sub" style="color:var(--tinta)">${esc(j.extraccion_notas)}</p>`:''}
 
       ${j.departamento==='restoration'?`
-      <div class="eyebrow">Servicios del trabajo · ${SV.length}</div>
+      <i data-sx="Servicios y reparaciones|jobs"></i>
+      <div class="eyebrow" style="margin-top:6px">Servicios del trabajo · ${SV.length}</div>
       ${SV.map(x=>{
         const [t,cl]=ESTAT_PART[x.estatus];
         const col = x.estatus==='terminada'?'':(x.estatus==='pendiente')?'rojo':'ambar';
@@ -6761,7 +6838,8 @@ async function abrirJob(id){
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
         const pc=Math.round(hechas*100/ETAPAS.length);
         const idxAct=ETAPAS.findIndex(e=>!listo(e.k));
-        return `<div class="eyebrow">Etapas del trabajo · ${hechas} de ${ETAPAS.length}</div>
+        return `<i data-sx="Etapas del trabajo|resumen|abierta"></i>
+        <div class="eyebrow" style="margin-top:6px">Etapas del trabajo · ${hechas} de ${ETAPAS.length}</div>
         <div class="kpi" style="border-left:4px solid ${pc===100?'var(--azul)':'var(--ambar)'};margin-bottom:14px">
           <div class="row" style="justify-content:space-between">
             <span class="disp" style="font-size:19px">${idxAct<0?'Trabajo completo':esc(ETAPAS[idxAct].t)}</span>
@@ -6788,7 +6866,8 @@ async function abrirJob(id){
         ${EDIT()?'<div class="sub" style="margin-top:12px">Toca cualquier etapa para marcarla o desmarcarla. Las AUTO se llenan solas con los reportes, estimados y partidas, pero puedes forzarlas.</div>':''}`;
       })()}
 
-      <div class="eyebrow">Estimados de este trabajo · ${EST.length}</div>
+      <i data-sx="Estimados|estimados"></i>
+      <div class="eyebrow" style="margin-top:6px">Estimados de este trabajo · ${EST.length}</div>
       ${EST.length?EST.map(x=>`<div class="fila ${x.estatus==='aceptado'?'a':'m'}" data-vest="${x.id}">
         <div class="t"><b>${esc(x.folio)}</b><span class="sub">${cf(x.monto)} · ${esc(x.estatus)}${x.fecha_envio?' · enviado '+fmt(x.fecha_envio):''}</span></div>
         <span class="chip ${x.estatus==='aceptado'?'azul':'ambar'}">${esc(x.estatus.toUpperCase())}</span></div>`).join('')
@@ -6798,7 +6877,8 @@ async function abrirJob(id){
         </div>`}
       ${EST.length&&EDIT()?'<button class="btn ghost wide no-print" id="nuevoest2">+ Otro estimado para este trabajo</button>':''}
 
-      <div class="eyebrow">Acceso del cliente · ${esc(j.folio)}</div>
+      <i data-sx="Acceso del cliente y documentos|mgmt"></i>
+      <div class="eyebrow" style="margin-top:6px">Acceso del cliente · ${esc(j.folio)}</div>
       <div class="card" style="border-left-color:var(--oro)">
         <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
           <div>
@@ -6864,7 +6944,8 @@ async function abrirJob(id){
         <div class="row no-print" style="margin-top:11px"><button class="btn sm" id="lkgen">Generar enlace del manager</button></div>
       </div>`:'')}
 
-      <div class="eyebrow" id="sec_invoice">Facturación</div>
+      <i data-sx="Facturación|estimados"></i>
+      <div class="eyebrow" id="sec_invoice" style="margin-top:6px">Facturación</div>
       ${j.invoice_num||j.invoice_monto?`<div class="card" style="border-left-color:${j.invoice_pagado?'var(--azul)':'var(--ambar)'}">
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <div>
@@ -6890,7 +6971,8 @@ async function abrirJob(id){
         <div class="row no-print" style="margin-top:10px"><button class="btn sm" id="edinv">Registrar invoice</button></div>
       </div>`:'<div class="sub">Sin invoice registrado.</div>')}
 
-      <div class="eyebrow">Notas y comentarios · ${N.length}</div>
+      <i data-sx="Notas y recordatorios|cpartes"></i>
+      <div class="eyebrow" style="margin-top:6px">Notas y comentarios · ${N.length}</div>
       <div>${N.map(n=>`<div class="notacard ${n.usuario_id===U.id?'mia':''}">
         <div class="nc-top">
           <span class="nc-autor">${esc(n.autor||'—')}</span>
@@ -6916,7 +6998,8 @@ async function abrirJob(id){
         </div>`;}).join('')||'<div class="sub">Sin recordatorios.</div>'}</div>
       ${EDIT()?'<div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>':''}
 
-      <div class="eyebrow" id="sec_reportes">Reportes recibidos · ${R.length}</div>
+      <i data-sx="Reportes recibidos|reporte|abierta"></i>
+      <div class="eyebrow" id="sec_reportes" style="margin-top:6px">Reportes recibidos · ${R.length}</div>
       ${EDIT()?'<button class="btn ghost wide no-print" id="addrep" style="margin-bottom:12px">+ Capturar reporte por un técnico</button>':''}
       ${R.slice().reverse().map(r=>{
         const noFue = r.asistio===false;
@@ -7007,6 +7090,7 @@ async function abrirJob(id){
     </div></div>`;
 
   $('#c1').onclick=$('#c2').onclick=cerrar;
+  plegarSecciones();
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
   const vmj=$('#vermas_j');
   if(vmj) vmj.onclick=()=>{
