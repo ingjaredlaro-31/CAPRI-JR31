@@ -3569,7 +3569,7 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')]]:[])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']])
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
@@ -3619,7 +3619,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v99 · formulario Carpet propio</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v100 · importar Google Calendar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3717,6 +3717,10 @@ async function render(){
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
+    if(V==='import'){
+      if(!ES_ADMIN()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Importar el calendario es solo para administración.</p></div>');
+      shell(await vImportar()); return gcEnganchar();
+    }
     if(V==='equipo')    return (ES_ADMIN() || (ES_GEREN() && U.departamento==='ambos')) ? shell(await vEquipo())
                         : shell('<div class="empty"><div class="disp">Sin acceso</div><p>La sección de Equipo es solo para administración.</p></div>');
   }catch(e){ console.error(e); shell(`<div class="empty"><div class="disp">No se pudo cargar</div><p>${esc(e.message||e)}</p></div>`); }
@@ -5590,7 +5594,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='99';
+const VERSION='100';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6711,6 +6715,264 @@ async function formTrabajoEspecial(){
   };
   pinta();
 }
+
+/* ==================== IMPORTAR DE GOOGLE CALENDAR ====================
+   Lee un archivo .ics exportado de Google Calendar, interpreta los
+   títulos como los escribe oficina, y los convierte en jobs.
+   Nada se guarda hasta que revisas y das Importar. */
+
+const GC_CODMG = {GS:'Greystar', SD:'Stay San Diego', RPM:'RPM', AIR:'AIR', MRV:'Mission Rio Vista'};
+const GC_CARPETKW = ['carpet clean','carpet cleanig','carpet cleaning','rug clean','uphpostety',
+  'upholstery','uphostery','tile and grout','grout','power wash','pressure wash','deep clean',
+  'move out','duct clean','window clean','new carpet','floor install','shampoo','encapsulation'];
+const GC_RESTKW = ['demo','moisture','drywall','flood','water','mold','remediation','reconstruction',
+  'fire','smoke','extraction','dehu','air mover','baseboard','construccion','leak'];
+let GCROWS = null;
+
+function gcClasifica(txt){
+  const t=(txt||'').toLowerCase(); let c=0,r=0;
+  GC_CARPETKW.forEach(k=>{ if(t.includes(k)) c++; });
+  GC_RESTKW.forEach(k=>{ if(t.includes(k)) r++; });
+  return c>r ? 'cleaning' : (r>c ? 'restoration' : null);
+}
+
+function gcParse(sum){
+  const raw=(sum||'').trim();
+  const o={raw, folio:null, mg:null, propiedad:null, unidad:null,
+           servicio:null, po:null, dep:null, nota:null};
+  const po=raw.match(/PO\s*#?\s*([0-9]{4,})/i);
+  if(po) o.po=po[1];
+  const limpio = raw.replace(/\s*PO\s*#?\s*[0-9]{4,}\s*/ig,' ').trim();
+
+  const f=raw.match(/^(\d{4})-(\d{3,5})\s*([A-Z]{3,4})?\s*-\s*([A-Z]{2,4})/);
+  if(f){ o.folio=f[1]+'-'+f[2]+(f[3]||''); o.mg=GC_CODMG[f[4]]||null; }
+
+  let partes=limpio.split(/\s*--+\s*/).map(x=>x.trim()).filter(Boolean);
+  if(partes.length) partes[0]=partes[0].replace(/^\d{4}-\d{3,5}\s*[A-Z]{0,4}\s*-\s*[A-Z]{2,4}\s*/,'').trim();
+  partes=partes.filter(Boolean);
+
+  if(partes[0] && /^(restoration|carpet|cleaning)$/i.test(partes[0])){
+    o.dep = /restoration/i.test(partes[0]) ? 'restoration':'cleaning';
+    partes.shift();
+  }
+  partes = partes.filter(x=>{
+    if(Object.values(GC_CODMG).some(v=>v.toLowerCase()===x.toLowerCase())){ o.mg=o.mg||x; return false; }
+    return true;
+  });
+  if(partes.length>2 && partes[0].split(/\s+/).length>4 && !/\d/.test(partes[0])) o.nota=partes.shift();
+
+  if(partes.length>1 && gcClasifica(partes[partes.length-1])) o.servicio=partes.pop();
+
+  if(partes.length){
+    let p=partes.join(' ');
+    const u=p.match(/(?:UNIT|#|APT)\s*([A-Z0-9\-]+)\s*$/i) || p.match(/\s([0-9]{2,4}(?:-[0-9]{1,4})?)\s*$/);
+    if(u){ o.unidad=u[1]; p=p.slice(0,u.index).trim(); }
+    o.propiedad=p||null;
+  }
+  if(!o.servicio && o.propiedad){
+    const m=o.propiedad.match(/(CARPET CLEAN\w*|RUG CLEAN|UPH\w+|DRYWALL REPAIR|NEW CARPET.*)$/i);
+    if(m){ o.servicio=m[1]; o.propiedad=o.propiedad.slice(0,m.index).trim()||null; }
+  }
+  o.dep = o.dep || gcClasifica(o.servicio||'') || gcClasifica(raw) || null;
+  o.esNota = !o.folio && !o.dep;
+  return o;
+}
+
+// Traduce el servicio escrito a mano al catálogo TIPOS
+function gcTipo(dep, serv){
+  const t=(serv||'').toLowerCase();
+  if(dep==='cleaning'){
+    if(t.includes('uph')) return 'upholstery cleaning';
+    if(t.includes('rug')) return 'area rug cleaning';
+    if(t.includes('tile')||t.includes('grout')) return 'tile and grout';
+    if(t.includes('power wash')||t.includes('pressure')) return 'pressure washing';
+    if(t.includes('move out')) return 'move out clean';
+    if(t.includes('deep clean')) return 'deep clean';
+    if(t.includes('duct')) return 'air duct cleaning';
+    if(t.includes('window')) return 'window clean';
+    if(t.includes('new carpet')||t.includes('install')) return 'floor installation';
+    if(t.includes('carpet')) return 'carpet cleaning';
+    return 'carpet cleaning';
+  }
+  if(t.includes('mold')||t.includes('remediation')) return 'mold remediation';
+  if(t.includes('fire')||t.includes('smoke')) return 'fire / smoke';
+  if(t.includes('recon')||t.includes('drywall')||t.includes('construccion')) return 'reconstruction';
+  if(t.includes('moisture')||t.includes('check')||t.includes('inspect')) return 'inspection';
+  return 'flood service';
+}
+
+// Lector de .ics — desdobla las líneas partidas y saca los VEVENT
+function gcLeerICS(txt){
+  const lineas = txt.replace(/\r/g,'').replace(/\n[ \t]/g,'').split('\n');
+  const ev=[]; let cur=null;
+  for(const ln of lineas){
+    if(ln.startsWith('BEGIN:VEVENT')){ cur={}; continue; }
+    if(ln.startsWith('END:VEVENT')){ if(cur) ev.push(cur); cur=null; continue; }
+    if(!cur) continue;
+    const i=ln.indexOf(':'); if(i<0) continue;
+    const clave=ln.slice(0,i).split(';')[0].toUpperCase();
+    const val=ln.slice(i+1).replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');
+    if(clave==='SUMMARY') cur.sum=val;
+    else if(clave==='DTSTART') cur.ini=ln.slice(i+1);
+    else if(clave==='UID') cur.uid=val;
+    else if(clave==='DESCRIPTION') cur.desc=val;
+    else if(clave==='LOCATION') cur.loc=val;
+  }
+  return ev;
+}
+function gcFecha(v){
+  if(!v) return null;
+  const m=String(v).match(/(\d{4})(\d{2})(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+async function vImportar(){
+  return `
+  <div class="eyebrow">Importar de Google Calendar</div>
+  <div class="sub" style="margin-bottom:14px">
+    En Google Calendar entra a <b>Configuración → Importar y exportar → Exportar</b>.
+    Te baja un .zip con un archivo .ics por cada calendario. Descomprímelo y sube el .ics aquí.
+    Nada se guarda hasta que revises la lista y le des Importar.
+  </div>
+  <input type="file" id="gcfile" accept=".ics,text/calendar"
+    style="padding:14px;width:100%;border:1px dashed var(--linea);border-radius:10px;background:transparent;color:inherit">
+  <div style="height:10px"></div>
+  <div class="g2">
+    <div><label>Desde qué fecha</label><input id="gcd1" type="date" value="${hoy().slice(0,4)}-01-01"></div>
+    <div><label>Hasta</label><input id="gcd2" type="date" value="${hoy()}"></div>
+  </div>
+  <div style="height:10px"></div>
+  <button class="btn wide" id="gcleer">Leer el archivo</button>
+  <div id="gcout" style="margin-top:18px"></div>`;
+}
+
+async function gcEnganchar(){
+  const b=$('#gcleer'); if(!b) return;
+  b.onclick=async()=>{
+    const f=$('#gcfile').files[0];
+    if(!f) return toast('Escoge primero el archivo .ics');
+    const d1=$('#gcd1').value, d2=$('#gcd2').value;
+    $('#gcout').innerHTML='<div class="empty">Leyendo…</div>';
+    let txt;
+    try{ txt=await f.text(); }catch(e){ return toast('No se pudo leer el archivo.'); }
+
+    const ev=gcLeerICS(txt);
+    if(!ev.length){ $('#gcout').innerHTML='<div class="alerta"><div class="t">Ese archivo no trae eventos.</div><div class="sub">Revisa que sea el .ics que sale del zip de Google, no el zip.</div></div>'; return; }
+
+    const [{data:mgs},{data:props},{data:yaJ}] = await Promise.all([
+      sb.from('managements').select('id,nombre').eq('activo',true),
+      sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip'),
+      sb.from('jobs').select('gcal_uid').not('gcal_uid','is',null)
+    ]);
+    const MG=mgs||[], PR=props||[], YA=new Set((yaJ||[]).map(x=>x.gcal_uid));
+    const norm=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+    GCROWS = ev.map(e=>{
+      const fecha=gcFecha(e.ini);
+      const o=gcParse(e.sum);
+      const mg = o.mg ? MG.find(m=>norm(m.nombre)===norm(o.mg)) : null;
+      let pr=null;
+      if(o.propiedad){
+        pr = PR.find(p=>norm(p.nombre)===norm(o.propiedad))
+          || PR.find(p=>norm(p.nombre) && (norm(o.propiedad).includes(norm(p.nombre)) || norm(p.nombre).includes(norm(o.propiedad))));
+      }
+      return {uid:e.uid, fecha, raw:e.sum||'', desc:e.desc||'', loc:e.loc||'',
+        ...o, mg_id: mg?mg.id : (pr?pr.management_id:null), pr_id: pr?pr.id:null,
+        ya: YA.has(e.uid), usar: !!(fecha && !o.esNota && !YA.has(e.uid))};
+    }).filter(r=>r.fecha && (!d1||r.fecha>=d1) && (!d2||r.fecha<=d2))
+      .sort((a,b)=>b.fecha.localeCompare(a.fecha));
+
+    gcPintar(MG,PR);
+  };
+}
+
+function gcPintar(MG,PR){
+  const R=GCROWS;
+  const listos=R.filter(r=>r.usar).length;
+  const rep=R.filter(r=>r.ya).length;
+  const notas=R.filter(r=>r.esNota).length;
+  const cln=R.filter(r=>r.usar&&r.dep==='cleaning').length;
+  const rst=R.filter(r=>r.usar&&r.dep==='restoration').length;
+
+  $('#gcout').innerHTML=`
+    <div class="row" style="gap:10px;margin-bottom:12px">
+      <div class="stat" style="flex:1"><div class="l">LISTOS</div><div class="v">${listos}</div><div class="s">de ${R.length} eventos</div></div>
+      <div class="stat" style="flex:1"><div class="l">CARPET</div><div class="v" style="color:var(--azul)">${cln}</div><div class="s">restoration ${rst}</div></div>
+      <div class="stat" style="flex:1"><div class="l">SE BRINCAN</div><div class="v">${rep+notas}</div><div class="s">${rep} ya estaban · ${notas} recados</div></div>
+    </div>
+    <div class="sub" style="margin-bottom:10px">Revisa cada renglón. Lo que esté mal, corrígelo aquí antes de importar. Lo que no quieras, desmárcalo.</div>
+    <div style="overflow-x:auto">
+    <table class="ptab"><thead><tr>
+      <th></th><th>Fecha</th><th>Título en el calendario</th><th>Área</th><th>Management</th><th>Propiedad</th><th>Unidad</th><th>Servicio</th>
+    </tr></thead><tbody>
+    ${R.map((r,i)=>`<tr class="${r.usar?'':'apagado'}" style="${r.usar?'':'opacity:.4'}">
+      <td><input type="checkbox" data-u="${i}" ${r.usar?'checked':''} ${r.ya?'disabled':''}></td>
+      <td class="mono" style="white-space:nowrap">${esc(r.fecha)}</td>
+      <td style="max-width:280px;font-size:12px">${esc(r.raw)}
+        ${r.ya?'<br><span class="chip">YA IMPORTADO</span>':''}
+        ${r.esNota?'<br><span class="chip ambar">PARECE RECADO</span>':''}
+        ${r.po?'<br><span class="chip azul">PO '+esc(r.po)+'</span>':''}</td>
+      <td><select data-f="dep" data-i="${i}">
+        <option value="">— ?</option>
+        <option value="cleaning" ${r.dep==='cleaning'?'selected':''}>carpet</option>
+        <option value="restoration" ${r.dep==='restoration'?'selected':''}>restoration</option></select></td>
+      <td><select data-f="mg_id" data-i="${i}"><option value="">— ninguno</option>
+        ${MG.map(m=>`<option value="${m.id}" ${r.mg_id===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select></td>
+      <td><select data-f="pr_id" data-i="${i}"><option value="">${r.propiedad?esc(r.propiedad)+' (nueva)':'— ninguna'}</option>
+        ${PR.map(p=>`<option value="${p.id}" ${r.pr_id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></td>
+      <td><input data-f="unidad" data-i="${i}" value="${esc(r.unidad||'')}" style="width:80px" class="mono"></td>
+      <td><input data-f="servicio" data-i="${i}" value="${esc(r.servicio||'')}" style="width:150px;font-size:12px"></td>
+    </tr>`).join('')}
+    </tbody></table></div>
+    <div style="height:14px"></div>
+    <button class="btn wide" id="gcgo">Importar ${listos} ${listos===1?'trabajo':'trabajos'}</button>`;
+
+  document.querySelectorAll('[data-u]').forEach(c=>c.onchange=()=>{
+    GCROWS[+c.dataset.u].usar=c.checked;
+    c.closest('tr').style.opacity=c.checked?'':'.4';
+  });
+  document.querySelectorAll('[data-f]').forEach(el=>el.onchange=()=>{
+    GCROWS[+el.dataset.i][el.dataset.f]= el.value||null;
+  });
+  $('#gcgo').onclick=()=>gcImportar(PR);
+}
+
+async function gcImportar(PR){
+  const usar=GCROWS.filter(r=>r.usar && r.dep);
+  if(!usar.length) return toast('No hay nada marcado, o les falta el área.');
+  if(!confirm('Se van a crear '+usar.length+' jobs. ¿Le seguimos?')) return;
+
+  $('#gcgo').disabled=true; $('#gcgo').textContent='Importando…';
+  let ok=0, mal=0; const errs=[];
+
+  for(const r of usar){
+    try{
+      const pr=PR.find(p=>p.id===r.pr_id);
+      const folio = r.folio || await nuevoFolio(r.dep);
+      const p={folio, departamento:r.dep, tipo:gcTipo(r.dep,r.servicio),
+        estatus:'terminado', origen: r.mg_id?'management':'particular',
+        management_id:r.mg_id||null, propiedad_id:r.pr_id||null,
+        cliente: pr?pr.nombre:(r.propiedad||'Sin nombre'),
+        direccion: pr?(pr.direccion||''):(r.loc||''),
+        ciudad: pr?(pr.ciudad||'San Diego'):'San Diego',
+        zip: pr?pr.zip:null,
+        unidad:r.unidad||null, tipo_propiedad:'apartamento',
+        fecha_inicio:r.fecha, po_number:r.po||null,
+        gcal_uid:r.uid,
+        notas:[r.nota, r.desc, 'Importado de Google Calendar · '+r.raw].filter(Boolean).join('\n')};
+      const {error}=await sb.from('jobs').insert(p);
+      if(error) throw error;
+      ok++;
+    }catch(e){ mal++; if(errs.length<5) errs.push(r.raw+' → '+(e.message||e)); }
+  }
+
+  $('#gcout').innerHTML=`<div class="${mal?'alerta':'ok'}">
+    <div class="t">${ok} ${ok===1?'trabajo importado':'trabajos importados'}${mal?' · '+mal+' fallaron':''}</div>
+    ${errs.length?'<div class="sub" style="margin-top:8px">'+errs.map(esc).join('<br>')+'</div>':''}
+    <div class="sub" style="margin-top:8px">Entran con estatus <b>terminado</b> porque son historial. Cámbialos desde Jobs si alguno sigue abierto.</div></div>`;
+  toast(ok+' importados');
+}
+
 
 async function formJob(id, pre){
   let j = pre || {departamento:DEP, tipo:TIPOS[DEP][0], estatus:'activo', ciudad:'San Diego',
