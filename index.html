@@ -3330,22 +3330,6 @@ let IDIOMA_PORTADA = 'en';
 try{ IDIOMA_PORTADA = localStorage.getItem('jr31_idioma_portada') || 'en'; }catch(e){}
 const PT = (en, es) => IDIOMA_PORTADA==='es' ? es : en;
 
-const QUIENES = {
-  admin:[
-    {n:'Ing. Jared Lara', p:'Director · full control', u:'ingjr31'},
-    {n:'Julio C. Ibarria', p:'General manager', u:'julio'}
-  ],
-  restoration:[
-    {n:'Jesús Lozoya', p:'Restoration technician', u:'lozoyacapri'}
-  ],
-  carpet:[
-    {n:'Carlos', p:'Carpet Department manager', u:'carlos'},
-    {n:'Crew', p:'Carpet technicians', u:'carpet1 · carpet2'}
-  ],
-  oficina:[
-    {n:'Gabriela', p:'Office', u:'gabriela'}
-  ]
-};
 const PUERTAS = {
   admin:      {t:'Administration',    s:'Jared and Julio · full control',     c:'var(--azul)'},
   restoration:{t:'Restoration',       s:'Water, mold and reconstruction crew',c:'var(--rojo)'},
@@ -3461,19 +3445,14 @@ function login(msg){
     </div>
     <div class="franja split"><i></i><i></i></div>
     <div class="cajaclara">
-      ${QUIENES[PUERTA]?`<div class="eyebrow" style="margin-top:0">¿Quién entra por aquí?</div>
-        <div style="margin-bottom:16px">${QUIENES[PUERTA].map(q=>`
-          <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid #EDEFF2">
-            <div><b style="font-family:var(--disp);font-size:19px;color:#0B0D11">${esc(q.n)}</b>
-              <div style="font-size:14px;color:#5B6472">${esc(q.p)}</div></div>
-            <span class="mono" style="font-size:15px;color:#1B56D3">${esc(q.u)}</span>
-          </div>`).join('')}</div>`:''}
-      <label style="margin-top:0">Usuario</label><input id="u" autocapitalize="none" autocomplete="username">
-      <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
+      <label style="margin-top:0">${PT('Username','Usuario')}</label>
+      <input id="u" autocapitalize="none" autocomplete="username">
+      <label>${PT('Password','Contraseña')}</label>
+      <input id="p" type="password" autocomplete="current-password">
       <div style="height:22px"></div>
-      <button class="btn wide" id="go">Entrar</button>
+      <button class="btn wide" id="go">${PT('Sign in','Entrar')}</button>
       <p id="err" style="color:var(--rojo);font-size:15px;text-align:center;min-height:20px;margin:12px 0 0">${esc(msg||'')}</p>
-      <div style="text-align:center"><button class="volver" id="atras">‹ Cambiar de usuario</button></div>
+      <div style="text-align:center"><button class="volver" id="atras">‹ ${PT('Back','Cambiar de usuario')}</button></div>
     </div></div>
     <div class="pie">SAN DIEGO · CALIFORNIA</div>
     </div></div>`;
@@ -3579,7 +3558,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v94 · portada bilingüe</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v95 · login privado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5414,7 +5393,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='94';
+const VERSION='95';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
