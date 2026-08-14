@@ -1177,6 +1177,7 @@ async function revisarFaltantes(){
   const h=hoy(), ayer=hace(1);
   const {data:jobs}=await sb.from('jobs')
     .select('id,folio,cliente,unidad,fecha_inicio,created_at,departamento,tecnico_id, propiedades(nombre), usuarios(nombre)')
+    .eq('departamento',DEPV())
     .not('estatus','in','("terminado","facturado")');
   const J=jobs||[];
   if(!J.length) return [];
@@ -3616,7 +3617,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v97 · áreas separadas + Carpet</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v98 · agenda Carpet + trabajo especial</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3648,6 +3649,7 @@ function shell(html){
     if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
     fab.textContent='×'; 
     m.innerHTML=`<div class="fabm">
+      ${DEP==='cleaning'?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="est">+ Nuevo estimado</button>
       <button data-q="asig">+ Asignar trabajo</button>
@@ -3656,6 +3658,7 @@ function shell(html){
     m.querySelectorAll('[data-q]').forEach(b=>b.onclick=async()=>{
       m.innerHTML=''; fab.textContent='+';
       const q=b.dataset.q;
+      if(q==='esp')  return formTrabajoEspecial();
       if(q==='job')  return formJob();
       if(q==='est')  return formEstimado();
       if(q==='pers') return formUsuario();
@@ -5580,7 +5583,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='97';
+const VERSION='98';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5952,7 +5955,7 @@ async function vResumen(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
     sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,origen,docs,lat,lng, propiedades(nombre,lat,lng)'),
-    sb.from('asignaciones').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), usuarios(nombre)').eq('fecha',h),
+    sb.from('asignaciones').select('*, jobs(id,folio,cliente,departamento,unidad,tipo,estatus,direccion,ciudad,precio_carpet, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
     sb.from('partidas').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), contratistas(nombre)'),
     sb.from('estimados').select('*'),
@@ -5977,6 +5980,8 @@ async function vResumen(){
 
   const engResumen=()=>{
     engancharDep();
+    document.querySelectorAll('[data-jobag]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.jobag));
+    const ne2=$('#nuevoesp'); if(ne2) ne2.onclick=()=>formTrabajoEspecial();
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
     const wd=$('#wadiario');
     if(wd) wd.onclick=async()=>{
@@ -6121,6 +6126,27 @@ async function vResumen(){
         <span class="chip ambar">${P.filter(x=>['asignada','proceso'].includes(x.estatus)).length} en proceso</span>
         <span class="chip rojo">${sinAsig.length} sin asignar</span>
       </div></div>`:''}
+
+    ${DEP==='cleaning'?(()=>{
+      const yaRep=new Set((reps||[]).map(r=>r.job_id));
+      const tot=A.reduce((a,x)=>a+Number(x.jobs?.precio_carpet||0),0);
+      return `
+    <div class="eyebrow">Agenda de hoy · ${A.length} ${A.length===1?'trabajo':'trabajos'}${tot?' · '+cf(tot):''}</div>
+    ${A.length ? A.map(a=>{
+      const j=a.jobs||{}, listo=yaRep.has(a.job_id);
+      return `<div class="fila ${listo?'a':'r'}" data-jobag="${a.job_id}" style="cursor:pointer">
+        <span class="disp" style="font-size:17px;width:64px;flex:0 0 64px;color:var(--azul)">${esc(a.hora||'--:--')}</span>
+        <div class="t"><b>${esc(j.propiedades?.nombre||j.cliente||'Sin nombre')}</b>
+          <span class="sub">${j.unidad?'Unit '+esc(j.unidad)+' · ':''}${esc(j.tipo||'')}${j.direccion?' · '+esc(j.direccion):''}</span>
+          <span class="meta">${esc(a.usuarios?.nombre||'sin técnico asignado')} · ${esc(j.folio||'')}</span></div>
+        <div style="text-align:right">
+          ${j.precio_carpet?`<div class="disp" style="font-size:17px">${cf(j.precio_carpet)}</div>`:''}
+          <span class="chip ${listo?'azul':'ambar'}">${listo?'REPORTADO':'PENDIENTE'}</span></div>
+      </div>`;}).join('')
+    : `<div class="ok"><div class="t">Hoy no hay nada agendado.</div>
+       <div class="sub">Administración te vacía la agenda aquí. También puedes crear un trabajo especial con el botón de abajo.</div></div>`}
+    ${EDIT()?`<button class="btn wide no-print" id="nuevoesp" style="margin:12px 0 18px">+ Trabajo especial · tú pones el precio</button>`:''}`;
+    })():''}
 
     ${faltantes.length?`<div class="alerta" style="margin-bottom:14px">
       <div class="n">${faltantes.length}</div>
@@ -6577,6 +6603,106 @@ async function nuevoFolio(dep){
   const pre = dep==='cleaning'?'CLN':'CAP';
   const {count}=await sb.from('jobs').select('*',{count:'exact',head:true}).eq('departamento',dep);
   return pre+'-'+String(1000+(count||0)+1);
+}
+
+/* ======= CARPET · Trabajo especial (Carlos pone el precio) ======= */
+async function formTrabajoEspecial(){
+  const [{data:mgs},{data:props},{data:tecs}] = await Promise.all([
+    sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip,lat,lng').order('nombre'),
+    sb.from('usuarios').select('id,nombre').eq('rol','tecnico').eq('departamento','cleaning').eq('activo',true).order('nombre')
+  ]);
+  const MG=mgs||[], PR=props||[], TC=tecs||[];
+  let mgSel='';
+  const folio=await nuevoFolio('cleaning');
+
+  const pinta=()=>{
+    const lista = mgSel ? PR.filter(p=>p.management_id===mgSel) : [];
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">CARPET DEPARTMENT</div>
+      <div class="disp" style="font-size:21px;line-height:1">Trabajo especial</div>
+      <div style="font-size:13px;color:#C3D6F7">${esc(folio)} · tú pones el precio</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <label>Management</label>
+        <select id="t_mg"><option value="">— particular, sin management —</option>
+          ${MG.map(m=>`<option value="${m.id}" ${mgSel===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select>
+        ${mgSel?`<label>Propiedad</label>
+          <select id="t_pr"><option value="">— escoge —</option>
+            ${lista.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>`
+        :`<label>Nombre del cliente o lugar</label>
+          <input id="t_cli" placeholder="Sra. Martínez">
+          <label>Dirección</label>
+          <input id="t_dir" placeholder="123 Main St">
+          <label>Ciudad</label>
+          <input id="t_ciu" value="San Diego">`}
+        <div class="g2">
+          <div><label>Unidad</label><input id="t_un" placeholder="208"></div>
+          <div><label>Fecha</label><input id="t_fe" type="date" value="${hoy()}"></div>
+        </div>
+        <label>Servicio</label>
+        <select id="t_tp">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+        <div class="g2">
+          <div><label>Precio que vas a cobrar</label>
+            <input class="num" id="t_pz" inputmode="decimal" placeholder="0.00"></div>
+          <div><label>Hora</label><input id="t_hr" type="time" value="09:00"></div>
+        </div>
+        <label>Técnico que lo va a hacer</label>
+        <select id="t_tc"><option value="">— lo asigno después —</option>
+          ${TC.map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join('')}</select>
+        <label>Notas</label>
+        <textarea id="t_nt" placeholder="Lo que el técnico debe saber antes de llegar"></textarea>
+        <div style="height:14px"></div>
+        <button class="btn wide" id="t_ok">Crear y agendar</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+
+    $('#c1').onclick=cerrar; $('#c2').onclick=cerrar;
+    $('#t_mg').onchange=e=>{ mgSel=e.target.value; pinta(); };
+
+    $('#t_ok').onclick=async()=>{
+      const precio=Number($('#t_pz').value)||0;
+      if(!precio) return toast('Pon el precio que vas a cobrar.');
+      const unidad=$('#t_un').value.trim()||null;
+      const fecha=$('#t_fe').value||hoy();
+      let cliente, direccion, ciudad, zip=null, prId=null, pr=null;
+      if(mgSel){
+        prId=$('#t_pr').value; if(!prId) return toast('Escoge la propiedad.');
+        pr=PR.find(x=>x.id===prId);
+        cliente=pr.nombre; direccion=pr.direccion||''; ciudad=pr.ciudad||'San Diego'; zip=pr.zip||null;
+      } else {
+        cliente=$('#t_cli').value.trim(); direccion=$('#t_dir').value.trim();
+        ciudad=$('#t_ciu').value.trim()||'San Diego';
+        if(!cliente || !direccion) return toast('Pon el nombre y la dirección.');
+      }
+      const p={folio, departamento:'cleaning', tipo:$('#t_tp').value, estatus:'activo',
+        origen: mgSel?'management':'particular',
+        management_id:mgSel||null, propiedad_id:prId,
+        cliente, direccion, ciudad, zip, unidad,
+        tipo_propiedad: mgSel?'apartamento':'casa',
+        fecha_inicio:fecha, precio_carpet:precio, trabajo_especial:true,
+        tecnico_id:$('#t_tc').value||null,
+        notas:$('#t_nt').value.trim()||null,
+        lat: pr?pr.lat:null, lng: pr?pr.lng:null};
+      const {data,error}=await sb.from('jobs').insert(p).select().single();
+      if(error) return toast('No se creó: '+error.message);
+
+      const tid=$('#t_tc').value;
+      if(tid) await sb.from('asignaciones').upsert(
+        {job_id:data.id, tecnico_id:tid, fecha, hora:$('#t_hr').value||null},
+        {onConflict:'job_id,tecnico_id,fecha'});
+
+      await notifIns({tipo:'job', departamento:'cleaning',
+        titulo:'Trabajo especial · '+cliente,
+        texto:`${U.nombre} abrió ${folio}${unidad?' · Unit '+unidad:''} · ${p.tipo} · ${cf(precio)}`,
+        job_id:data.id, de_usuario:U.nombre, para_rol:'admin'});
+
+      cerrar(); toast('Trabajo especial creado · '+folio); render();
+    };
+  };
+  pinta();
 }
 
 async function formJob(id, pre){
