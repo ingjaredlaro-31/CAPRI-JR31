@@ -929,6 +929,36 @@ const VE_DINERO = () => U && ['admin','gerente'].includes(U.rol);
 const FIJO_DEP  = () => U && ['gerente','tecnico'].includes(U.rol)
                           && U.departamento && U.departamento!=='ambos'
                           ? U.departamento : null;
+// CANDADO: departamento al que está encerrado el usuario. null = puede ver todo.
+// Carlos (gerente · cleaning) queda encerrado en 'cleaning' y NO ve nada de restoration.
+const CANDADO   = () => (U && U.rol!=='admin' && U.departamento && U.departamento!=='ambos')
+                          ? U.departamento : null;
+// Departamento efectivo de la vista: si hay candado manda el candado, si no manda la pestaña.
+const DEPV      = () => CANDADO() || DEP;
+// ¿Este registro es de mi área? Se usa para bloquear aperturas por ID.
+const MIO_DEP   = d => { const c=CANDADO(); return !c || !d || d===c; };
+function sinAcceso(){
+  cerrar();
+  toast('Ese trabajo no es de tu departamento.');
+  return null;
+}
+// Todo aviso nace marcado con su departamento, para que cada quien vea solo los suyos.
+async function notifIns(p){
+  const arr = Array.isArray(p) ? p : [p];
+  for(const n of arr){
+    if(n.departamento) continue;
+    if(n.job_id){
+      try{
+        const {data:jj}=await sb.from('jobs').select('departamento').eq('id',n.job_id).maybeSingle();
+        if(jj && jj.departamento) n.departamento=jj.departamento;
+      }catch(err){}
+    }
+    if(!n.departamento)
+      n.departamento = (U && U.departamento && U.departamento!=='ambos')
+        ? U.departamento : (DEP || 'restoration');
+  }
+  return sb.from('notificaciones').insert(arr);
+}
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
@@ -956,7 +986,7 @@ async function enviarLevantamiento(){
   };
   const {data,error}=await sb.from('reportes_iniciales').insert(p).select().single();
   if(error) return toast('No se envió: '+error.message);
-  await sb.from('notificaciones').insert({
+  await notifIns({
     tipo:'levantamiento',
     titulo:'Reporte INICIAL nuevo · '+(d.propiedad_texto||'sin propiedad'),
     texto:`${U.nombre} · ${d.unidad?'Unit '+d.unidad+' · ':''}${d.tipo} · ${d.areas.join(', ')||'sin áreas'} · ${d.fotos.length} fotos`,
@@ -969,6 +999,7 @@ async function enviarLevantamiento(){
 async function vLevantamientos(){
   const {data}=await sb.from('reportes_iniciales')
     .select('*, managements(nombre), propiedades(nombre), jobs(folio)')
+    .eq('departamento',DEPV())
     .order('created_at',{ascending:false}).limit(60);
   const R=data||[];
   const pend=R.filter(x=>x.estatus==='pendiente');
@@ -997,6 +1028,7 @@ async function vLevantamientos(){
 async function abrirLevantamiento(id){
   const {data:x}=await sb.from('reportes_iniciales')
     .select('*, managements(nombre), propiedades(nombre), jobs(folio,cliente)').eq('id',id).single();
+  if(!MIO_DEP(x&&x.departamento)) return sinAcceso();
   const SN=v=>v?'SÍ':'NO';
   const f=(k,v)=>`<tr><td class="k">${k}</td><td class="v">${esc(v||'—')}</td></tr>`;
   const b=(k,v)=>v?`<tr class="blk"><td class="k">${k}</td><td class="v">${esc(v)}</td></tr>`:'';
@@ -1111,7 +1143,7 @@ async function avisarTecnicos(){
     let total=0, jobsCon=0;
     suyos.forEach(j=>{ const f=diasFaltantes(j, porJob[j.id]||new Set()); if(f.length){ total+=f.length; jobsCon++; } });
     if(!total) continue;
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'recordatorio', clave:'rec-'+t.id+'-'+h,
       titulo:'You owe '+total+' report'+(total===1?'':'s'),
       texto:jobsCon+' job'+(jobsCon===1?'':'s')+' waiting for your report. Open the app and close them, or mark why you did not go.',
@@ -1142,7 +1174,7 @@ async function revisarFaltantes(){
     const prop=j.propiedades?.nombre||j.cliente;
     pendientes.push({job:j, prop, dias:deAyer.length, ultimo:deAyer[deAyer.length-1]});
     // un aviso por job por día, sin repetir
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'faltante', clave:'falta-'+j.id+'-'+h,
       titulo:'Sin reporte · '+prop,
       texto:`${j.folio}${j.unidad?' · Unit '+j.unidad:''} · ${deAyer.length} día${deAyer.length===1?'':'s'} sin reportar`
@@ -1183,7 +1215,7 @@ async function checarC(tipo){
        ent_lat:g?.lat||null, ent_lng:g?.lng||null, ent_dir:dir||null},
       {onConflict:'contratista_id,fecha'});
     if(error) return toast('Error: '+error.message);
-    await sb.from('notificaciones').insert({tipo:'checada', clave:'centr-'+U.id+'-'+hoy(),
+    await notifIns({tipo:'checada', clave:'centr-'+U.id+'-'+hoy(),
       titulo:'Entrada · '+U.nombre+' (contratista)',
       texto:hhmm(ahora)+(dir?' · '+dir:''), para_rol:'admin'});
     tono('normal'); toast('Entrada registrada a las '+hhmm(ahora));
@@ -1197,7 +1229,7 @@ async function checarC(tipo){
     const {error}=await sb.from('asistencias').update({salida:ahora, minutos:min,
       sal_lat:g?.lat||null, sal_lng:g?.lng||null, sal_dir:dir||null}).eq('id',prev.id);
     if(error) return toast('Error: '+error.message);
-    await sb.from('notificaciones').insert({tipo:'checada', clave:'csal-'+U.id+'-'+hoy(),
+    await notifIns({tipo:'checada', clave:'csal-'+U.id+'-'+hoy(),
       titulo:'Salida · '+U.nombre+' (contratista)',
       texto:hhmm(ahora)+' · '+horasTxt(min)+(dir?' · '+dir:''), para_rol:'admin'});
     tono('normal'); toast('Salida registrada · '+horasTxt(min));
@@ -1398,7 +1430,7 @@ async function formParte(id, pidPre){
       if(error) return toast('No se guardó: '+error.message);
       if(p.terminado && p.partida_id)
         await sb.from('partidas').update({estatus:'terminada', fecha_fin:p.fecha}).eq('id',p.partida_id);
-      await sb.from('notificaciones').insert({tipo:'parte',
+      await notifIns({tipo:'parte',
         titulo:'Parte de '+U.nombre,
         texto:fmt(p.fecha)+' · '+p.descripcion.slice(0,70)+(p.monto?' · '+cf(p.monto):''),
         job_id:dat.job_id, para_rol:'admin'});
@@ -1584,7 +1616,7 @@ async function checar(tipo){
       ent_lat:g?.lat||null, ent_lng:g?.lng||null, ent_dir:dir||null};
     const {error}=await sb.from('asistencias').upsert(p,{onConflict:'usuario_id,fecha'});
     if(error) return toast('Error: '+error.message);
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'checada', clave:'ent-'+U.id+'-'+hoy(),
       titulo:'Entrada · '+U.nombre,
       texto:hhmm(ahora)+(dir?' · '+dir:'')+(g?'':' · sin GPS'),
@@ -1598,7 +1630,7 @@ async function checar(tipo){
     const {error}=await sb.from('asistencias').update({salida:ahora, minutos:min,
       sal_lat:g?.lat||null, sal_lng:g?.lng||null, sal_dir:dir||null}).eq('id',prev.id);
     if(error) return toast('Error: '+error.message);
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'checada', clave:'sal-'+U.id+'-'+hoy(),
       titulo:'Salida · '+U.nombre,
       texto:hhmm(ahora)+' · '+horasTxt(min)+(dir?' · '+dir:''),
@@ -1886,6 +1918,7 @@ async function vigilarAvisos(){
     let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at')
       .eq('leida',false).order('created_at',{ascending:false}).limit(4);
     q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
+    if(CANDADO()) q=q.eq('departamento',CANDADO());
     const {data}=await q;
     const nuevas=(data||[]).filter(x=>new Date(x.created_at).getTime() > ULT_NOTIF);
     if(ULT_NOTIF && nuevas.length){
@@ -1909,6 +1942,7 @@ async function contarNotif(){
   if(!U){ NOTIF=0; return 0; }
   let q=sb.from('notificaciones').select('*',{count:'exact',head:true}).eq('leida',false);
   q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
+  if(CANDADO()) q=q.eq('departamento',CANDADO());
   const {count}=await q;
   NOTIF=count||0; return NOTIF;
 }
@@ -1916,7 +1950,7 @@ async function contarNotif(){
 async function avisarReporte(job, esNuevo, servicios, fecha, tipoRep){
   const prop = job.propiedades?.nombre || job.managements?.nombre || job.cliente;
   const eti = tipoRep==='inicial' ? 'Reporte INICIAL · ' : (esNuevo?'Reporte de seguimiento · ':'Reporte corregido · ');
-  await sb.from('notificaciones').insert({
+  await notifIns({
     tipo:'reporte',
     titulo: eti+prop,
     texto: `${U.nombre} · ${job.folio}${job.unidad?' · Unit '+job.unidad:''} · ${fmt(fecha)}`
@@ -1933,6 +1967,7 @@ async function vNotificaciones(){
     .select('*, jobs(folio,cliente, propiedades(nombre))')
     .order('created_at',{ascending:false}).limit(60);
   qn = U.rol==='tecnico' ? qn.eq('para_usuario',U.id) : qn.neq('para_rol','tecnico');
+  if(CANDADO()) qn=qn.eq('departamento',CANDADO());
   const {data}=await qn;
   const N=data||[];
   const sinLeer=N.filter(x=>!x.leida);
@@ -2062,7 +2097,7 @@ async function nuevoTrabajoTecnico(){
       hora:new Date().toTimeString().slice(0,5)},{onConflict:'job_id,tecnico_id,fecha'});
 
     const prop = pr?pr.nombre:cliente;
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'job',
       titulo:'Trabajo nuevo · '+prop,
       texto:`${U.nombre} abrió ${folio}${unidad?' · Unit '+unidad:''} · ${TIPO_SEL}`,
@@ -2905,7 +2940,7 @@ async function verJobTecnico(id){
     const t=$('#nt_tec').value.trim(); if(!t) return;
     const {error}=await sb.from('notas').insert({job_id:id,usuario_id:U.id,autor:U.nombre,texto:t});
     if(error) return toast('No se guardó: '+error.message);
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'nota', titulo:'Comentario del técnico · '+(j.propiedades?.nombre||j.cliente),
       texto:U.nombre+' · '+j.folio+' · '+t.slice(0,90),
       job_id:id, de_usuario:U.nombre, para_rol:'admin'});
@@ -3049,7 +3084,7 @@ async function marcarNoFui(jobId, fecha, tecOverride){
         lecturas:[], fotos:[]};
       const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
       if(error) return toast('No se guardó: '+error.message);
-      await sb.from('notificaciones').insert({
+      await notifIns({
         tipo:'nofui', titulo:'No se visitó · '+prop,
         texto:`${U.nombre} · ${j.folio}${j.unidad?' · Unit '+j.unidad:''} · ${fmt(fecha)} · ${sel}`,
         job_id:jobId, de_usuario:U.nombre, para_rol:'admin'});
@@ -3097,17 +3132,20 @@ async function pintaBusca(){
   cont.innerHTML=`<div class="sub">${L('Buscando…','Searching…')}</div>`;
 
   const like='%'+q.replace(/\s+/g,'%')+'%';
-  const {data,error}=await sb.from('jobs')
+  const CD=CANDADO();
+  let qb=sb.from('jobs')
     .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)')
-    .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},direccion.ilike.${like},po_number.ilike.${like}`)
-    .order('created_at',{ascending:false}).limit(60);
+    .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},direccion.ilike.${like},po_number.ilike.${like}`);
+  if(CD) qb=qb.eq('departamento',CD);
+  const {data,error}=await qb.order('created_at',{ascending:false}).limit(60);
   if(error){ cont.innerHTML=`<div class="alerta"><div class="t">${esc(error.message)}</div></div>`; return; }
 
   let J=data||[];
   // también busca por nombre de propiedad y management
-  const {data:extra}=await sb.from('jobs')
-    .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)')
-    .order('created_at',{ascending:false}).limit(400);
+  let qe=sb.from('jobs')
+    .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)');
+  if(CD) qe=qe.eq('departamento',CD);
+  const {data:extra}=await qe.order('created_at',{ascending:false}).limit(400);
   const ql=q.toLowerCase();
   (extra||[]).forEach(j=>{
     if(J.some(x=>x.id===j.id)) return;
@@ -3558,7 +3596,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v95 · login privado</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v96 · candado por departamento</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3614,7 +3652,7 @@ function shell(html){
 }
 
 async function render(){
-  const fd=FIJO_DEP(); if(fd) DEP=fd;
+  const fd=CANDADO()||FIJO_DEP(); if(fd) DEP=fd;
   if(!U) return login();
   if(RELOJ){ clearInterval(RELOJ); RELOJ=null; }
   if(MAPA){ try{MAPA.remove();}catch(e){} MAPA=null; }
@@ -3636,6 +3674,10 @@ async function render(){
       if(V==='mapa')     return shell(await vMapa());
       if(V==='hist')     return shell(await vTecHist());
     }
+    // Candado de área: quien está encerrado en un departamento no entra a las
+    // secciones globales de la empresa (horas, contratistas, equipo).
+    if(CANDADO() && ['horas','partes','equipo'].includes(V))
+      return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Esta sección es de administración general. Tu cuenta es solo de '+esc(CANDADO()==='cleaning'?'Carpet Department':CANDADO())+'.</p></div>');
     if(V==='notif')     return shell(await vNotificaciones());
     if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
@@ -5393,7 +5435,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='95';
+const VERSION='96';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5865,11 +5907,13 @@ async function vResumen(){
           job:j.id});
     });
   }
-  const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').limit(6);
+  const {data:levs}=await sb.from('reportes_iniciales').select('id,propiedad_texto,unidad,tecnico_nombre').eq('estatus','pendiente').eq('departamento',DEP).limit(6);
   (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',
     t:(x.propiedad_texto||'Levantamiento')+(x.unidad?' · Unit '+x.unidad:''),
     s:'Reporte inicial por revisar · '+(x.tecnico_nombre||'')}));
-  const {data:nsl}=await sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false).order('created_at',{ascending:false}).limit(20);
+  let qnsl=sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false);
+  if(CANDADO()) qnsl=qnsl.eq('departamento',CANDADO());
+  const {data:nsl}=await qnsl.order('created_at',{ascending:false}).limit(20);
   (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id,nid:x.id}));
   if(new Date().getHours()>=HORA_AVISO)
     faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',
@@ -6058,7 +6102,7 @@ async function vManagements(){
     sb.from('managements').select('*').order('nombre'),
     sb.from('propiedades').select('id,management_id'),
     sb.from('contactos').select('id,management_id'),
-    sb.from('jobs').select('id,management_id,estatus')
+    sb.from('jobs').select('id,management_id,estatus').eq('departamento',DEPV())
   ]);
   const cuenta=(arr,id)=>(arr||[]).filter(x=>x.management_id===id).length;
   setTimeout(()=>{
@@ -6080,7 +6124,7 @@ async function abrirManagement(id){
     sb.from('managements').select('*').eq('id',id).single(),
     sb.from('propiedades').select('*').eq('management_id',id).order('nombre'),
     sb.from('contactos').select('*, propiedades(nombre)').eq('management_id',id).order('puesto'),
-    sb.from('jobs').select('id,folio,cliente,estatus,tipo,propiedad_id,unidad').eq('management_id',id).order('created_at',{ascending:false}).limit(60)
+    sb.from('jobs').select('id,folio,cliente,estatus,tipo,propiedad_id,unidad').eq('management_id',id).eq('departamento',DEPV()).order('created_at',{ascending:false}).limit(60)
   ]);
   const P=props||[], C=cts||[], J=jobs||[];
   const tel=t=>t?t.replace(/\D/g,''):'';
@@ -6708,6 +6752,7 @@ async function abrirJob(id){
     sb.from('recordatorios').select('*').eq('job_id',id).order('fecha_venc'),
     sb.from('contratistas').select('*').eq('activo',true)
   ]);
+  if(!MIO_DEP(j&&j.departamento)) return sinAcceso();
   const R=reps||[], PT=part||[], N=nts||[], RC=rec||[];
   const P=PT.filter(x=>(x.clase||'reparacion')==='reparacion');
   const SV=PT.filter(x=>x.clase==='servicio');
@@ -7400,7 +7445,7 @@ async function abrirJob(id){
   document.querySelectorAll('[data-ar]').forEach(b=>b.onclick=async()=>{
     const rr=R.find(x=>x.id===b.dataset.ar); if(!rr) return;
     const prop=j.propiedades?.nombre||j.managements?.nombre||j.cliente;
-    await sb.from('notificaciones').insert({
+    await notifIns({
       tipo:'acuse',
       titulo:'Reporte recibido · '+prop,
       texto:'Oficina revisó tu reporte del '+fmt(rr.fecha)+' · '+j.folio+(j.unidad?' · Unit '+j.unidad:''),
@@ -7947,9 +7992,12 @@ const soloNum = t => (t||'').replace(/[^0-9]/g,'');
 let ETAB='pendientes';
 
 async function vEstimados(){
+  const DV = DEPV();
   const [{data,error},{data:jobsA}] = await Promise.all([
-    sb.from('estimados').select('*').order('created_at',{ascending:false}).limit(200),
-    sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus, propiedades(nombre)')
+    sb.from('estimados').select('*').eq('departamento',DV)
+      .order('created_at',{ascending:false}).limit(200),
+    sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento, propiedades(nombre)')
+      .eq('departamento',DV)
       .not('estatus','in','("terminado","facturado")').order('created_at',{ascending:false})
   ]);
   if(error) return `<div class="empty"><div class="disp">No se pudieron cargar</div><p>${esc(error.message)}</p></div>`;
@@ -7966,7 +8014,7 @@ async function vEstimados(){
   const lista = ETAB==='pendientes'?env : ETAB==='aceptados'?acc : ETAB==='borradores'?bor
     : ETAB==='rechazados'?rec : E;
 
-  setTimeout(()=>{
+  setTimeout(()=>{ engancharDep();
     const ne=$('#ne'); if(ne) ne.onclick=()=>formEstimado();
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ETAB=b.dataset.t;render();});
   },0);
@@ -7992,6 +8040,7 @@ async function vEstimados(){
   };
 
   return `
+    ${selectorDep()}
     <div class="row" style="gap:10px;margin-bottom:14px">
       <div class="stat" style="flex:1"><div class="l">ESPERANDO RESPUESTA</div>
         <div class="v">${cf(env.reduce((s,e)=>s+Number(e.monto||0),0))}</div>
@@ -8020,6 +8069,7 @@ async function vEstimados(){
 
 async function abrirEstimado(id){
   const {data:e}=await sb.from('estimados').select('*').eq('id',id).single();
+  if(!MIO_DEP(e&&e.departamento)) return sinAcceso();
   const x=e;
   let jobLig=null;
   if(e.job_id){
@@ -8149,11 +8199,17 @@ async function abrirEstimado(id){
 
 let EFOT=[];
 async function formEstimado(id, jobPre){
-  let e={departamento:DEP,estatus:'borrador',monto:0,renglones:[],archivos:[]};
-  if(id){const {data}=await sb.from('estimados').select('*').eq('id',id).single(); e=data;}
+  const DV = DEPV();
+  let e={departamento:DV,estatus:'borrador',monto:0,renglones:[],archivos:[]};
+  if(id){
+    const {data}=await sb.from('estimados').select('*').eq('id',id).single();
+    if(!MIO_DEP(data&&data.departamento)) return sinAcceso();
+    e=data;
+  }
   if(jobPre) e.job_id=jobPre;
   const [{data:jobsAll},{data:estAll}] = await Promise.all([
     sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus, propiedades(nombre)')
+      .eq('departamento',DV)
       .not('estatus','in','("facturado")').order('created_at',{ascending:false}).limit(200),
     sb.from('estimados').select('job_id').not('job_id','is',null)
   ]);
@@ -8187,7 +8243,7 @@ async function formEstimado(id, jobPre){
 
       <div class="eyebrow">Datos del estimado</div>
       <label>Departamento</label>
-      <select id="e_departamento">${['restoration','cleaning'].map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <select id="e_departamento" ${CANDADO()?'disabled':''}>${(CANDADO()?[CANDADO()]:['restoration','cleaning']).map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       ${c('folio','Folio')}${c('cliente','Cliente')}${c('telefono','Teléfono','tel')}${c('direccion','Dirección')}
       <label>De qué es el estimado</label>
       <textarea id="e_descripcion" placeholder="Drywall, piso y pintura de cocina y pasillo">${esc(e.descripcion||'')}</textarea>
@@ -8227,7 +8283,7 @@ async function formEstimado(id, jobPre){
     if(!j){ $('#e_avjob').textContent='Puedes dejarlo sin ligar, pero entonces el trabajo va a seguir marcado como SIN ESTIMADO.'; return; }
     $('#e_avjob').innerHTML='Se va a ligar al trabajo <b>'+esc(j.folio)+'</b>. Al aceptarse, ese job queda con estimado.';
     if(!$('#e_cliente').value) $('#e_cliente').value=j.propiedades?.nombre||j.cliente||'';
-    $('#e_departamento').value=j.departamento;
+    if(!CANDADO()) $('#e_departamento').value=j.departamento;
   };
   selJob.onchange=tomarJob; tomarJob();
 
@@ -8287,7 +8343,7 @@ async function formEstimado(id, jobPre){
     let monto=Number($('#e_monto').value)||0;
     if(!monto) monto=sub+imp;
     const p={job_id:$('#e_job').value||null,
-      departamento:$('#e_departamento').value,estatus:$('#e_estatus').value,
+      departamento:CANDADO()||$('#e_departamento').value,estatus:$('#e_estatus').value,
       folio:$('#e_folio').value.trim(),cliente:$('#e_cliente').value.trim(),
       telefono:$('#e_telefono').value.trim()||null,direccion:$('#e_direccion').value.trim()||null,
       descripcion:$('#e_descripcion').value.trim()||null,notas:$('#e_notas').value.trim()||null,
