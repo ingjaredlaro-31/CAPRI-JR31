@@ -898,6 +898,20 @@ const SERV_CLEAN = ['Carpet cleaning','Carpet spot treatment','Carpet deodorizin
   'Pet odor treatment','Stain removal','Move out deep clean','Post construction clean',
   'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning'];
 const ORIGENES = ['management','aseguranza','particular'];
+/* ============ CARPET DEPARTMENT · catálogos del cuestionario ============ */
+const CARPET_METODOS = ['Hot water extraction','Steam cleaning','Encapsulation',
+  'Bonnet / low moisture','Shampoo','Dry compound','Pressure wash','Scrub and rinse','Otro'];
+const CARPET_PISOS = ['Carpet','Area rug','Tile and grout','Hardwood','Vinyl / LVP',
+  'Laminate','Concrete','Upholstery / muebles','Mattress','Exterior / concreto'];
+const CARPET_PRODUCTOS = ['Pre-spray','Spot / stain remover','Enzyme pet treatment',
+  'Deodorizer','Carpet protector (Scotchgard)','Grout sealer','Degreaser',
+  'Anti-allergen','Sanitizer','Ninguno'];
+const CARPET_VACIO = {
+  metodo:'', pisos:[], productos:[],
+  cuartos:'', sqft:'', escalones:'', pasillos:'', closets:'', muebles:'',
+  secado_hrs:'', equipo_secado:'',
+  antes:'', despues:'', pendiente:''
+};
 const PUESTOS = ['manager','assistant manager','supervisor','mantenimiento','contabilidad','otro'];
 const ETAPAS = [
   {k:'inicial',    t:'Reporte inicial',   s:'Se levantó el trabajo'},
@@ -980,6 +994,12 @@ async function enviarLevantamiento(){
     packs_equipo:d.packs_equipo, equipo_desc:d.equipo_desc||null,
     deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
     lecturas:d.lecturas, fotos:d.fotos, medidas:d.medidas,
+    carpet: G.dep==='cleaning' ? {...(d.cp||{}),
+      manchas:!!d.c_manchas, olor:!!d.c_olor, mascota:!!d.c_mascota,
+      muebles_movidos:!!d.c_muebles, dano_previo:!!d.c_dano_previo,
+      salieron:!!d.c_salieron, segunda_pasada:!!d.c_segunda,
+      secando:!!d.c_secando, muebles_ok:!!d.c_muebles_ok,
+      reviso:!!d.c_reviso, recomienda_reemplazo:!!d.c_recomienda } : null,
     cobro_tecnico:d.cobro_tecnico===''?null:Number(d.cobro_tecnico),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null,
     estatus:'pendiente'
@@ -3596,7 +3616,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v96 · candado por departamento</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v97 · áreas separadas + Carpet</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4053,7 +4073,8 @@ async function levantamientoInicial(){
       servicios:[], areas:[], material_removido:[], situacion:[], medidas:{}, cobro_tecnico:'',
       sqft_plastico:'', zipper:'no zipper', packs_equipo:0, equipo_desc:'',
       deshu_inst:0, air_inst:0, scrub_inst:0, deshu_ret:0, air_ret:0, scrub_ret:0,
-      lecturas:[], fotos:[], siguiente_trabajo:'', notas:''
+      lecturas:[], fotos:[], siguiente_trabajo:'', notas:'',
+      cp:{...CARPET_VACIO}
     }
   };
   pasosGuiado(); pintaGuiado();
@@ -4102,6 +4123,13 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
       deshu_inst:r.deshu_inst||0, air_inst:r.air_inst||0, scrub_inst:r.scrub_inst||0,
       deshu_ret:r.deshu_ret||0, air_ret:r.air_ret||0, scrub_ret:r.scrub_ret||0,
       situacion:(r.situacion||[]).slice(),
+      cp: Object.assign({...CARPET_VACIO}, r.carpet||{}),
+      c_manchas:!!(r.carpet&&r.carpet.manchas), c_olor:!!(r.carpet&&r.carpet.olor),
+      c_mascota:!!(r.carpet&&r.carpet.mascota), c_muebles:!!(r.carpet&&r.carpet.muebles_movidos),
+      c_dano_previo:!!(r.carpet&&r.carpet.dano_previo), c_salieron:!!(r.carpet&&r.carpet.salieron),
+      c_segunda:!!(r.carpet&&r.carpet.segunda_pasada), c_secando:!!(r.carpet&&r.carpet.secando),
+      c_muebles_ok:!!(r.carpet&&r.carpet.muebles_ok), c_reviso:!!(r.carpet&&r.carpet.reviso),
+      c_recomienda:!!(r.carpet&&r.carpet.recomienda_reemplazo),
       medidas: Object.assign({}, r.medidas||{}),
       cobro_tecnico: r.cobro_tecnico ?? '',
       causa: r.causa||'', causa_detalle: r.notas_causa||'', fecha_dano: r.fecha_dano||'',
@@ -4155,7 +4183,34 @@ function pasosGuiado(){
     G.pasos.push({t:L('¿Qué reporte vas a hacer?','Which report are you doing?'), s:L('Este trabajo aún no tiene el inicial','This job has no initial report yet'), tipo:'tipo'});
   }
 
-  if(ini){
+  if(ini && !esRest){
+    /* ══════════ CARPET DEPARTMENT · reporte inicial ══════════
+       Corto y al grano: 8 pasos antes de fotos. */
+    G.pasos.push({t:L('¿Qué servicio hiciste?','Which service did you do?'), s:L('Esto arma el resto del reporte','This sets up the rest of the report'), tipo:'tiposerv'});
+    G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
+    G.pasos.push({t:L('¿Cómo estaba antes?','How did it look before?'), s:L('Toca SÍ o NO','Tap YES or NO'), tipo:'rapidas', lista:[
+      {k:'ocupada_b', t:L('¿Unidad ocupada?','Occupied unit?')},
+      {k:'c_manchas', t:L('¿Traía manchas fuertes?','Heavy stains?')},
+      {k:'c_olor', t:L('¿Traía mal olor?','Bad odor?')},
+      {k:'c_mascota', t:L('¿Hay o hubo mascotas?','Pets present or before?')},
+      {k:'c_muebles', t:L('¿Hubo que mover muebles?','Had to move furniture?')},
+      {k:'c_dano_previo', t:L('¿Ya venía dañado o quemado?','Pre-existing damage or burns?')}
+    ]});
+    G.pasos.push({t:L('¿Qué áreas trabajaste?','Which areas did you work?'), s:L('Toca todas las que apliquen','Tap all that apply'), tipo:'chips', k:'areas', cat:'acat', tabla:'areas_catalogo', req:true});
+    G.pasos.push({t:L('Medidas del trabajo','Job measurements'), s:L('Lo que se usa para cobrar · llena lo que sepas','Used for billing · fill what you know'), tipo:'cp_medidas'});
+    G.pasos.push({t:L('¿Cómo lo limpiaste?','How did you clean it?'), s:L('Método, superficie y productos','Method, surface and products'), tipo:'cp_metodo'});
+    G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Marca todos los que apliquen','Tap all that apply'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo', req:true});
+    G.pasos.push({t:L('¿Cómo quedó?','How did it turn out?'), s:L('Toca SÍ o NO','Tap YES or NO'), tipo:'rapidas', lista:[
+      {k:'c_salieron', t:L('¿Salieron las manchas?','Stains came out?')},
+      {k:'c_segunda', t:L('¿Necesita segunda pasada?','Needs a second pass?')},
+      {k:'c_secando', t:L('¿Dejaste ventiladores secando?','Left fans drying?')},
+      {k:'c_muebles_ok', t:L('¿Regresaste los muebles?','Furniture put back?')},
+      {k:'c_reviso', t:L('¿Revisó el residente o manager?','Resident or manager reviewed?')},
+      {k:'c_recomienda', t:L('¿Recomiendas reemplazo?','Recommend replacement?')}
+    ]});
+    G.pasos.push({t:L('Scope of work','Scope of work'), s:L('Qué se necesita cotizar o hacer','What needs quoting or doing'), tipo:'scope'});
+  }
+  else if(ini){
     // 1 · QUÉ TIPO DE TRABAJO FUE
     G.pasos.push({t:L('¿Qué tipo de trabajo fue?','What type of job was it?'), s:L('Esto define las preguntas que siguen','This sets the questions that follow'), tipo:'tiposerv'});
     // 2 · Llegada
@@ -4207,6 +4262,19 @@ function pasosGuiado(){
       ]});
       G.pasos.push({t:L('Scope of work','Scope of work'), s:L('Describe todo el trabajo que se necesita','Describe the full work needed'), tipo:'scope'});
     }
+  } else if(!esRest){
+    /* ══════════ CARPET DEPARTMENT · reporte del día ══════════
+       Solo 4 pasos antes de fotos. */
+    G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
+    G.pasos.push({t:L('¿Qué hiciste hoy?','What did you do today?'), s:L('Explícalo en tus palabras · obligatorio','Explain it in your words · required'), tipo:'explica', reqTexto:true});
+    G.pasos.push({t:L('¿Qué servicios se hicieron?','Which services were performed?'), s:L('Déjalo vacío si solo fuiste a revisar','Leave empty if you only inspected'), tipo:'chips', k:'servicios', cat:'scat', tabla:'servicios_catalogo'});
+    G.pasos.push({t:L('Medidas y método','Measurements and method'), s:L('Lo de hoy nada más','Today only'), tipo:'cp_medidas'});
+    G.pasos.push({t:L('¿Cómo quedó?','How did it turn out?'), s:L('Toca SÍ o NO','Tap YES or NO'), tipo:'rapidas', lista:[
+      {k:'c_salieron', t:L('¿Salieron las manchas?','Stains came out?')},
+      {k:'c_segunda', t:L('¿Necesita segunda pasada?','Needs a second pass?')},
+      {k:'c_secando', t:L('¿Dejaste ventiladores secando?','Left fans drying?')},
+      {k:'c_reviso', t:L('¿Revisó el residente o manager?','Resident or manager reviewed?')}
+    ]});
   } else {
     G.pasos.push({t:L('Tu llegada','Your arrival'), s:L('Hora y si fue after hours','Time in and after hours'), tipo:'inicio2'});
     G.pasos.push({t:L('¿Cómo está el trabajo hoy?','How is the job today?'), s:L('Explica qué encontraste y qué se hizo · obligatorio','Explain what you found and what was done · required'), tipo:'explica', reqTexto:true});
@@ -4246,7 +4314,15 @@ function pintaGuiado(){
   const en=ING(); const L=(es,ing)=>en?ing:es;
 
   if(p.tipo==='tiposerv'){
-    const OPS=[
+    const esCarpet = (G.modo==='intake' ? G.dep : (G.job&&G.job.departamento)) === 'cleaning';
+    const OPS = esCarpet ? [
+      {k:'carpet', t:L('Carpet cleaning','Carpet cleaning'), s:L('Alfombra de cuartos, pasillos y escaleras','Room, hallway and stair carpet')},
+      {k:'upholstery', t:L('Upholstery · muebles','Upholstery'), s:L('Sofás, sillas, colchones','Sofas, chairs, mattresses')},
+      {k:'tile', t:L('Tile and grout','Tile and grout'), s:L('Piso de loseta y sellado de grout','Tile floors and grout sealing')},
+      {k:'pressure', t:L('Pressure washing','Pressure washing'), s:L('Exteriores, banquetas, estacionamiento','Exteriors, walkways, parking')},
+      {k:'deepclean', t:L('Move out · deep clean','Move out · deep clean'), s:L('Limpieza completa de la unidad','Full unit cleaning')},
+      {k:'otro', t:L('Otro servicio','Other service'), s:L('Cualquier otro trabajo de limpieza','Any other cleaning work')}
+    ] : [
       {k:'flood', t:L('Flood service · hubo agua','Flood service · water loss'), s:L('Extracción, secado y equipo','Extraction, drying and equipment')},
       {k:'remediation', t:L('Remediation · moho o contaminación','Remediation · mold or contamination'), s:L('Containment y limpieza','Containment and cleaning')},
       {k:'inspection', t:L('Inspection · solo revisión','Inspection · assessment only'), s:L('Lecturas y fotos, sin demo','Readings and photos, no demo')},
@@ -4339,6 +4415,42 @@ function pintaGuiado(){
       ${sel.map((m,i)=>`<label style="margin-top:10px">${esc(m)}</label>
         <input id="med${i}" value="${esc(d.medidas[m]||'')}" placeholder="1 ft x 1 ft" style="font-size:17px">`).join('')}`
       :`<div class="sub" style="margin-top:10px">${L('Si no removiste nada, dale Siguiente.','If nothing was removed, tap Next.')}</div>`}`;
+  }
+
+  else if(p.tipo==='cp_medidas'){
+    const c = d.cp || (d.cp={...CARPET_VACIO});
+    cuerpo=`
+    <div class="sub" style="margin-bottom:12px">${L('Llena solo lo que aplique. Lo que dejes vacío no pasa nada.','Fill only what applies. Blanks are fine.')}</div>
+    <div class="g3">
+      <div><label>${L('Cuartos','Rooms')}</label><input class="num" id="cpc" type="number" min="0" value="${esc(c.cuartos)}" placeholder="3"></div>
+      <div><label>${L('Escalones','Stairs')}</label><input class="num" id="cpe" type="number" min="0" value="${esc(c.escalones)}" placeholder="13"></div>
+      <div><label>${L('Pasillos','Halls')}</label><input class="num" id="cph" type="number" min="0" value="${esc(c.pasillos)}" placeholder="1"></div>
+    </div>
+    <div class="g3">
+      <div><label>Closets</label><input class="num" id="cpk" type="number" min="0" value="${esc(c.closets)}" placeholder="2"></div>
+      <div><label>${L('Muebles','Furniture')}</label><input class="num" id="cpm" type="number" min="0" value="${esc(c.muebles)}" placeholder="1"></div>
+      <div><label>Sqft</label><input class="num" id="cps" type="number" min="0" value="${esc(c.sqft)}" placeholder="850"></div>
+    </div>
+    <div class="eyebrow">${L('Secado','Drying')}</div>
+    <div class="g2">
+      <div><label>${L('Horas de secado','Drying hours')}</label><input class="num" id="cpsh" type="number" min="0" value="${esc(c.secado_hrs)}" placeholder="4"></div>
+      <div><label>${L('Ventiladores dejados','Fans left')}</label><input id="cpeq" value="${esc(c.equipo_secado)}" placeholder="${L('2 air movers','2 air movers')}"></div>
+    </div>`;
+  }
+  else if(p.tipo==='cp_metodo'){
+    const c = d.cp || (d.cp={...CARPET_VACIO});
+    cuerpo=`
+    <label>${L('Método que usaste','Method used')}</label>
+    <select id="cpmet" style="font-size:18px;padding:15px 14px">
+      <option value="">${L('— escoge uno —','— select one —')}</option>
+      ${CARPET_METODOS.map(m=>`<option ${c.metodo===m?'selected':''}>${esc(m)}</option>`).join('')}
+    </select>
+    <div class="eyebrow">${L('¿Qué superficie trabajaste?','Which surface did you work?')}</div>
+    <div class="chips" id="cppisos">${CARPET_PISOS.map(x=>
+      `<button type="button" data-cpp="${esc(x)}" class="${(c.pisos||[]).includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>
+    <div class="eyebrow">${L('¿Qué producto le pusiste?','Which product did you apply?')}</div>
+    <div class="chips" id="cpprod">${CARPET_PRODUCTOS.map(x=>
+      `<button type="button" data-cpr="${esc(x)}" class="${(c.productos||[]).includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>`;
   }
 
   else if(p.tipo==='contain2') cuerpo=`
@@ -4580,6 +4692,7 @@ function pintaGuiado(){
     if(pa.req && !G.d[pa.k].length) return toast(ING()?'Tap at least one option.':'Marca al menos una opción.');
     if(pa.reqTexto && !G.d.notas.trim()) return toast('Escribe tu comentario de seguimiento.');
     if(pa.tipo==='tiposerv' && !G.d.tipo_servicio) return toast(ING()?'Select the type of job.':'Escoge el tipo de trabajo.');
+    if(pa.tipo==='cp_metodo' && !(G.d.cp||{}).metodo) return toast(ING()?'Select the cleaning method.':'Escoge el método de limpieza.');
     if(pa.reqTexto2 && !(G.d.hallazgos||'').trim()) return toast(ING()?'Write what you found.':'Escribe qué encontraste.');
 
     if(pa.tipo==='causa2' && !G.d.causa) return toast(ING()?'Select the source of the loss.':'Escoge la fuente del daño.');
@@ -4596,6 +4709,22 @@ function pintaGuiado(){
     if(G.paso===G.pasos.length-1) return G.modo==='intake' ? enviarLevantamiento() : enviarGuiado();
     G.paso++; guardarBorrador(); pintaGuiado();
   };
+
+  if(p.tipo==='cp_metodo'){
+    const c = G.d.cp || (G.d.cp={...CARPET_VACIO});
+    document.querySelectorAll('[data-cpp]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.cpp; c.pisos=c.pisos||[];
+      c.pisos.includes(v) ? c.pisos=c.pisos.filter(x=>x!==v) : c.pisos.push(v);
+      b.classList.toggle('on');
+    });
+    document.querySelectorAll('[data-cpr]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.cpr; c.productos=c.productos||[];
+      if(v==='Ninguno'){ c.productos=c.productos.includes(v)?[]:['Ninguno']; return pintaGuiado(); }
+      c.productos=c.productos.filter(x=>x!=='Ninguno');
+      c.productos.includes(v) ? c.productos=c.productos.filter(x=>x!==v) : c.productos.push(v);
+      b.classList.toggle('on');
+    });
+  }
 
   if(p.tipo==='ubicacion'){
     q1('#g_mg').onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
@@ -4703,6 +4832,16 @@ function guardaPaso(){
     else { const x=G.PR.find(y=>y.id===d.prop_id);
       if(x){ d.propiedad_texto=x.nombre; d.direccion=x.direccion||''; d.ciudad=x.ciudad||'San Diego'; d.zip=x.zip||''; } }
   }
+  if(p.tipo==='cp_medidas'){
+    const c = d.cp || (d.cp={...CARPET_VACIO});
+    c.cuartos=v('cpc')||''; c.escalones=v('cpe')||''; c.pasillos=v('cph')||'';
+    c.closets=v('cpk')||''; c.muebles=v('cpm')||''; c.sqft=v('cps')||'';
+    c.secado_hrs=v('cpsh')||''; c.equipo_secado=v('cpeq')||'';
+  }
+  if(p.tipo==='cp_metodo'){
+    const c = d.cp || (d.cp={...CARPET_VACIO});
+    c.metodo=v('cpmet')||'';
+  }
   if(p.tipo==='inicio2'){ d.hora_entrada=v('g1')||d.hora_entrada; d.hora_salida=v('g2')||''; }
   if(p.tipo==='agua'){ d.fecha_dano=v('g1')||''; d.galones=v('g2')||''; }
   if(p.tipo==='materiales'){
@@ -4776,6 +4915,12 @@ async function enviarGuiado(){
     deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
     deshu_ret:d.deshu_ret, air_ret:d.air_ret, scrub_ret:d.scrub_ret,
     lecturas:d.lecturas, fotos:d.fotos,
+    carpet: (G.job && G.job.departamento==='cleaning') ? {...(d.cp||{}),
+      manchas:!!d.c_manchas, olor:!!d.c_olor, mascota:!!d.c_mascota,
+      muebles_movidos:!!d.c_muebles, dano_previo:!!d.c_dano_previo,
+      salieron:!!d.c_salieron, segunda_pasada:!!d.c_segunda,
+      secando:!!d.c_secando, muebles_ok:!!d.c_muebles_ok,
+      reviso:!!d.c_reviso, recomienda_reemplazo:!!d.c_recomienda } : null,
     trabajo_realizado:(G.tipo==='seguimiento' && !d.servicios.length) ? d.situacion.join(' · ') : d.servicios.join(' · '),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null};
   const yaHabia=G.prev;
@@ -5435,7 +5580,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='96';
+const VERSION='97';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -5879,8 +6024,8 @@ async function vResumen(){
     s:x.job.folio+' · '+x.dias+' día'+(x.dias===1?'':'s')+' sin reportar · último '+fmt(x.ultimo)
       +' · '+(x.job.usuarios?.nombre||'sin técnico'),
     job:x.job.id}));
-  // estimados enviados sin respuesta
-  (ests||[]).filter(x=>x.estatus==='enviado').forEach(x=>{
+  // estimados enviados sin respuesta · SOLO los de mi área
+  E.filter(x=>x.estatus==='enviado').forEach(x=>{
     const d=x.fecha_envio?dias(x.fecha_envio,h):0;
     if(d>=2) alertas.push({g:'Estimados sin respuesta', c: d>=7?'r':'m',
       t:(x.cliente||'')+' · '+cf(x.monto),
@@ -5982,7 +6127,7 @@ async function vResumen(){
       <div class="t">trabajo${faltantes.length===1?'':'s'} arrastrando días sin reporte · el más viejo lleva ${Math.max(...faltantes.map(x=>x.dias))} día(s)</div>
       <div class="row no-print" style="margin-top:11px"><button class="btn sm" id="wadiario">Mandarle el resumen al técnico</button></div>
     </div>`:''}
-    ${pulsoHTML({jobs:J, reps:R, parts:P, ests:ests, faltantes})}
+    ${pulsoHTML({jobs:J, reps:R, parts:P, ests:E, faltantes})}
     <div class="eyebrow">Requiere tu atención · ${alertas.length}</div>
     ${(()=>{
       if(!alertas.length) return `<div class="ok">Todo al corriente. No hay nada urgente en ${DEP}.</div>`;
