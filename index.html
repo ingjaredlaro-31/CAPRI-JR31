@@ -848,9 +848,19 @@ async function sha256(t){
 }
 function toast(m){ const e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2600); }
 function cerrar(){ $('#sheet').innerHTML=''; }
-const TIPOS = { restoration:['flood service','inspection','otro'], cleaning:['carpet cleaning','upholstery','vinyl cleaning','tile and grout'] };
+const TIPOS = {
+  restoration:['flood service','mold remediation','inspection','reconstruction','fire / smoke','otro'],
+  cleaning:['carpet cleaning','upholstery cleaning','tile and grout','area rug cleaning',
+            'move out clean','deep clean','post construction clean','air duct cleaning',
+            'dryer vent cleaning','pressure washing','window cleaning','floor installation','otro']
+};
 const CAUSAS = ['water','fire','mold','sewage','otro'];
 const SERVICIOS = ['wipe down','remediation','demolition','secado / drying','containment','antimicrobial','deodorization','reconstruction','final cleaning','otro'];
+const SERV_CLEAN = ['Carpet cleaning','Carpet spot treatment','Carpet deodorizing','Carpet protector',
+  'Upholstery cleaning','Sofa / loveseat cleaning','Mattress cleaning','Tile and grout cleaning',
+  'Grout sealing','Hardwood floor cleaning','Vinyl / laminate cleaning','Area rug cleaning',
+  'Pet odor treatment','Stain removal','Move out deep clean','Post construction clean',
+  'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning'];
 const ORIGENES = ['management','aseguranza','particular'];
 const PUESTOS = ['manager','assistant manager','supervisor','mantenimiento','contabilidad','otro'];
 const ETAPAS = [
@@ -874,10 +884,14 @@ const ESTAT_PART = {pendiente:['SIN ASIGNAR','rojo'],asignada:['ASIGNADA','ambar
 let U=null, V='dia', DEP='restoration', PEND=0, TAB='h', FSCH=hoy();
 let MODO='mes', MREF=hoy();
 const iso = d => d.toLocaleDateString('en-CA');
-const ES_ADMIN  = () => U && U.rol==='admin';
-const EDIT      = () => U && (U.rol==='admin' || U.rol==='oficina');
+const ES_ADMIN  = () => U && U.rol==='admin';                       // Jared · todo
+const ES_GEREN  = () => U && U.rol==='gerente';                     // Julio y Carlos
+const EDIT      = () => U && ['admin','gerente','oficina'].includes(U.rol);
 const BORRAR    = () => ES_ADMIN();
-const VE_DINERO = () => ES_ADMIN();
+const VE_DINERO = () => U && ['admin','gerente'].includes(U.rol);
+// Los gerentes de un área solo ven su área
+const FIJO_DEP  = () => U && U.rol==='gerente' && U.departamento && U.departamento!=='ambos'
+                          ? U.departamento : null;
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
@@ -3275,7 +3289,8 @@ async function vTecReporte(){
 let PUERTA = null;
 
 const PUERTAS = {
-  admin:   {t:'Administración', s:'Julio y Jared · control total', c:'var(--azul)'},
+  admin:   {t:'Administración', s:'Dirección · control total',      c:'var(--azul)'},
+  gerente: {t:'Gerencia',       s:'Julio y Carlos · su área',       c:'#2E7D6B'},
   oficina: {t:'Oficina',        s:'Consulta y seguimiento',        c:'#0B0D11'},
   tecnico: {t:'Técnico',        s:'Reportes y ruta del día',       c:'var(--rojo)'},
   contratista:{t:'Contratista',  s:'Checar y reportar tu trabajo',   c:'var(--oro)'}
@@ -3409,7 +3424,7 @@ async function entrar(){
   if(error) return errLogin('No hay conexión con la base de datos.');
   if(!data) return errLogin('Usuario o contraseña incorrectos.');
   if(PUERTA && data.rol!==PUERTA){
-    return errLogin('Esa cuenta es de '+PUERTAS[data.rol].t.toLowerCase()+'. Regresa y entra por esa puerta.');
+    return errLogin('Esa cuenta es de '+(PUERTAS[data.rol]?PUERTAS[data.rol].t.toLowerCase():data.rol)+'. Regresa y entra por esa puerta.');
   }
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
   DEP = U.departamento==='ambos' ? 'restoration' : U.departamento;
@@ -3429,7 +3444,7 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat(ES_ADMIN()?[['equipo',BI('Equipo','Team')]]:[])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')]]:[])
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']]);
   const esTec = U.rol==='tecnico' || U.rol==='contratista';
   const depTec = esTec ? U.departamento : DEP;
@@ -3439,7 +3454,12 @@ function shell(html){
       <div class="head" data-v="${inicio}">
         <div class="logo-img" style="width:52px;height:52px;margin:0 0 9px"></div>
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
-        <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(esTec?(depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION'):(U.rol==='oficina'?'OFICINA · SIN CONFIGURACIÓN':'ADMINISTRADOR'))}</div>
+        <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(
+          U.rol==='contratista' ? 'CONTRATISTA'
+          : esTec ? (depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION')
+          : U.rol==='oficina' ? 'OFICINA'
+          : U.rol==='gerente' ? (U.departamento==='ambos'?'GERENCIA GENERAL':'GERENTE DE '+U.departamento.toUpperCase())
+          : 'ADMINISTRADOR')}</div>
       </div>
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}<span>${esTec?T('Inicio'):BI('Resumen','Home')}</span></button></div>
       ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}<span>${t}</span></button>`).join('')}
@@ -3468,7 +3488,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v91 · trabajo plegable</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v92 · roles por área</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3523,6 +3543,7 @@ function shell(html){
 }
 
 async function render(){
+  const fd=FIJO_DEP(); if(fd) DEP=fd;
   if(!U) return login();
   if(RELOJ){ clearInterval(RELOJ); RELOJ=null; }
   if(MAPA){ try{MAPA.remove();}catch(e){} MAPA=null; }
@@ -3557,13 +3578,14 @@ async function render(){
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
-    if(V==='equipo')    return ES_ADMIN() ? shell(await vEquipo())
+    if(V==='equipo')    return (ES_ADMIN() || (ES_GEREN() && U.departamento==='ambos')) ? shell(await vEquipo())
                         : shell('<div class="empty"><div class="disp">Sin acceso</div><p>La sección de Equipo es solo para administración.</p></div>');
   }catch(e){ console.error(e); shell(`<div class="empty"><div class="disp">No se pudo cargar</div><p>${esc(e.message||e)}</p></div>`); }
 }
 
 /* ==================== SELECTOR DE DEPARTAMENTO ==================== */
 function selectorDep(){
+  if(FIJO_DEP()) return '';
   if(U.departamento!=='ambos') return '';
   return `<div class="row no-print" style="margin-bottom:12px">
     <button class="chip ${DEP==='restoration'?'azul':''}" data-dep="restoration" style="cursor:pointer;font-size:10px;padding:6px 12px">RESTORATION</button>
@@ -3665,7 +3687,7 @@ async function formReporte(jobId,fecha,tecOverride){
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
-    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('servicios_catalogo').select('nombre,departamento').order('orden').order('nombre'),
     sb.from('situaciones_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r=prev||{}; FOT=r.fotos||[];
@@ -3895,13 +3917,16 @@ async function levantamientoInicial(){
     sb.from('propiedades').select('*').order('nombre'),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
-    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre')
+    sb.from('servicios_catalogo').select('nombre,departamento').order('orden').order('nombre')
   ]);
   G = {
     modo:'intake', job:null, dep, fecha:hoy(), paso:0, prev:false, tipo:'inicial',
     MG:mgs||[], PR:props||[],
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre),
-    scat:(scat||[]).map(x=>x.nombre), qcat:[],
+    scat:(()=>{
+      const lista=(scat||[]).filter(x=>!x.departamento||x.departamento==='ambos'||x.departamento===DEP).map(x=>x.nombre);
+      return lista.length?lista:(DEP==='cleaning'?SERV_CLEAN:SERVICIOS);
+    })(), qcat:[],
     d:{
       hora_entrada:new Date().toTimeString().slice(0,5), hora_salida:'',
       mg_id:'', prop_id:'', propiedad_texto:'', direccion:'', ciudad:'San Diego', zip:'',
@@ -3926,7 +3951,7 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
     sb.from('reportes').select('*').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fecha).maybeSingle(),
     sb.from('areas_catalogo').select('nombre').order('orden').order('nombre'),
     sb.from('materiales_catalogo').select('nombre').order('orden').order('nombre'),
-    sb.from('servicios_catalogo').select('nombre').order('orden').order('nombre'),
+    sb.from('servicios_catalogo').select('nombre,departamento').order('orden').order('nombre'),
     sb.from('situaciones_catalogo').select('nombre').order('orden').order('nombre')
   ]);
   const r = prev || {};
@@ -3940,7 +3965,12 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
   const bor = leerBorrador(jobId, fecha, 'job');
   G = {
     job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni, tid:TID, hayInicial,
-    acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre), scat:(scat||[]).map(x=>x.nombre),
+    acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre),
+    scat:(()=>{
+      const dep=(j&&j.departamento)||DEP;
+      const lista=(scat||[]).filter(x=>!x.departamento||x.departamento==='ambos'||x.departamento===dep).map(x=>x.nombre);
+      return lista.length?lista:(dep==='cleaning'?SERV_CLEAN:SERVICIOS);
+    })(),
     qcat:(qcat||[]).map(x=>x.nombre),
     d:{
       hora_entrada:r.hora_entrada||new Date().toTimeString().slice(0,5),
@@ -5288,7 +5318,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='91';
+const VERSION='92';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
