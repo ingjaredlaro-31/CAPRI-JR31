@@ -595,6 +595,8 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 /* Bloque del cliente en la portada */
 .clientebox{background:#FFFDF7;border:1px solid #E8DCBA;border-radius:16px;margin-top:16px;
   overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.28);position:relative}
+.cb-tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:#8A7742;
+  background:#F6EAC9;padding:9px 18px;border-bottom:1px solid #E8DCBA;text-transform:uppercase}
 .clientebox .cbtop{display:flex;align-items:flex-end;gap:6px;padding:16px 16px 0;position:relative;min-height:150px}
 .cb-masc{width:118px;height:158px;background:var(--mascota) center bottom/contain no-repeat;flex-shrink:0;
   animation:saluda 4.5s ease-in-out infinite;transform-origin:50% 100%}
@@ -623,6 +625,16 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
 .emerg .tel:hover{color:#E0B34E}
 .emerg .mail{font-size:14px;color:#9AA9C0;text-decoration:none;display:block;margin-top:6px;word-break:break-all}
 .emerg .mail:hover{color:#E0B34E}
+.grupo-et{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;color:#8A93A0;
+  text-transform:uppercase;margin:16px 0 9px;display:flex;align-items:center;gap:10px}
+.grupo-et:first-of-type{margin-top:4px}
+.grupo-et::after{content:'';flex:1;height:1px;background:#E4E8EC}
+.idio-btn{width:100%;margin-top:11px;background:none;border:1px solid var(--linea);color:var(--gris);
+  border-radius:10px;padding:11px;font-family:var(--mono);font-size:12.5px;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;transition:all .15s}
+.idio-btn:hover{border-color:var(--oro);color:var(--oro)}
+.clientebox .idio-btn{border-color:#E8DCBA;color:#8A7742}
+.clientebox .idio-btn:hover{border-color:#C9962B;color:#C9962B;background:#FFF4DE}
 .emerg .punto{display:inline-block;width:7px;height:7px;border-radius:50%;background:#FF5C67;
   margin-right:6px;animation:latido 1.8s ease-in-out infinite;vertical-align:middle}
 @keyframes latido{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,92,103,.6)}50%{opacity:.6;box-shadow:0 0 0 7px rgba(255,92,103,0)}}
@@ -2438,10 +2450,11 @@ function pintaPortal(data){
         <div class="sub" style="margin-top:8px;font-size:13px">This report is generated automatically from field documentation.</div>
         <div class="emerg" style="margin-top:14px;max-width:340px;margin-left:auto;margin-right:auto">
           <div class="masc-cara emerg-masc"></div>
-          <div class="l"><span class="punto"></span>24 HR EMERGENCY SERVICE</div>
+          <div class="l"><span class="punto"></span>${PT('24 HR EMERGENCY SERVICE','SERVICIO DE EMERGENCIA 24 HRS')}</div>
           <a class="tel" href="tel:+16192734693">619-273-4693</a>
           <a class="mail" href="mailto:capri1restoration@gmail.com">capri1restoration@gmail.com</a>
         </div>
+        <button class="idio-btn" id="p_idio">${PT('Ver en español','View in English')}</button>
       </div>
     </div>
   </div>`;
@@ -3313,27 +3326,32 @@ async function vTecReporte(){
 /* ==================== PORTADA · PUERTAS DE ACCESO ==================== */
 let PUERTA = null;
 
+let IDIOMA_PORTADA = 'en';
+try{ IDIOMA_PORTADA = localStorage.getItem('jr31_idioma_portada') || 'en'; }catch(e){}
+const PT = (en, es) => IDIOMA_PORTADA==='es' ? es : en;
+
 const QUIENES = {
   admin:[
-    {n:'Ing. Jared Lara', p:'Dirección · control total', u:'ingjr31'},
-    {n:'Julio C. Ibarria', p:'Gerencia general', u:'julio'}
+    {n:'Ing. Jared Lara', p:'Director · full control', u:'ingjr31'},
+    {n:'Julio C. Ibarria', p:'General manager', u:'julio'}
   ],
   restoration:[
-    {n:'Jesús Lozoya', p:'Técnico de Restoration', u:'lozoyacapri'}
+    {n:'Jesús Lozoya', p:'Restoration technician', u:'lozoyacapri'}
   ],
   carpet:[
-    {n:'Carlos', p:'Gerente de Carpet Department', u:'carlos'}
+    {n:'Carlos', p:'Carpet Department manager', u:'carlos'},
+    {n:'Crew', p:'Carpet technicians', u:'carpet1 · carpet2'}
   ],
   oficina:[
-    {n:'Gabriela', p:'Oficina', u:'gabriela'}
+    {n:'Gabriela', p:'Office', u:'gabriela'}
   ]
 };
 const PUERTAS = {
-  admin:      {t:'Administración',    s:'Jared y Julio · control total',      c:'var(--azul)'},
-  restoration:{t:'Restoration',       s:'Técnicos de restauración',           c:'var(--rojo)'},
-  carpet:     {t:'Carpet Department', s:'Carlos y su equipo de limpieza',     c:'#2E9E7E'},
-  oficina:    {t:'Oficina',           s:'Consulta y seguimiento',             c:'#0B0D11'},
-  contratista:{t:'Contratista',       s:'Checar y reportar tu trabajo',       c:'var(--oro)'}
+  admin:      {t:'Administration',    s:'Jared and Julio · full control',     c:'var(--azul)'},
+  restoration:{t:'Restoration',       s:'Water, mold and reconstruction crew',c:'var(--rojo)'},
+  carpet:     {t:'Carpet Department', s:'Carlos and the cleaning crew',       c:'#2E9E7E'},
+  oficina:    {t:'Office',            s:'Scheduling and follow up',           c:'#0B0D11'},
+  contratista:{t:'Contractor',        s:'Clock in and report your work',      c:'var(--oro)'}
 };
 
 function portada(){
@@ -3343,32 +3361,38 @@ function portada(){
       <div class="portada marca-agua">
         <div class="logo-img" style="width:118px;height:118px"></div>
         <div class="rot" style="text-align:center">${esc(EMPRESA.toUpperCase())}</div>
-        <div class="tt" style="text-align:center">Administrador<br>Central</div>
+        <div class="tt" style="text-align:center">${PT('Water Damage<br>&amp; Cleaning','Restauración<br>y Limpieza')}</div>
         <div class="mono" style="font-size:13px;letter-spacing:.5em;color:var(--oro);margin-top:11px;text-align:center;font-weight:600">JR31</div>
       </div>
       <div class="franja split" style="border-radius:0"><i></i><i></i></div>
       <div class="cajaclara">
-        <div class="eyebrow">¿Quién eres?</div>
-        ${Object.entries(PUERTAS).map(([k,v])=>`
+        <div class="eyebrow">${PT('Team access','Acceso del equipo')}</div>
+
+        <div class="grupo-et">${PT('Management','Dirección')}</div>
+        ${['admin','oficina'].map(k=>{const v=PUERTAS[k];return `
           <button class="puerta" data-p="${k}" style="border-left-color:${v.c}">
-            <span class="t">${v.t}</span>
-            <span class="s">${v.s}</span>
-          </button>`).join('')}
+            <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
+
+        <div class="grupo-et">${PT('Field crews','Personal de campo')}</div>
+        ${['restoration','carpet','contratista'].map(k=>{const v=PUERTAS[k];return `
+          <button class="puerta" data-p="${k}" style="border-left-color:${v.c}">
+            <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
       </div>
     </div>
 
     <div class="clientebox">
+      <div class="cb-tag">${PT('FOR OUR CLIENTS','PARA NUESTROS CLIENTES')}</div>
       <div class="cbtop">
         <div class="cb-masc"></div>
         <div class="cb-globo">
-          <b>Hi! How can I help you?</b>
-          <span>Check your job progress anytime</span>
+          <b>${PT('Hi! How can I help you?','¡Hola! ¿En qué le ayudo?')}</b>
+          <span>${PT('Check your job progress anytime','Consulte el avance de su trabajo cuando quiera')}</span>
         </div>
       </div>
       <div class="cb-cuerpo">
         <button class="cb-btn" id="p_cliente">
-          <div class="t">Track my job</div>
-          <div class="s">Property managers · enter your job number</div>
+          <div class="t">${PT('Track my job','Ver mi trabajo')}</div>
+          <div class="s">${PT('Property managers · enter your job number','Managers · escriba su número de trabajo')}</div>
           <div class="fl">›</div>
         </button>
         <div class="emerg">
@@ -3384,6 +3408,12 @@ function portada(){
   </div>`;
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ PUERTA=b.dataset.p; login(); });
   const pc=$('#p_cliente'); if(pc) pc.onclick=()=>buscarCliente();
+  const pid=$('#p_idio');
+  if(pid) pid.onclick=()=>{
+    IDIOMA_PORTADA = IDIOMA_PORTADA==='es' ? 'en' : 'es';
+    try{ localStorage.setItem('jr31_idioma_portada', IDIOMA_PORTADA); }catch(e){}
+    portada();
+  };
 }
 
 function bienvenida(u, luego){
@@ -3549,7 +3579,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v93 · áreas separadas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v94 · portada bilingüe</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5384,7 +5414,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='93';
+const VERSION='94';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
