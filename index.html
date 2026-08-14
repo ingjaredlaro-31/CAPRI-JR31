@@ -82,6 +82,11 @@ body.dark .side button.on{background:linear-gradient(90deg,rgba(224,179,78,.20),
 body.dark .franja.split i:first-child{background:var(--oro)}
 body.dark .hero .franja2 i:first-child,body.dark .dinero .franja2 i:first-child{background:var(--oro)}
 body.dark .top{background:linear-gradient(180deg,#0F1622 0%,#0A0F19 100%)}
+body.carp .side button.on{background:linear-gradient(90deg,rgba(46,158,126,.22),transparent);color:#5FD3B2;border-left-color:#2E9E7E}
+body.carp .top::after{background:linear-gradient(90deg,#2E9E7E 0%,#2E9E7E 46%,transparent 46%,transparent 54%,var(--oro) 54%,var(--oro) 100%)}
+body.carp .btn{background:linear-gradient(180deg,#3FBE99,#2E9E7E);color:#04231C}
+body.carp .destacado{background:linear-gradient(135deg,#4CCBA6 0%,#2E9E7E 55%,#227A61 100%);box-shadow:0 8px 26px rgba(46,158,126,.28)}
+body.carp .barra i{background:#2E9E7E!important}
 body.dark .kpi .v{color:var(--tinta)}
 body.dark .chips button.on{background:rgba(224,179,78,.15);border-color:var(--oro);color:var(--oro)}
 body.dark .si-no button.on{background:linear-gradient(180deg,#E2B85A,#C9962B);border-color:#C9962B;color:#0B0D11}
@@ -389,6 +394,25 @@ body.dark .jc-chip.negro{color:var(--tinta);border-color:#3A465C;background:#1F2
   text-transform:none;color:var(--gris);margin-top:1px;line-height:1.2}
 .side button .bi{color:#6B7280}
 .side button.on .bi{color:rgba(255,255,255,.65)}
+/* Pestañas de área */
+.areatabs{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px}
+.areatabs button{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--linea);
+  border-radius:12px;padding:14px 16px;text-align:left;cursor:pointer;color:var(--gris);transition:all .16s}
+.areatabs button:hover{background:var(--sup2)}
+.areatabs button .a-t{display:block;font-family:var(--disp);font-weight:800;font-size:23px;
+  text-transform:uppercase;line-height:1.02;letter-spacing:.01em}
+.areatabs button .a-s{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;margin-top:3px;opacity:.8}
+.areatabs button.on{color:var(--tinta);background:var(--sup2)}
+.areatabs button.on.rest{border-top-color:var(--rojo);box-shadow:inset 0 -2px 0 var(--rojo)}
+.areatabs button.on.rest .a-t{color:var(--rojo-d)}
+.areatabs button.on.carp{border-top-color:#2E9E7E;box-shadow:inset 0 -2px 0 #2E9E7E}
+.areatabs button.on.carp .a-t{color:#5FD3B2}
+@media(max-width:520px){
+  .areatabs button{padding:12px 13px}
+  .areatabs button .a-t{font-size:19px}
+  .areatabs button .a-s{font-size:10px}
+}
+
 /* Secciones plegables del trabajo */
 .secc{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--linea);
   border-radius:0 13px 13px 0;margin-bottom:11px;overflow:hidden}
@@ -890,7 +914,8 @@ const EDIT      = () => U && ['admin','gerente','oficina'].includes(U.rol);
 const BORRAR    = () => ES_ADMIN();
 const VE_DINERO = () => U && ['admin','gerente'].includes(U.rol);
 // Los gerentes de un área solo ven su área
-const FIJO_DEP  = () => U && U.rol==='gerente' && U.departamento && U.departamento!=='ambos'
+const FIJO_DEP  = () => U && ['gerente','tecnico'].includes(U.rol)
+                          && U.departamento && U.departamento!=='ambos'
                           ? U.departamento : null;
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
@@ -3288,12 +3313,27 @@ async function vTecReporte(){
 /* ==================== PORTADA · PUERTAS DE ACCESO ==================== */
 let PUERTA = null;
 
+const QUIENES = {
+  admin:[
+    {n:'Ing. Jared Lara', p:'Dirección · control total', u:'ingjr31'},
+    {n:'Julio C. Ibarria', p:'Gerencia general', u:'julio'}
+  ],
+  restoration:[
+    {n:'Jesús Lozoya', p:'Técnico de Restoration', u:'lozoyacapri'}
+  ],
+  carpet:[
+    {n:'Carlos', p:'Gerente de Carpet Department', u:'carlos'}
+  ],
+  oficina:[
+    {n:'Gabriela', p:'Oficina', u:'gabriela'}
+  ]
+};
 const PUERTAS = {
-  admin:   {t:'Administración', s:'Dirección · control total',      c:'var(--azul)'},
-  gerente: {t:'Gerencia',       s:'Julio y Carlos · su área',       c:'#2E7D6B'},
-  oficina: {t:'Oficina',        s:'Consulta y seguimiento',        c:'#0B0D11'},
-  tecnico: {t:'Técnico',        s:'Reportes y ruta del día',       c:'var(--rojo)'},
-  contratista:{t:'Contratista',  s:'Checar y reportar tu trabajo',   c:'var(--oro)'}
+  admin:      {t:'Administración',    s:'Jared y Julio · control total',      c:'var(--azul)'},
+  restoration:{t:'Restoration',       s:'Técnicos de restauración',           c:'var(--rojo)'},
+  carpet:     {t:'Carpet Department', s:'Carlos y su equipo de limpieza',     c:'#2E9E7E'},
+  oficina:    {t:'Oficina',           s:'Consulta y seguimiento',             c:'#0B0D11'},
+  contratista:{t:'Contratista',       s:'Checar y reportar tu trabajo',       c:'var(--oro)'}
 };
 
 function portada(){
@@ -3385,11 +3425,19 @@ function login(msg){
     <div class="cab marca-agua">
       <div class="logo-img" style="width:78px;height:78px"></div>
       <div class="rot">${esc(EMPRESA.toUpperCase())}</div>
-      <div class="tt">Acceso<br>${esc(PUERTAS[PUERTA].t)}</div>
+      <div class="tt">${esc(PUERTAS[PUERTA].t)}</div>
+      <div style="font-size:14.5px;color:#C3D6F7;margin-top:6px">${esc(PUERTAS[PUERTA].s)}</div>
       <div class="mono" style="font-size:13px;letter-spacing:.5em;color:var(--oro);margin-top:11px;font-weight:600">JR31</div>
     </div>
     <div class="franja split"><i></i><i></i></div>
     <div class="cajaclara">
+      ${QUIENES[PUERTA]?`<div class="eyebrow" style="margin-top:0">¿Quién entra por aquí?</div>
+        <div style="margin-bottom:16px">${QUIENES[PUERTA].map(q=>`
+          <div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid #EDEFF2">
+            <div><b style="font-family:var(--disp);font-size:19px;color:#0B0D11">${esc(q.n)}</b>
+              <div style="font-size:14px;color:#5B6472">${esc(q.p)}</div></div>
+            <span class="mono" style="font-size:15px;color:#1B56D3">${esc(q.u)}</span>
+          </div>`).join('')}</div>`:''}
       <label style="margin-top:0">Usuario</label><input id="u" autocapitalize="none" autocomplete="username">
       <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
       <div style="height:22px"></div>
@@ -3408,6 +3456,8 @@ async function entrar(){
   const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
   if(!u||!p) return errLogin('Escribe usuario y contraseña.');
   errLogin('Verificando…');
+  // Restoration y Carpet admiten gerente y técnico de esa área
+  const AREA_PUERTA = {restoration:'restoration', carpet:'cleaning'};
   if(PUERTA==='contratista'){
     const {data:c,error:ec} = await sb.from('contratistas').select('*').eq('username',u)
       .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
@@ -3423,11 +3473,18 @@ async function entrar(){
     .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
   if(error) return errLogin('No hay conexión con la base de datos.');
   if(!data) return errLogin('Usuario o contraseña incorrectos.');
-  if(PUERTA && data.rol!==PUERTA){
+  const areaP = AREA_PUERTA[PUERTA];
+  if(areaP){
+    // por esta puerta entran gerentes y técnicos de esa área
+    if(!['gerente','tecnico'].includes(data.rol))
+      return errLogin('Esa cuenta no es de esta área. Regresa y entra por tu puerta.');
+    if(data.departamento!=='ambos' && data.departamento!==areaP)
+      return errLogin('Tu cuenta es de '+data.departamento+'. Regresa y entra por esa puerta.');
+  } else if(PUERTA && data.rol!==PUERTA){
     return errLogin('Esa cuenta es de '+(PUERTAS[data.rol]?PUERTAS[data.rol].t.toLowerCase():data.rol)+'. Regresa y entra por esa puerta.');
   }
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
-  DEP = U.departamento==='ambos' ? 'restoration' : U.departamento;
+  DEP = areaP || (U.departamento==='ambos' ? 'restoration' : U.departamento);
   V = U.rol==='tecnico' ? 'reporte' : 'resumen';
   bienvenida(U, render);
 }
@@ -3456,9 +3513,9 @@ function shell(html){
         <div class="m">CAPRI RESTORATION</div><div class="j" style="color:var(--oro)">JR31</div>
         <div class="m" style="margin-top:5px;color:${azulRojo?'#FFB3B8':'var(--oro)'}">${esc(
           U.rol==='contratista' ? 'CONTRATISTA'
-          : esTec ? (depTec==='cleaning'?'TÉCNICO CLEANING':'TÉCNICO RESTORATION')
+          : esTec ? (depTec==='cleaning'?'CARPET DEPARTMENT':'RESTORATION')
           : U.rol==='oficina' ? 'OFICINA'
-          : U.rol==='gerente' ? (U.departamento==='ambos'?'GERENCIA GENERAL':'GERENTE DE '+U.departamento.toUpperCase())
+          : U.rol==='gerente' ? (U.departamento==='cleaning'?'GERENTE · CARPET DEPARTMENT':'GERENTE DE '+String(U.departamento).toUpperCase())
           : 'ADMINISTRADOR')}</div>
       </div>
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}<span>${esTec?T('Inicio'):BI('Resumen','Home')}</span></button></div>
@@ -3475,7 +3532,11 @@ function shell(html){
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
-          <div class="marca">${esTec?(depTec==='cleaning'?'CAPRI · CLEANING SERVICES':'CAPRI · RESTORATION'):'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
+          <div class="marca">${
+            U.rol==='contratista' ? 'CAPRI · CONTRATISTA'
+            : esTec ? (depTec==='cleaning'?'CAPRI · CARPET DEPARTMENT':'CAPRI · RESTORATION')
+            : U.rol==='gerente' ? (U.departamento==='cleaning'?'CAPRI · CARPET DEPARTMENT':'CAPRI · GERENCIA')
+            : 'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
         <div class="quien">
@@ -3488,13 +3549,14 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v92 · roles por área</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v93 · áreas separadas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
     </div>`;
   document.body.classList.toggle('tec', esTec);
   document.body.classList.toggle('clean', azulRojo);
+  document.body.classList.toggle('carp', DEP==='cleaning');
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
     if(b.dataset.v==='salir') return salir();
     V=b.dataset.v; render();
@@ -3587,9 +3649,13 @@ async function render(){
 function selectorDep(){
   if(FIJO_DEP()) return '';
   if(U.departamento!=='ambos') return '';
-  return `<div class="row no-print" style="margin-bottom:12px">
-    <button class="chip ${DEP==='restoration'?'azul':''}" data-dep="restoration" style="cursor:pointer;font-size:10px;padding:6px 12px">RESTORATION</button>
-    <button class="chip ${DEP==='cleaning'?'rojo':''}" data-dep="cleaning" style="cursor:pointer;font-size:10px;padding:6px 12px">CLEANING</button>
+  return `<div class="areatabs no-print">
+    <button class="${DEP==='restoration'?'on rest':''}" data-dep="restoration">
+      <span class="a-t">Restoration</span>
+      <span class="a-s">Flood · mold · reconstruction</span></button>
+    <button class="${DEP==='cleaning'?'on carp':''}" data-dep="cleaning">
+      <span class="a-t">Carpet Department</span>
+      <span class="a-s">Carpet · upholstery · tile</span></button>
   </div>`;
 }
 function engancharDep(){
@@ -5318,7 +5384,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='92';
+const VERSION='93';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
