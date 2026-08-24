@@ -238,6 +238,21 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Scope of work como lista de pendientes ── */
+.scope-lista{display:flex;flex-direction:column;gap:1px}
+.scope-r{display:flex;align-items:center;gap:9px;padding:9px 2px;
+  border-bottom:1px solid var(--linea);font-size:15px;line-height:1.45}
+.scope-r:last-child{border-bottom:0}
+.scope-r.tit{border-bottom:0;padding:13px 2px 4px}
+.scope-r.tit b{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gris)}
+.scope-r.ya .scope-tx{color:var(--gris)}
+.scope-mk{font-family:var(--mono);color:var(--gris);width:14px;flex:0 0 14px;text-align:center}
+.scope-r.ya .scope-mk{color:var(--verde);font-weight:700}
+.scope-tx{flex:1;min-width:0}
+.scope-r .btn.mini{opacity:0;transition:opacity .12s;flex:0 0 auto}
+.scope-r:hover .btn.mini{opacity:1}
+@media(hover:none){ .scope-r .btn.mini{opacity:1} }
 /* ── Encabezados de grupo del menú ── */
 .side .grp{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:#5A6880;
   padding:14px 18px 5px;text-transform:uppercase;user-select:none}
@@ -3823,7 +3838,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v106 · avisos por área</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v107 · scope a reparaciones</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5800,7 +5815,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='106';
+const VERSION='107';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7774,6 +7789,37 @@ function secc(o){
   </details>`;
 }
 
+/* ============ SCOPE OF WORK · de texto a reparaciones ============
+   Lee el scope renglón por renglón. Los que traen viñeta o medidas
+   son cosas por hacer; los demás son encabezados. */
+function scopeRenglones(txt){
+  if(!txt) return [];
+  const out=[];
+  String(txt).split(/\r?\n/).forEach(ln=>{
+    let t=ln.trim();
+    if(!t) return;
+    // ¿Trae viñeta? Entonces es un punto de trabajo.
+    const conVineta = /^[*\-•·—]\s+/.test(t) || /^\d+[.)]\s+/.test(t);
+    t = t.replace(/^[*\-•·—]\s+/,'').replace(/^\d+[.)]\s+/,'').trim();
+    if(!t) return;
+    // Encabezado: corto, sin medidas, sin viñeta, o termina en dos puntos
+    const esTit = !conVineta && (
+      /:$/.test(t) ||
+      (t.split(/\s+/).length<=5 && !/\d/.test(t))
+    );
+    // Los renglones de puro dato no son trabajo
+    if(/^(date of service|fecha|job|folio|po)\s*:/i.test(t)) return;
+    out.push({txt:t.replace(/:$/,''), tit:esTit});
+  });
+  // Si no salió ni un punto accionable, no vale la pena la lista
+  return out.some(r=>!r.tit) ? out : [];
+}
+// Clave para comparar si ya existe la reparación, sin picarse con acentos ni signos
+function scopeClave(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]/g,'').slice(0,40);
+}
+
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas), usuarios(nombre,telefono)').eq('id',id).single(),
@@ -7858,12 +7904,32 @@ async function abrirJob(id){
           ${c.email?`<a class="btn ghost sm" href="mailto:${esc(c.email)}">Correo</a>`:''}
         </div></div>`).join('')}`:''}
 
-      ${j.scope?`<div class="eyebrow">Scope of work</div>
+      ${j.scope?(()=>{
+        const reng = scopeRenglones(j.scope);
+        const hechos = new Set(P.map(x=>scopeClave(x.nombre+' '+(x.detalle||''))));
+        const pend = reng.filter(r=>!hechos.has(scopeClave(r.txt)));
+        return `<div class="eyebrow">Scope of work${reng.length?' · '+reng.length+' '+(reng.length===1?'punto':'puntos'):''}</div>
       <div class="card" style="border-left-color:var(--azul)">
-        <div class="texto clamp" id="scope_j">${esc(j.scope)}</div>
-        ${j.scope.length>320?'<button class="vermas" id="vermas_j">Ver todo el scope ▾</button>':''}
+        ${reng.length?`
+        <div class="scope-lista">
+          ${reng.map((r,i)=>{
+            const ya = hechos.has(scopeClave(r.txt));
+            return `<div class="scope-r ${r.tit?'tit':''} ${ya?'ya':''}">
+              ${r.tit?`<b>${esc(r.txt)}</b>`
+                : `<span class="scope-mk">${ya?'✓':'·'}</span>
+                   <span class="scope-tx">${esc(r.txt)}</span>
+                   ${(EDIT()&&!ya)?`<button class="btn mini no-print" data-sc="${i}">REPARACIÓN</button>`:''}
+                   ${ya?'<span class="chip azul">YA ESTÁ</span>':''}`}
+            </div>`;}).join('')}
+        </div>
+        ${(EDIT()&&pend.length>1)?`<div class="row no-print" style="margin-top:10px">
+          <button class="btn sm" id="sc_todo">Crear las ${pend.length} reparaciones que faltan</button></div>`:''}
+        <details style="margin-top:10px"><summary class="vermas">Ver el scope tal cual ▾</summary>
+          <div class="texto" style="margin-top:8px">${esc(j.scope)}</div></details>`
+        :`<div class="texto clamp" id="scope_j">${esc(j.scope)}</div>
+          ${j.scope.length>320?'<button class="vermas" id="vermas_j">Ver todo el scope ▾</button>':''}`}
         ${EDIT()?'<div class="row no-print" style="margin-top:8px"><button class="btn ghost sm" id="edscope">Editar scope</button></div>':''}
-      </div>`:(EDIT()?`<div class="eyebrow">Scope of work</div>
+      </div>`;})():(EDIT()?`<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--linea)">
         <div class="sub">Todavía no has capturado el scope de este trabajo.</div>
         <div class="row no-print" style="margin-top:8px"><button class="btn sm" id="edscope">Agregar scope</button></div>
@@ -8279,6 +8345,27 @@ async function abrirJob(id){
     vmj.textContent = ab ? 'Ver todo el scope ▾' : 'Ver menos ▴';
   };
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
+
+  // Cada punto del scope se vuelve reparación con un toque
+  const RENG = scopeRenglones(j.scope||'');
+  document.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{
+    const r=RENG[+b.dataset.sc]; if(!r) return;
+    formPartida(id, null, r.txt.slice(0,120));
+  });
+  const sct=$('#sc_todo');
+  if(sct) sct.onclick=async()=>{
+    const hechos=new Set((PT||[]).map(x=>scopeClave(x.nombre+' '+(x.detalle||''))));
+    const pend=RENG.filter(r=>!r.tit && !hechos.has(scopeClave(r.txt)));
+    if(!pend.length) return toast('Ya están todas.');
+    if(!confirm('Se van a crear '+pend.length+' reparaciones, una por cada punto del scope.\n\nDespués les pones contratista y costo desde cada una. ¿Le seguimos?')) return;
+    sct.disabled=true; sct.textContent='Creando…';
+    const filas=pend.map(r=>({job_id:id, nombre:r.txt.slice(0,120),
+      clase:'reparacion', estatus:'pendiente', detalle:(j.areas||[]).join(', ')||null}));
+    const {error}=await sb.from('partidas').insert(filas);
+    if(error){ sct.disabled=false; return toast('No se pudieron crear: '+error.message); }
+    toast(pend.length+' reparaciones creadas');
+    abrirJob(id);
+  };
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
   const efin=$('#edfin'); if(efin) efin.onclick=()=>formFinanzas(id);
 
