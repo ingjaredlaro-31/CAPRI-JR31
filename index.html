@@ -3842,7 +3842,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v109 · scope inteligente</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v110 · reporte completo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5819,7 +5819,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='109';
+const VERSION='110';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7793,6 +7793,295 @@ function secc(o){
   </details>`;
 }
 
+/* ==================== REPORTE COMPLETO DEL TRABAJO ====================
+   Documento formal para el management o la aseguranza. No es la pantalla
+   impresa: es un reporte armado, con resumen ejecutivo y bitácora día por día. */
+
+async function reporteCompleto(id){
+  toast('Armando el reporte…');
+  const [{data:j},{data:part},{data:reps},{data:nts},{data:asigs},{data:ests}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre,telefono,email), propiedades(nombre,direccion,ciudad,zip), usuarios(nombre,telefono)').eq('id',id).single(),
+    sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
+    sb.from('reportes').select('*, usuarios(nombre)').eq('job_id',id).order('fecha'),
+    sb.from('notas').select('*').eq('job_id',id).order('created_at'),
+    sb.from('asignaciones').select('fecha, usuarios(nombre)').eq('job_id',id).order('fecha'),
+    sb.from('estimados').select('folio,monto,estatus,fecha_envio').eq('job_id',id)
+  ]);
+  if(!j) return toast('No se encontró el trabajo.');
+  if(!MIO_DEP(j.departamento)) return sinAcceso();
+
+  const R=(reps||[]).filter(r=>r.fecha), PT=part||[], N=nts||[], EST=ests||[];
+  const P =PT.filter(x=>(x.clase||'reparacion')==='reparacion');
+  const SV=PT.filter(x=>x.clase==='servicio');
+  const dinero = VE_DINERO();
+
+  const prop = j.propiedades?.nombre || j.cliente || 'Sin nombre';
+  const dirComp = [j.direccion||j.propiedades?.direccion, j.ciudad||j.propiedades?.ciudad, j.zip||j.propiedades?.zip]
+                    .filter(Boolean).join(', ');
+  const ini = j.fecha_inicio || (j.created_at||'').slice(0,10);
+  const fin = j.fecha_cierre || (R.length?R[R.length-1].fecha:null);
+  const diasTot = ini ? dias(ini, fin||hoy())+1 : 0;
+
+  const F = s=>{ if(!s) return '—';
+    const d=new Date(s+'T12:00:00');
+    return d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
+  const Fc = s=>{ if(!s) return '—';
+    const d=new Date(s+'T12:00:00');
+    return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); };
+  const E = s=>esc(s==null?'':String(s));
+
+  // ── Lecturas juntas, para ver cómo fue secando ──
+  const todasLect=[];
+  R.forEach(r=>(r.lecturas||[]).forEach(l=>todasLect.push({fecha:r.fecha,...l})));
+  const areasLect=[...new Set(todasLect.map(l=>l.area).filter(Boolean))];
+
+  // ── Equipo instalado, el máximo que hubo ──
+  const eqMax = R.reduce((a,r)=>({
+    deshu:Math.max(a.deshu, Number(r.deshu_inst||0)),
+    air:  Math.max(a.air,   Number(r.air_inst||0)),
+    scrub:Math.max(a.scrub, Number(r.scrub_inst||0))
+  }),{deshu:0,air:0,scrub:0});
+
+  // ── Servicios y áreas que se tocaron en todo el trabajo ──
+  const servTodos=[...new Set(R.flatMap(r=>r.servicios||[]))];
+  const areasTodas=[...new Set((j.areas||[]).concat(R.flatMap(r=>r.areas||[])))];
+  const visitas = R.filter(r=>!r.no_visita).length;
+  const noFue   = R.filter(r=>r.no_visita);
+  const fotos   = R.reduce((a,r)=>a+((r.fotos||[]).length),0);
+
+  // ── Resumen ejecutivo · se arma solo con lo que pasó ──
+  const pRep = P.filter(x=>x.estatus==='terminado').length;
+  const resumen = [];
+  resumen.push(`Se atendió un servicio de ${j.tipo||'restauración'} en ${prop}${j.unidad?', unidad '+j.unidad:''}${dirComp?', ubicado en '+dirComp:''}. El trabajo inició el ${Fc(ini)}${fin?` y su última visita registrada fue el ${Fc(fin)}`:''}, con un total de ${diasTot} ${diasTot===1?'día':'días'} de seguimiento.`);
+  if(visitas) resumen.push(`Se realizaron ${visitas} ${visitas===1?'visita documentada':'visitas documentadas'} en sitio${noFue.length?`, además de ${noFue.length} ${noFue.length===1?'día en que no fue posible acceder':'días en que no fue posible acceder'}`:''}. ${fotos?`Se levantó evidencia fotográfica de ${fotos} ${fotos===1?'imagen':'imágenes'}.`:''}`);
+  if(areasTodas.length) resumen.push(`Las áreas intervenidas fueron: ${areasTodas.join(', ')}.`);
+  if((j.removido||[]).length) resumen.push(`Se retiró material afectado: ${(j.removido||[]).join(', ')}. Cada material retirado genera una partida de reposición.`);
+  if(eqMax.deshu||eqMax.air||eqMax.scrub){
+    const eq=[eqMax.deshu?eqMax.deshu+' deshumidificador'+(eqMax.deshu>1?'es':''):'',
+              eqMax.air?eqMax.air+' air mover'+(eqMax.air>1?'s':''):'',
+              eqMax.scrub?eqMax.scrub+' air scrubber'+(eqMax.scrub>1?'s':''):''].filter(Boolean);
+    resumen.push(`Se instaló equipo de secado estructural: ${eq.join(', ')}.`);
+  }
+  if(todasLect.length) resumen.push(`Se tomaron ${todasLect.length} lecturas de humedad en ${areasLect.length} ${areasLect.length===1?'área':'áreas'} para verificar el avance del secado.`);
+  if(P.length) resumen.push(`El trabajo contempla ${P.length} ${P.length===1?'partida de reparación':'partidas de reparación'}, de las cuales ${pRep} ${pRep===1?'se encuentra concluida':'se encuentran concluidas'}.`);
+  const estAc=EST.filter(e=>e.estatus==='aceptado');
+  if(dinero && estAc.length) resumen.push(`Se cuenta con estimado aceptado por ${cf(estAc.reduce((a,e)=>a+Number(e.monto||0),0))}.`);
+  if(j.invoice_num) resumen.push(`El trabajo fue facturado con el invoice ${j.invoice_num}${j.invoice_fecha?' del '+Fc(j.invoice_fecha):''}${dinero&&j.invoice_monto?' por '+cf(j.invoice_monto):''}${j.invoice_pagado?', y el pago ya fue recibido':', pago pendiente'}.`);
+
+  const ESTA={activo:'En proceso',terminado:'Concluido',facturado:'Facturado',pausado:'En pausa'};
+
+  // ── Bitácora día por día ──
+  const bitacora = R.map((r,i)=>{
+    if(r.no_visita) return `
+      <div class="dia sin">
+        <div class="dia-h"><span class="dia-n">Visita ${i+1}</span>
+          <span class="dia-f">${F(r.fecha)}</span></div>
+        <p class="nofue"><b>No se realizó la visita.</b> Motivo: ${E(r.motivo_no||'no especificado')}.
+        ${r.notas?' '+E(r.notas):''}</p>
+      </div>`;
+    const horas = (r.hora_entrada&&r.hora_salida) ? `${E(r.hora_entrada)} a ${E(r.hora_salida)}` : (r.hora_entrada?`Entrada ${E(r.hora_entrada)}`:'');
+    return `
+    <div class="dia">
+      <div class="dia-h">
+        <span class="dia-n">${r.tipo_reporte==='inicial'?'Visita inicial':'Visita '+(i+1)}</span>
+        <span class="dia-f">${F(r.fecha)}</span>
+      </div>
+      <div class="dia-meta">
+        ${r.usuarios?.nombre?`<span><b>Técnico:</b> ${E(r.usuarios.nombre)}</span>`:''}
+        ${horas?`<span><b>Horario:</b> ${horas}</span>`:''}
+        ${r.after_hours?'<span><b>After hours</b></span>':''}
+      </div>
+      ${r.trabajo_realizado?`<p class="dia-tx"><b>Trabajo realizado.</b> ${E(r.trabajo_realizado)}</p>`:''}
+      ${r.hallazgos?`<p class="dia-tx"><b>Hallazgos.</b> ${E(r.hallazgos)}</p>`:''}
+      ${(r.servicios||[]).length?`<p class="dia-tx"><b>Servicios ejecutados.</b> ${(r.servicios||[]).map(E).join(' · ')}</p>`:''}
+      ${(r.areas||[]).length?`<p class="dia-tx"><b>Áreas atendidas.</b> ${(r.areas||[]).map(E).join(' · ')}</p>`:''}
+      ${(r.deshu_inst||r.air_inst||r.scrub_inst)?`<p class="dia-tx"><b>Equipo en sitio.</b>
+        ${[r.deshu_inst?r.deshu_inst+' deshumidificador'+(r.deshu_inst>1?'es':''):'',
+           r.air_inst?r.air_inst+' air mover'+(r.air_inst>1?'s':''):'',
+           r.scrub_inst?r.scrub_inst+' air scrubber'+(r.scrub_inst>1?'s':''):''].filter(Boolean).join(', ')}</p>`:''}
+      ${(r.lecturas||[]).length?`
+        <table class="t2"><thead><tr><th>Área</th><th>Material</th><th>% Humedad</th><th>Temp °F</th></tr></thead>
+        <tbody>${(r.lecturas||[]).map(l=>`<tr><td>${E(l.area)}</td><td>${E(l.material)}</td>
+          <td class="n">${E(l.mc)}${l.mc?'%':''}</td><td class="n">${E(l.temp)}</td></tr>`).join('')}</tbody></table>`:''}
+      ${r.notas?`<p class="dia-tx"><b>Notas.</b> ${E(r.notas)}</p>`:''}
+      ${r.siguiente_trabajo?`<p class="dia-tx sig"><b>Siguiente paso.</b> ${E(r.siguiente_trabajo)}</p>`:''}
+      ${(r.fotos||[]).length?`<p class="dia-fo">${(r.fotos||[]).length} ${(r.fotos||[]).length===1?'fotografía tomada':'fotografías tomadas'} en esta visita.</p>`:''}
+    </div>`;
+  }).join('');
+
+  const doc = `<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>${E(j.folio)} · ${E(prop)}</title>
+<style>
+  @page{size:letter;margin:16mm 14mm 18mm}
+  *{box-sizing:border-box}
+  body{font-family:Georgia,'Times New Roman',serif;color:#14181F;font-size:10.5pt;line-height:1.55;margin:0}
+  h1,h2,h3,.mono{font-family:'Helvetica Neue',Arial,sans-serif}
+  .mono{font-family:'SFMono-Regular',Consolas,monospace}
+
+  .port{border-bottom:3px solid #1B56D3;padding-bottom:14px;margin-bottom:20px}
+  .port .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700;font-family:Arial,sans-serif}
+  .port h1{font-size:23pt;margin:6px 0 2px;letter-spacing:-.01em}
+  .port .sub{font-size:11pt;color:#4A5462}
+  .port .fol{float:right;text-align:right;font-family:Arial,sans-serif}
+  .port .fol .f{font-size:14pt;font-weight:700;letter-spacing:.04em}
+  .port .fol .e{display:inline-block;margin-top:4px;font-size:8pt;letter-spacing:.12em;
+    text-transform:uppercase;border:1px solid #1B56D3;color:#1B56D3;padding:2px 8px;border-radius:3px}
+
+  h2{font-size:9pt;letter-spacing:.16em;text-transform:uppercase;color:#1B56D3;
+    border-bottom:1px solid #D3D9E2;padding-bottom:4px;margin:22px 0 10px}
+  h3{font-size:11pt;margin:14px 0 5px}
+  p{margin:0 0 8px}
+
+  .ficha{display:grid;grid-template-columns:1fr 1fr;gap:2px 22px;margin-bottom:6px}
+  .ficha div{padding:5px 0;border-bottom:1px solid #ECEFF3}
+  .ficha .k{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.1em;
+    text-transform:uppercase;color:#78828F;display:block}
+  .ficha .v{font-size:10.5pt}
+
+  .res p{text-align:justify;margin-bottom:7px}
+
+  table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:9.5pt}
+  th{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;
+    text-align:left;color:#4A5462;border-bottom:1.5px solid #14181F;padding:5px 6px}
+  td{padding:5px 6px;border-bottom:1px solid #ECEFF3;vertical-align:top}
+  td.n,th.n{text-align:right;font-family:monospace}
+  .t2{margin:7px 0 4px;font-size:9pt}
+  .t2 th{border-bottom:1px solid #B9C2CE;padding:3px 5px}
+  .t2 td{padding:3px 5px}
+
+  .dia{border-left:2.5px solid #1B56D3;padding:2px 0 8px 13px;margin:0 0 16px;page-break-inside:avoid}
+  .dia.sin{border-left-color:#C6CDD6}
+  .dia-h{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid #ECEFF3;padding-bottom:4px;margin-bottom:6px}
+  .dia-n{font-family:Arial,sans-serif;font-weight:700;font-size:11pt}
+  .dia-f{font-size:9pt;color:#4A5462;text-transform:capitalize}
+  .dia-meta{font-size:8.5pt;color:#4A5462;margin-bottom:7px}
+  .dia-meta span{margin-right:14px}
+  .dia-tx{text-align:justify;margin-bottom:5px}
+  .dia-tx.sig{color:#1B56D3}
+  .dia-fo{font-size:8.5pt;color:#78828F;font-style:italic;margin:4px 0 0}
+  .nofue{color:#4A5462;font-style:italic}
+
+  .scope{background:#F7F9FC;border-left:2.5px solid #C6CDD6;padding:10px 13px;
+    white-space:pre-wrap;font-size:9.5pt;line-height:1.5}
+  .firma{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:34px;page-break-inside:avoid}
+  .firma div{border-top:1px solid #14181F;padding-top:5px;font-size:8.5pt;color:#4A5462}
+  .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
+    font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
+  .salto{page-break-before:always}
+  .nada{color:#78828F;font-style:italic}
+  @media print{ .noimp{display:none} }
+  .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
+    padding:11px 20px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;
+    font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+</style></head><body>
+
+<button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="port">
+  <div class="fol"><div class="f">${E(j.folio)}</div>
+    <div class="e">${E(ESTA[j.estatus]||j.estatus||'')}</div></div>
+  <div class="emp">Capri Restoration Services Inc</div>
+  <h1>${E(prop)}</h1>
+  <div class="sub">${j.unidad?'Unidad '+E(j.unidad)+' · ':''}${E(j.tipo||'')}${dirComp?' · '+E(dirComp):''}</div>
+</div>
+
+<h2>Datos del trabajo</h2>
+<div class="ficha">
+  <div><span class="k">Management</span><span class="v">${E(j.managements?.nombre||'Particular')}</span></div>
+  <div><span class="k">Propiedad</span><span class="v">${E(prop)}</span></div>
+  <div><span class="k">Unidad</span><span class="v">${E(j.unidad||'—')}</span></div>
+  <div><span class="k">Tipo de servicio</span><span class="v">${E(j.tipo||'—')}</span></div>
+  <div><span class="k">Fecha de inicio</span><span class="v">${Fc(ini)}</span></div>
+  <div><span class="k">Última visita</span><span class="v">${Fc(fin)}</span></div>
+  <div><span class="k">Días de seguimiento</span><span class="v">${diasTot}</span></div>
+  <div><span class="k">Visitas documentadas</span><span class="v">${visitas}</span></div>
+  <div><span class="k">Técnico encargado</span><span class="v">${E(j.usuarios?.nombre||'—')}</span></div>
+  <div><span class="k">Condición de la unidad</span><span class="v">${j.ocupada?'Ocupada':'Vacía'}</span></div>
+  ${j.po_number?`<div><span class="k">PO number</span><span class="v">${E(j.po_number)}</span></div>`:''}
+  ${j.invoice_num?`<div><span class="k">Invoice</span><span class="v">${E(j.invoice_num)}</span></div>`:''}
+</div>
+
+<h2>Resumen general</h2>
+<div class="res">${resumen.map(p=>`<p>${E(p)}</p>`).join('')}</div>
+
+${j.scope?`<h2>Scope of work</h2><div class="scope">${E(j.scope)}</div>`:''}
+
+${areasTodas.length?`<h2>Áreas intervenidas</h2><p>${areasTodas.map(E).join(' · ')}</p>`:''}
+
+${(j.removido||[]).length?`<h2>Material retirado</h2><p>${(j.removido||[]).map(E).join(' · ')}</p>`:''}
+
+${j.extraccion_notas?`<h2>Water extraction</h2><p>${E(j.extraccion_notas)}</p>`:''}
+
+<h2>Partidas de reparación</h2>
+${P.length?`<table><thead><tr>
+  <th>Reparación</th><th>Área / detalle</th><th>Contratista</th><th>Estatus</th>
+  ${dinero?'<th class="n">Costo</th><th class="n">Cobro</th>':''}</tr></thead>
+  <tbody>${P.map(x=>`<tr>
+    <td><b>${E(x.nombre)}</b></td><td>${E(x.detalle||'—')}</td>
+    <td>${E(x.contratistas?.nombre||'Sin asignar')}</td>
+    <td>${E((x.estatus||'pendiente').replace(/^\w/,c=>c.toUpperCase()))}</td>
+    ${dinero?`<td class="n">${x.costo?cf(x.costo):'—'}</td><td class="n">${x.cobro?cf(x.cobro):'—'}</td>`:''}
+  </tr>`).join('')}
+  ${dinero?`<tr><td colspan="4"><b>Totales</b></td>
+    <td class="n"><b>${cf(P.reduce((a,x)=>a+Number(x.costo||0),0))}</b></td>
+    <td class="n"><b>${cf(P.reduce((a,x)=>a+Number(x.cobro||0),0))}</b></td></tr>`:''}
+  </tbody></table>`:'<p class="nada">No se registraron partidas de reparación para este trabajo.</p>'}
+
+${SV.length?`<h2>Servicios</h2>
+<table><thead><tr><th>Servicio</th><th>Detalle</th><th>Estatus</th>
+  ${dinero?'<th class="n">Cobro</th>':''}</tr></thead>
+  <tbody>${SV.map(x=>`<tr><td>${E(x.nombre)}</td><td>${E(x.detalle||'—')}</td>
+    <td>${E(x.estatus||'')}</td>${dinero?`<td class="n">${x.cobro?cf(x.cobro):'—'}</td>`:''}</tr>`).join('')}
+  </tbody></table>`:''}
+
+${(eqMax.deshu||eqMax.air||eqMax.scrub)?`<h2>Equipo de secado instalado</h2>
+<table><thead><tr><th>Equipo</th><th class="n">Cantidad máxima en sitio</th></tr></thead><tbody>
+  ${eqMax.deshu?`<tr><td>Deshumidificadores</td><td class="n">${eqMax.deshu}</td></tr>`:''}
+  ${eqMax.air?`<tr><td>Air movers</td><td class="n">${eqMax.air}</td></tr>`:''}
+  ${eqMax.scrub?`<tr><td>Air scrubbers</td><td class="n">${eqMax.scrub}</td></tr>`:''}
+</tbody></table>`:''}
+
+${todasLect.length?`<h2>Control de humedad</h2>
+<p>Se tomaron ${todasLect.length} lecturas a lo largo del trabajo. La tabla muestra el avance del secado por área.</p>
+<table><thead><tr><th>Fecha</th><th>Área</th><th>Material</th><th class="n">% Humedad</th><th class="n">Temp °F</th></tr></thead>
+<tbody>${todasLect.map(l=>`<tr><td>${Fc(l.fecha)}</td><td>${E(l.area)}</td><td>${E(l.material)}</td>
+  <td class="n">${E(l.mc)}${l.mc?'%':''}</td><td class="n">${E(l.temp)}</td></tr>`).join('')}</tbody></table>`:''}
+
+<div class="salto"></div>
+<h2>Bitácora · día por día</h2>
+${R.length?bitacora:'<p class="nada">No hay reportes de visita registrados para este trabajo.</p>'}
+
+${N.length?`<h2>Notas internas</h2>
+${N.map(n=>`<p><b>${Fc((n.created_at||'').slice(0,10))}.</b> ${E(n.texto||n.nota||'')}</p>`).join('')}`:''}
+
+${(dinero&&(EST.length||j.invoice_num))?`<h2>Resumen económico</h2>
+<div class="ficha">
+  ${EST.map(e=>`<div><span class="k">Estimado ${E(e.folio||'')} · ${E(e.estatus||'')}</span>
+    <span class="v">${cf(e.monto||0)}</span></div>`).join('')}
+  ${j.invoice_monto?`<div><span class="k">Invoice ${E(j.invoice_num||'')}</span><span class="v">${cf(j.invoice_monto)}</span></div>`:''}
+  ${j.invoice_num?`<div><span class="k">Estado del pago</span><span class="v">${j.invoice_pagado?'Pagado'+(j.invoice_pago_fecha?' el '+Fc(j.invoice_pago_fecha):''):'Pendiente de pago'}</span></div>`:''}
+</div>`:''}
+
+<div class="firma">
+  <div>Elaboró · ${E(j.usuarios?.nombre||'Capri Restoration Services')}</div>
+  <div>Recibió · ${E(j.managements?.nombre||'Cliente')}</div>
+</div>
+
+<div class="pie">
+  Capri Restoration Services Inc · Reporte generado el ${Fc(hoy())} · Folio ${E(j.folio)}<br>
+  Documento generado por Administrador Central JR31
+</div>
+
+<script>setTimeout(function(){window.focus();},200);<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes y vuelve a intentar.');
+  w.document.write(doc);
+  w.document.close();
+}
+
 /* ====== SCOPE OF WORK · leer y sacar las reparaciones reales ======
    No toda linea del scope es reparacion. La narrativa (inspecciones,
    proteccion de pisos, documentacion) se descarta. Lo que cuenta es
@@ -7969,7 +8258,7 @@ async function abrirJob(id){
 
       <div class="row no-print" style="margin-bottom:14px">
         <a class="btn" style="flex:1" href="${wa}" target="_blank" rel="noopener">Notificar WhatsApp</a>
-        <button class="btn ghost" style="flex:1" onclick="window.print()">Generar PDF</button>
+        <button class="btn ghost" style="flex:1" id="btn_repcomp">Reporte completo</button>
       </div>
 
       <div class="eyebrow">Ubicación${j.origen==='management'?' y management':''}</div>
@@ -8453,6 +8742,7 @@ async function abrirJob(id){
     vmj.textContent = ab ? 'Ver todo el scope ▾' : 'Ver menos ▴';
   };
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
+  const brc=$('#btn_repcomp'); if(brc) brc.onclick=()=>reporteCompleto(id);
 
   // Cada punto del scope se vuelve reparación con un toque
   const EXJ = extraeReparaciones(j.scope||'');
