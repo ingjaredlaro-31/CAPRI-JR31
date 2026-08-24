@@ -246,6 +246,16 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
 label{display:block;font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:14px 0 6px}
 input,select,textarea{width:100%;background:var(--sup);border:1px solid var(--borde-in);border-radius:6px;color:var(--tinta);padding:11px 12px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);outline-offset:1px}
+/* Las listas desplegables se leían flojas. Más peso, más aire y más contraste. */
+select{font-weight:600;letter-spacing:.01em;padding:13px 12px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--gris) 50%),linear-gradient(135deg,var(--gris) 50%,transparent 50%);
+  background-position:calc(100% - 18px) calc(50% + 1px),calc(100% - 13px) calc(50% + 1px);
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+  -webkit-appearance:none;appearance:none;padding-right:36px}
+select option{font-family:var(--body);font-size:16px;font-weight:600;
+  padding:10px 12px;line-height:1.6;color:var(--tinta);background:var(--sup)}
+select option:disabled{color:var(--gris);font-weight:400}
+select:disabled{opacity:.75;background-image:none;padding-right:12px}
 textarea{min-height:80px;resize:vertical}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -3635,7 +3645,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v103 · Facturación corregida</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v104 · contratistas sin repetidos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5611,7 +5621,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='103';
+const VERSION='104';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9302,9 +9312,58 @@ async function formContratista(id){
         <b>Entra por la puerta de Contratista</b> con el usuario <b>${esc(c.username)}</b>.
       </div>`:''}
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      ${id?`
+      <div class="eyebrow">Limpiar repetidos</div>
+      <div class="sub" style="margin-bottom:8px">Si este contratista está duplicado, escoge con cuál se queda. Sus partidas y checadas se pasan al que elijas, y este se borra.</div>
+      <select id="c_mg"><option value="">— escoge con cuál lo fusiono —</option></select>
+      <div style="height:8px"></div>
+      <button class="btn ghost wide" id="c_fus">Fusionar con el elegido</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost wide" id="c_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar este contratista</button>`:''}
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
+
+  if(id){
+    // Llena la lista de con quién fusionar
+    const {data:otros}=await sb.from('contratistas').select('id,nombre,especialidad,username').neq('id',id).order('nombre');
+    const sel=$('#c_mg');
+    (otros||[]).forEach(o=>{
+      const op=document.createElement('option');
+      op.value=o.id;
+      op.textContent=o.nombre + (o.especialidad?' · '+o.especialidad:'') + (o.username?' · entra como '+o.username:'');
+      sel.appendChild(op);
+    });
+
+    $('#c_fus').onclick=async()=>{
+      const destino=sel.value;
+      if(!destino) return toast('Escoge con cuál lo fusiono.');
+      const nom=sel.options[sel.selectedIndex].textContent.split(' · ')[0];
+      if(!confirm('Todo lo de "'+(c.nombre||'')+'" se pasa a "'+nom+'", y "'+(c.nombre||'')+'" se borra. Esto no se puede deshacer. ¿Le seguimos?')) return;
+      try{
+        const r1=await sb.from('partidas').update({contratista_id:destino}).eq('contratista_id',id);
+        if(r1.error) throw r1.error;
+        const r2=await sb.from('asistencias').update({contratista_id:destino}).eq('contratista_id',id);
+        if(r2.error) throw r2.error;
+        const r3=await sb.from('contratistas').delete().eq('id',id);
+        if(r3.error) throw r3.error;
+        cerrar(); toast('Fusionado con '+nom); render();
+      }catch(e){ toast('No se pudo fusionar: '+(e.message||e)); }
+    };
+
+    $('#c_del').onclick=async()=>{
+      const [{count:np},{count:na}] = await Promise.all([
+        sb.from('partidas').select('*',{count:'exact',head:true}).eq('contratista_id',id),
+        sb.from('asistencias').select('*',{count:'exact',head:true}).eq('contratista_id',id)
+      ]);
+      if(np||na) return toast('No se puede borrar: tiene '+(np||0)+' partidas y '+(na||0)+' checadas. Fusiónalo mejor.');
+      if(!confirm('¿Borrar a "'+(c.nombre||'')+'"? No tiene trabajos ni checadas, se va limpio.')) return;
+      const {error}=await sb.from('contratistas').delete().eq('id',id);
+      if(error) return toast('No se pudo borrar: '+error.message);
+      cerrar(); toast('Borrado'); render();
+    };
+  }
+
   $('#sv').onclick=async()=>{
     const p={nombre:$('#c_n').value.trim(),especialidad:$('#c_e').value.trim()||null,telefono:$('#c_t').value.trim()||null,
       username:$('#c_u').value.trim().toLowerCase()||null,
