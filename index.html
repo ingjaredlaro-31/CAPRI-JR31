@@ -1991,7 +1991,7 @@ async function vigilarAvisos(){
     let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at')
       .eq('leida',false).order('created_at',{ascending:false}).limit(4);
     q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
-    if(CANDADO()) q=q.eq('departamento',CANDADO());
+    q=q.eq('departamento',DEPV());
     const {data}=await q;
     const nuevas=(data||[]).filter(x=>new Date(x.created_at).getTime() > ULT_NOTIF);
     if(ULT_NOTIF && nuevas.length){
@@ -2015,7 +2015,7 @@ async function contarNotif(){
   if(!U){ NOTIF=0; return 0; }
   let q=sb.from('notificaciones').select('*',{count:'exact',head:true}).eq('leida',false);
   q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
-  if(CANDADO()) q=q.eq('departamento',CANDADO());
+  q=q.eq('departamento',DEPV());
   const {count}=await q;
   NOTIF=count||0; return NOTIF;
 }
@@ -2037,12 +2037,13 @@ async function avisarReporte(job, esNuevo, servicios, fecha, tipoRep){
 
 async function vNotificaciones(){
   let qn=sb.from('notificaciones')
-    .select('*, jobs(folio,cliente, propiedades(nombre))')
+    .select('*, jobs(folio,cliente,departamento, propiedades(nombre))')
     .order('created_at',{ascending:false}).limit(60);
   qn = U.rol==='tecnico' ? qn.eq('para_usuario',U.id) : qn.neq('para_rol','tecnico');
-  if(CANDADO()) qn=qn.eq('departamento',CANDADO());
+  qn=qn.eq('departamento',DEPV());
   const {data}=await qn;
-  const N=data||[];
+  // Segunda red: si cuelga de un job, manda el área del job.
+  const N=(data||[]).filter(x=>!x.jobs || x.jobs.departamento===DEPV());
   const sinLeer=N.filter(x=>!x.leida);
   setTimeout(()=>{
     const t=$('#todas'); if(t) t.onclick=async()=>{
@@ -3205,7 +3206,7 @@ async function pintaBusca(){
   cont.innerHTML=`<div class="sub">${L('Buscando…','Searching…')}</div>`;
 
   const like='%'+q.replace(/\s+/g,'%')+'%';
-  const CD=CANDADO();
+  const CD=DEPV();
   let qb=sb.from('jobs')
     .select('*, managements(nombre), propiedades(nombre,direccion,ciudad), usuarios(nombre)')
     .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},direccion.ilike.${like},po_number.ilike.${like}`);
@@ -3693,7 +3694,7 @@ function iraBuscar(txt){
       let qj=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento, propiedades(nombre)')
         .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},po_number.ilike.${like}`)
         .order('created_at',{ascending:false}).limit(6);
-      if(CANDADO()) qj=qj.eq('departamento',CANDADO());
+      qj=qj.eq('departamento',DEPV());
       const [{data:J},{data:M}] = await Promise.all([
         qj,
         sb.from('managements').select('id,nombre').ilike('nombre',like).eq('activo',true).limit(4)
@@ -3822,7 +3823,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v105 · navegación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v106 · avisos por área</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5799,7 +5800,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='105';
+const VERSION='106';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6277,9 +6278,12 @@ async function vResumen(){
   (levs||[]).forEach(x=>alertas.push({g:'Reportes iniciales',c:'r',
     t:(x.propiedad_texto||'Levantamiento')+(x.unidad?' · Unit '+x.unidad:''),
     s:'Reporte inicial por revisar · '+(x.tecnico_nombre||'')}));
-  let qnsl=sb.from('notificaciones').select('id,titulo,texto,job_id').eq('leida',false);
-  if(CANDADO()) qnsl=qnsl.eq('departamento',CANDADO());
-  const {data:nsl}=await qnsl.order('created_at',{ascending:false}).limit(20);
+  let qnsl=sb.from('notificaciones').select('id,titulo,texto,job_id,departamento, jobs(departamento)').eq('leida',false);
+  qnsl=qnsl.eq('departamento',DEPV());
+  const {data:nsl0}=await qnsl.order('created_at',{ascending:false}).limit(20);
+  // Segunda red: si el aviso cuelga de un job, manda el área del job.
+  // Así no se cuela nada aunque la columna departamento haya quedado mal.
+  const nsl=(nsl0||[]).filter(x=>!x.jobs || x.jobs.departamento===DEPV());
   (nsl||[]).forEach(x=>alertas.push({g:'Avisos nuevos',c:'a',t:x.titulo,s:x.texto||'',job:x.job_id,nid:x.id}));
   if(new Date().getHours()>=HORA_AVISO)
     faltan.forEach(a=>alertas.push({g:'Reporte de hoy',c:'r',
