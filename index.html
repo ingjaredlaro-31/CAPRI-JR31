@@ -3635,7 +3635,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v102 · área de Facturación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v103 · Facturación corregida</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5611,7 +5611,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='102';
+const VERSION='103';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6764,7 +6764,7 @@ async function vCobranza(){
 
   const T=J||[], E=ES||[];
   const MEST={}; E.forEach(e=>{ if(e.job_id && e.estatus==='aceptado') MEST[e.job_id]=Number(e.monto||0); });
-  const JOBF=new Set(T.filter(x=>x.invoice_num).map(x=>x.id));
+  const JOBF=new Set(T.filter(x=>x.invoice_num||x.estatus==='facturado').map(x=>x.id));
 
   const cierre = x => x.fecha_cierre || x.fecha_inicio || (x.created_at||'').slice(0,10);
   const sugerido = x => Number(x.invoice_monto||0) || Number(x.precio_carpet||0)
@@ -6776,11 +6776,17 @@ async function vCobranza(){
   const esperando   = E.filter(x=>x.estatus==='enviado')
                        .sort((a,b)=>dias(eFecha(b),h)-dias(eFecha(a),h));
   const aceptSinFac = E.filter(x=>x.estatus==='aceptado' && x.job_id && !JOBF.has(x.job_id));
-  const porFacturar = T.filter(x=>!x.invoice_num).sort((a,b)=>dias(cierre(b),h)-dias(cierre(a),h));
-  const porCobrar   = T.filter(x=>x.invoice_num && !x.invoice_pagado)
-                       .sort((a,b)=>(a.invoice_fecha||'').localeCompare(b.invoice_fecha||''));
+  // OJO: un job con estatus 'facturado' YA está facturado, aunque le falte
+  // el número de invoice (los viejos no lo traen porque la columna es nueva).
+  // Solo 'terminado' cuenta como pendiente de facturar.
+  const porFacturar = T.filter(x=>x.estatus==='terminado' && !x.invoice_num)
+                       .sort((a,b)=>dias(cierre(b),h)-dias(cierre(a),h));
+  const porCobrar   = T.filter(x=>(x.estatus==='facturado'||x.invoice_num) && !x.invoice_pagado)
+                       .sort((a,b)=>(a.invoice_fecha||cierre(a)).localeCompare(b.invoice_fecha||cierre(b)));
   const pagadas     = T.filter(x=>x.invoice_pagado)
                        .sort((a,b)=>(b.invoice_pago_fecha||'').localeCompare(a.invoice_pago_fecha||''));
+  // Facturados de antes a los que les falta capturar el número
+  const sinNumero   = porCobrar.filter(x=>!x.invoice_num);
 
   const totF = porFacturar.reduce((a,x)=>a+sugerido(x),0);
   const totC = porCobrar.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
@@ -6807,6 +6813,7 @@ async function vCobranza(){
     m:Number(x.monto||0), acc:'REVISAR'}));
   urge.sort((a,b)=>b.d-a.d);
   const totUrge = urge.reduce((a,x)=>a+x.m,0);
+  const conMonto = urge.filter(x=>x.m>0).length;
 
   const LISTA = COBTAB==='estimados' ? esperando.concat(borradores)
               : COBTAB==='facturar' ? porFacturar
@@ -6832,22 +6839,29 @@ async function vCobranza(){
       <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</b>
         <span class="sub">${x.unidad?'Unit '+esc(x.unidad)+' · ':''}${esc(x.tipo||'')}${x.po_number?' · PO '+esc(x.po_number):''}</span>
         <span class="meta">${esc(x.folio||'')}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}
-          · ${COBTAB==='cobrar'?'facturado hace':'terminado hace'} ${d} ${d===1?'día':'días'}
-          ${COBTAB==='cobrar'&&x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+          · ${COBTAB==='cobrar'?(x.invoice_fecha?'facturado hace':'cerrado hace'):'terminado hace'} ${d} ${d===1?'día':'días'}
+          ${COBTAB==='cobrar'&&x.invoice_num?' · inv '+esc(x.invoice_num):''}</span>
+        ${(COBTAB==='cobrar'&&!x.invoice_num)?'<span class="chip ambar">SIN NÚMERO</span>':''}</div>
       <div style="text-align:right">
         ${VE_DINERO()&&monto?`<div class="disp" style="font-size:17px">${cf(monto)}</div>`:''}
         ${COBTAB==='pagadas'
           ? `<span class="chip azul">PAGADA</span>`
-          : `<button class="btn mini" data-mk="${x.id}">${COBTAB==='facturar'?'FACTURAR':'MARCAR PAGADA'}</button>`}
+          : `<button class="btn mini" data-mk="${x.id}">${COBTAB==='facturar'?'FACTURAR':(x.invoice_num?'MARCAR PAGADA':'CAPTURAR')}</button>`}
       </div></div>`;
   };
 
   return `
     ${selectorDep()}
 
+    ${sinNumero.length?`
+    <div class="alerta" style="margin-bottom:14px;border-left-color:var(--ambar)">
+      <div class="t">${sinNumero.length} ${sinNumero.length===1?'factura vieja sin número':'facturas viejas sin número'}</div>
+      <div class="sub">Están marcadas como facturadas de antes, pero nunca se les capturó el invoice. Búscalas en la pestaña <b>Por cobrar</b> con el chip SIN NÚMERO y ponles su número y monto, o márcalas pagadas si ya te las pagaron.</div>
+    </div>`:''}
+
     ${urge.length?`
     <div class="alerta" style="margin-bottom:16px">
-      <div class="t">${urge.length} ${urge.length===1?'cosa necesita atención':'cosas necesitan atención'}${VE_DINERO()&&totUrge?' · '+cf(totUrge)+' en juego':''}</div>
+      <div class="t">${urge.length} ${urge.length===1?'cosa necesita atención':'cosas necesitan atención'}${(VE_DINERO()&&totUrge)?' · '+cf(totUrge)+(conMonto<urge.length?' en '+conMonto+' con monto':' en juego'):''}</div>
       <div class="sub" style="margin-bottom:10px">Lo más viejo primero. Esto es lo que se te está quedando atorado.</div>
       ${urge.slice(0,8).map(u=>`
         <div class="fila r" data-${u.esEst?'est':'cob'}="${u.id}" style="cursor:pointer;margin-bottom:6px">
@@ -6901,7 +6915,8 @@ function engancharCobranza(){
   });
   document.querySelectorAll('[data-mk]').forEach(b=>b.onclick=e=>{
     e.stopPropagation();
-    COBTAB==='facturar' ? formFacturar(b.dataset.mk) : marcarPagada(b.dataset.mk);
+    (COBTAB==='facturar' || b.textContent.trim()==='CAPTURAR')
+      ? formFacturar(b.dataset.mk) : marcarPagada(b.dataset.mk);
   });
 }
 
