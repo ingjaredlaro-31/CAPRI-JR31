@@ -240,18 +240,22 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
 .btn:active{transform:translateY(1px)}
 /* ── Scope of work como lista de pendientes ── */
 .scope-lista{display:flex;flex-direction:column;gap:1px}
-.scope-r{display:flex;align-items:center;gap:9px;padding:9px 2px;
-  border-bottom:1px solid var(--linea);font-size:15px;line-height:1.45}
+.sc-cab{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;margin-bottom:4px;
+  border-bottom:1px solid var(--linea)}
+.sc-cab b{font-family:var(--disp);font-size:18px;letter-spacing:.01em}
+.sc-cab span{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:var(--gris)}
+.scope-r{display:flex;align-items:flex-start;gap:10px;padding:11px 2px;
+  border-bottom:1px solid var(--linea);font-size:15px;line-height:1.4}
 .scope-r:last-child{border-bottom:0}
-.scope-r.tit{border-bottom:0;padding:13px 2px 4px}
-.scope-r.tit b{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--gris)}
-.scope-r.ya .scope-tx{color:var(--gris)}
-.scope-mk{font-family:var(--mono);color:var(--gris);width:14px;flex:0 0 14px;text-align:center}
+.scope-r.ya b,.scope-r.ya .scope-tx{color:var(--gris)}
+.scope-mk{font-family:var(--mono);color:var(--gris);width:14px;flex:0 0 14px;
+  text-align:center;padding-top:2px}
 .scope-r.ya .scope-mk{color:var(--verde);font-weight:700}
-.scope-tx{flex:1;min-width:0}
-.scope-r .btn.mini{opacity:0;transition:opacity .12s;flex:0 0 auto}
-.scope-r:hover .btn.mini{opacity:1}
+.scope-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.scope-tx b{font-weight:650}
+.scope-tx em{font-style:normal;font-size:12px;color:var(--gris)}
+.sc-med{font-family:var(--mono);font-size:12.5px;color:var(--azul);font-weight:600}
+.scope-r .btn.mini{flex:0 0 auto;margin-top:1px}
 @media(hover:none){ .scope-r .btn.mini{opacity:1} }
 /* ── Encabezados de grupo del menú ── */
 .side .grp{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:#5A6880;
@@ -3838,7 +3842,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v107 · scope a reparaciones</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v108 · scope inteligente</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5815,7 +5819,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='107';
+const VERSION='108';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7789,36 +7793,113 @@ function secc(o){
   </details>`;
 }
 
-/* ============ SCOPE OF WORK · de texto a reparaciones ============
-   Lee el scope renglón por renglón. Los que traen viñeta o medidas
-   son cosas por hacer; los demás son encabezados. */
-function scopeRenglones(txt){
-  if(!txt) return [];
-  const out=[];
-  String(txt).split(/\r?\n/).forEach(ln=>{
-    let t=ln.trim();
-    if(!t) return;
-    // ¿Trae viñeta? Entonces es un punto de trabajo.
-    const conVineta = /^[*\-•·—]\s+/.test(t) || /^\d+[.)]\s+/.test(t);
-    t = t.replace(/^[*\-•·—]\s+/,'').replace(/^\d+[.)]\s+/,'').trim();
-    if(!t) return;
-    // Encabezado: corto, sin medidas, sin viñeta, o termina en dos puntos
-    const esTit = !conVineta && (
-      /:$/.test(t) ||
-      (t.split(/\s+/).length<=5 && !/\d/.test(t))
-    );
-    // Los renglones de puro dato no son trabajo
-    if(/^(date of service|fecha|job|folio|po)\s*:/i.test(t)) return;
-    out.push({txt:t.replace(/:$/,''), tit:esTit});
+/* ====== SCOPE OF WORK · leer y sacar las reparaciones reales ======
+   No toda linea del scope es reparacion. La narrativa (inspecciones,
+   proteccion de pisos, documentacion) se descarta. Lo que cuenta es
+   lo que se REMOVIO (hay que reponerlo) o lo que el scope pide INSTALAR. */
+// Extractor de reparaciones a partir del scope of work
+
+const MATERIALES = [
+  [/\bdry\s*wall|drywall|sheet\s*rock|sheetrock\b/i, 'Drywall'],
+  [/\bbase\s*boards?\b/i,                            'Baseboards'],
+  [/\bcarpet\s*pad|pad\b/i,                          'Carpet pad'],
+  [/\bcarpet\b/i,                                    'Carpet'],
+  [/\binsulation\b/i,                                'Insulation'],
+  [/\bcabinet(ry|s)?\b/i,                            'Cabinets'],
+  [/\bvanity|vanities\b/i,                           'Vanity'],
+  [/\bcounter\s*tops?\b/i,                           'Countertop'],
+  [/\bceiling\b/i,                                   'Ceiling'],
+  [/\btile\b/i,                                      'Tile'],
+  [/\bhard\s*wood\b/i,                               'Hardwood'],
+  [/\bvinyl|lvp|laminate\b/i,                        'Vinyl / laminate'],
+  [/\bsub\s*floor(ing)?\b/i,                         'Subfloor'],
+  [/\bfloor(ing)?\b/i,                               'Flooring'],
+  [/\bdoors?\b/i,                                    'Door'],
+  [/\btrim|casing|molding|moulding\b/i,              'Trim'],
+  [/\bcloset\s*shelv/i,                              'Closet shelving'],
+  [/\bpaint|texture\b/i,                             'Paint / texture'],
+  [/\bmirror\b/i,                                    'Mirror'],
+  [/\btoilet\b/i,                                    'Toilet'],
+  [/\bsink\b/i,                                      'Sink'],
+  [/\bshower|tub\b/i,                                'Shower / tub'],
+  [/\bwall\b/i,                                      'Wall']
+];
+
+// Verbos que SÍ implican reparación
+const QUITAR   = /\b(remov(e|ed|al|ing)|demo(lition|lished|d)?|tear\s*out|cut\s*out|detach(ed)?|extract(ed)?|dispos(e|ed|al)|haul\s*away|quitar|remover|demoler|se\s*quit[oó])\b/i;
+const REPONER  = /\b(install(ed|ation)?|replac(e|ed|ement)|re-?install|repair(ed|s)?|rebuild|restor(e|ation)\s+of|patch(ed)?|re-?texture|re-?paint|instalar|reponer|reparar|reemplaz)\b/i;
+
+// Verbos de narrativa · esto NO es reparación
+const NARRATIVA = /\b(conduct(ed)?|perform(ed)?|utiliz(e|ed)|identif(y|ied)|evaluat(e|ed)|assess(ed|ment)|monitor(ed|ing)|document(ed)?|inspect(ion|ed)|thermal\s*imaging|took\s+(appropriate\s+)?precautions?|maintain(ed)?|protect(ed)?|establish(ed)?|initiat(e|ed)|verif(y|ied)|confirm(ed)?|review(ed)?|note[ds]?|observ(e|ed)|record(ed)?)\b/i;
+
+// Equipo · no es reparación, es renta
+const EQUIPO = /\b(dehumidifier|air\s*mover|air\s*scrubber|hepa|axial|afd|equipment)\b/i;
+
+const AREAS = /\b(guest\s+bed\s*room|master\s+bed\s*room|bed\s*room|bath\s*room|walk-?in\s+closet|closet|hall\s*way|hall|kitchen|living\s+room|dining\s+room|laundry|garage|furnace\s+room|utility\s+room|entry|stairs?|patio|balcony|gym|lobby)\b/ig;
+const MEDIDA = /(\d+(?:\.\d+)?\s*(?:sq\.?\s*ft|sf|lf|ln\.?\s*ft|ft|'|")\s*(?:x\s*\d+(?:\.\d+)?\s*(?:ft|'|")?)?)/ig;
+
+function limpiaMd(t){
+  return t.replace(/\*\*/g,'').replace(/^#{1,6}\s*/,'').replace(/`/g,'').trim();
+}
+
+function esEncabezado(raw){
+  const t=raw.trim();
+  if(/^#{1,6}\s/.test(t)) return true;
+  const l=limpiaMd(t);
+  if(/^\d+[.)]\s+[A-Z]/.test(l) && l.split(/\s+/).length<=8 && !/[.]$/.test(l)) return true;
+  if(/:$/.test(l) && l.split(/\s+/).length<=8) return true;
+  return false;
+}
+
+function extraeReparaciones(scope){
+  if(!scope) return {reps:[], titulos:[], lineas:0};
+  const reps=[]; const vistos=new Set();
+  let seccion='';
+  let lineas=0;
+
+  String(scope).split(/\r?\n/).forEach(raw=>{
+    const t0=raw.trim(); if(!t0) return;
+    if(esEncabezado(t0)){ seccion=limpiaMd(t0).replace(/^\d+[.)]\s*/,'').replace(/:$/,''); return; }
+    const t=limpiaMd(t0).replace(/^[*\-•·—]\s+/,'').replace(/^\d+[.)]\s+/,'').trim();
+    if(!t || t.length<6) return;
+    lineas++;
+
+    // El verbo con el que ABRE el renglón manda. "Maintained floor protection
+    // throughout material removal" trae "removal", pero es narrativa.
+    const primeras = t.split(/\s+/).slice(0,2).join(' ');
+    if(NARRATIVA.test(primeras)) return;
+
+    const quita = QUITAR.test(t), repone = REPONER.test(t);
+    if(!quita && !repone) return;                 // ni quita ni repone: no es reparación
+    if(EQUIPO.test(t) && !repone) return;         // equipo de secado no es reparación
+    // Narrativa gana solo si no hay verbo de quitar/reponer claro
+    if(NARRATIVA.test(t) && !quita && !repone) return;
+
+    // ¿De qué material habla?
+    let mat=null;
+    for(const [rx,nom] of MATERIALES){ if(rx.test(t)){ mat=nom; break; } }
+    if(!mat) return;                               // sin material no hay reparación que armar
+
+    // Área y medida, para el detalle
+    const areas=[...new Set((t.match(AREAS)||[]).map(a=>a.trim()))];
+    const meds =[...new Set((t.match(MEDIDA)||[]).map(m=>m.trim()))];
+
+    const clave=(mat+'|'+areas.join(',')).toLowerCase();
+    if(vistos.has(clave)) return;
+    vistos.add(clave);
+
+    reps.push({
+      nombre: mat,
+      detalle: areas.join(', '),
+      medida: meds.join(' · '),
+      seccion,
+      origen: t,
+      motivo: quita ? 'se removió, hay que reponerlo' : 'el scope pide instalarlo'
+    });
   });
-  // Si no salió ni un punto accionable, no vale la pena la lista
-  return out.some(r=>!r.tit) ? out : [];
+  return {reps, lineas};
 }
-// Clave para comparar si ya existe la reparación, sin picarse con acentos ni signos
-function scopeClave(s){
-  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]/g,'').slice(0,40);
-}
+
 
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
@@ -7905,29 +7986,35 @@ async function abrirJob(id){
         </div></div>`).join('')}`:''}
 
       ${j.scope?(()=>{
-        const reng = scopeRenglones(j.scope);
-        const hechos = new Set(P.map(x=>scopeClave(x.nombre+' '+(x.detalle||''))));
-        const pend = reng.filter(r=>!hechos.has(scopeClave(r.txt)));
-        return `<div class="eyebrow">Scope of work${reng.length?' · '+reng.length+' '+(reng.length===1?'punto':'puntos'):''}</div>
+        const EX = extraeReparaciones(j.scope);
+        const marca = r=>scopeClave(r.nombre+'|'+(r.detalle||''));
+        const hechos = new Set(P.map(x=>scopeClave((x.nombre||'')+'|'+(x.detalle||''))));
+        const pend = EX.reps.filter(r=>!hechos.has(marca(r)));
+        return `<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--azul)">
-        ${reng.length?`
+        ${EX.reps.length?`
+        <div class="sc-cab">
+          <b>${EX.reps.length} ${EX.reps.length===1?'reparación sale':'reparaciones salen'} de este scope</b>
+          <span>${pend.length?pend.length+' sin capturar':'todas ya capturadas'} · revisé ${EX.lineas} renglones</span>
+        </div>
         <div class="scope-lista">
-          ${reng.map((r,i)=>{
-            const ya = hechos.has(scopeClave(r.txt));
-            return `<div class="scope-r ${r.tit?'tit':''} ${ya?'ya':''}">
-              ${r.tit?`<b>${esc(r.txt)}</b>`
-                : `<span class="scope-mk">${ya?'✓':'·'}</span>
-                   <span class="scope-tx">${esc(r.txt)}</span>
-                   ${(EDIT()&&!ya)?`<button class="btn mini no-print" data-sc="${i}">REPARACIÓN</button>`:''}
-                   ${ya?'<span class="chip azul">YA ESTÁ</span>':''}`}
+          ${EX.reps.map((r,i)=>{
+            const ya = hechos.has(marca(r));
+            return `<div class="scope-r ${ya?'ya':''}">
+              <span class="scope-mk">${ya?'&#10003;':'&#9675;'}</span>
+              <span class="scope-tx">
+                <b>${esc(r.nombre)}</b>${r.detalle?' &middot; '+esc(r.detalle):''}${r.medida?' <span class="sc-med">'+esc(r.medida)+'</span>':''}
+                <em>${esc(r.motivo)}${r.seccion?' &middot; '+esc(r.seccion):''}</em>
+              </span>
+              ${(EDIT()&&!ya)?`<button class="btn mini no-print" data-sc="${i}">CAPTURAR</button>`:''}
+              ${ya?'<span class="chip azul">YA ESTA</span>':''}
             </div>`;}).join('')}
         </div>
-        ${(EDIT()&&pend.length>1)?`<div class="row no-print" style="margin-top:10px">
-          <button class="btn sm" id="sc_todo">Crear las ${pend.length} reparaciones que faltan</button></div>`:''}
-        <details style="margin-top:10px"><summary class="vermas">Ver el scope tal cual ▾</summary>
-          <div class="texto" style="margin-top:8px">${esc(j.scope)}</div></details>`
-        :`<div class="texto clamp" id="scope_j">${esc(j.scope)}</div>
-          ${j.scope.length>320?'<button class="vermas" id="vermas_j">Ver todo el scope ▾</button>':''}`}
+        ${(EDIT()&&pend.length>1)?`<div class="row no-print" style="margin-top:11px">
+          <button class="btn sm" id="sc_todo">Capturar las ${pend.length} que faltan</button></div>`:''}`
+        :`<div class="sub" style="margin-bottom:9px">No encontre reparaciones en este scope. Puede que solo describa inspeccion y secado, o que vengan escritas de otra forma. Captura las que falten a mano.</div>`}
+        <details style="margin-top:11px"><summary class="vermas">Ver el scope completo</summary>
+          <div class="texto" style="margin-top:8px">${esc(j.scope)}</div></details>
         ${EDIT()?'<div class="row no-print" style="margin-top:8px"><button class="btn ghost sm" id="edscope">Editar scope</button></div>':''}
       </div>`;})():(EDIT()?`<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--linea)">
@@ -8347,23 +8434,25 @@ async function abrirJob(id){
   const eds=$('#edscope'); if(eds) eds.onclick=()=>editarScope(id, j.scope||'');
 
   // Cada punto del scope se vuelve reparación con un toque
-  const RENG = scopeRenglones(j.scope||'');
+  const EXJ = extraeReparaciones(j.scope||'');
+  const marcaJ = r=>scopeClave(r.nombre+'|'+(r.detalle||''));
   document.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{
-    const r=RENG[+b.dataset.sc]; if(!r) return;
-    formPartida(id, null, r.txt.slice(0,120));
+    const r=EXJ.reps[+b.dataset.sc]; if(!r) return;
+    // Abre la reparación ya con el material puesto; el área y la medida van al detalle
+    formPartida(id, null, r.nombre, [r.detalle,r.medida].filter(Boolean).join(' · '));
   });
   const sct=$('#sc_todo');
   if(sct) sct.onclick=async()=>{
-    const hechos=new Set((PT||[]).map(x=>scopeClave(x.nombre+' '+(x.detalle||''))));
-    const pend=RENG.filter(r=>!r.tit && !hechos.has(scopeClave(r.txt)));
+    const hechos=new Set((PT||[]).map(x=>scopeClave((x.nombre||'')+'|'+(x.detalle||''))));
+    const pend=EXJ.reps.filter(r=>!hechos.has(marcaJ(r)));
     if(!pend.length) return toast('Ya están todas.');
-    if(!confirm('Se van a crear '+pend.length+' reparaciones, una por cada punto del scope.\n\nDespués les pones contratista y costo desde cada una. ¿Le seguimos?')) return;
-    sct.disabled=true; sct.textContent='Creando…';
-    const filas=pend.map(r=>({job_id:id, nombre:r.txt.slice(0,120),
-      clase:'reparacion', estatus:'pendiente', detalle:(j.areas||[]).join(', ')||null}));
+    if(!confirm('Se van a capturar '+pend.length+' reparaciones que salen del scope.\n\nDespués les pones contratista y costo desde cada una. ¿Le seguimos?')) return;
+    sct.disabled=true; sct.textContent='Capturando…';
+    const filas=pend.map(r=>({job_id:id, nombre:r.nombre, clase:'reparacion', estatus:'pendiente',
+      detalle:[r.detalle,r.medida].filter(Boolean).join(' · ')||null}));
     const {error}=await sb.from('partidas').insert(filas);
-    if(error){ sct.disabled=false; return toast('No se pudieron crear: '+error.message); }
-    toast(pend.length+' reparaciones creadas');
+    if(error){ sct.disabled=false; sct.textContent='Reintentar'; return toast('No se pudieron capturar: '+error.message); }
+    toast(pend.length+' reparaciones capturadas');
     abrirJob(id);
   };
   const einv=$('#edinv'); if(einv) einv.onclick=()=>formInvoice(id);
@@ -8834,14 +8923,14 @@ function sugerenciasRep(job, reportes, partidas){
   return out;
 }
 
-async function formPartida(jobId, partidaId, prefill){
+async function formPartida(jobId, partidaId, prefill, prefDetalle){
   const [{data:cat},{data:cons},{data:job},{data:acat}] = await Promise.all([
     sb.from('reparaciones_catalogo').select('nombre').order('orden'),
     sb.from('contratistas').select('id,nombre').eq('activo',true).order('nombre'),
     sb.from('jobs').select('areas').eq('id',jobId).single(),
     sb.from('areas_catalogo').select('nombre').order('orden')
   ]);
-  let p={nombre:prefill||'', detalle:'', cantidad:'', estatus:'pendiente', contratista_id:'', costo:'', cobro:''};
+  let p={nombre:prefill||'', detalle:prefDetalle||'', cantidad:'', estatus:'pendiente', contratista_id:'', costo:'', cobro:''};
   if(partidaId){ const {data}=await sb.from('partidas').select('*').eq('id',partidaId).single(); p=data; }
   const CAT=[...new Set((cat||[]).map(x=>x.nombre).concat(p.nombre?[p.nombre]:[]))];
   const AR=[...new Set(((job&&job.areas)||[]).concat((acat||[]).map(x=>x.nombre)))];
