@@ -3654,6 +3654,7 @@ const IRA_ALIAS = {
   mgmt:'management propiedades clientes complejos',
   equipo:'usuarios personal tecnicos contraseñas acceso',
   import:'google calendar importar calendario',
+  historial:'archivo historial pasado meses estado de cuenta mensual',
   buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
 };
 
@@ -3773,8 +3774,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial']])
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
   // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
@@ -3783,7 +3784,7 @@ function shell(html){
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     estimados:'DINERO', cobranza:'DINERO', horas:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', partes:'DIRECTORIO', equipo:'DIRECTORIO',
-    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS'
+    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO'
   };
   const ORDEN_GRUPOS = ['DÍA A DÍA','TRABAJOS','DINERO','DIRECTORIO','HERRAMIENTAS'];
   const restantes = tabs.filter(t=>t[0]!==inicio);
@@ -3842,7 +3843,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v110 · reporte completo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v111 · historial y estado de cuenta</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3942,6 +3943,7 @@ async function render(){
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
     if(V==='cobranza'){ shell(await vCobranza()); return engancharCobranza(); }
+    if(V==='historial'){ shell(await vHistorial()); return engancharHistorial(); }
     if(V==='import'){
       if(!ES_ADMIN()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Importar el calendario es solo para administración.</p></div>');
       shell(await vImportar()); return gcEnganchar();
@@ -5819,7 +5821,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='110';
+const VERSION='111';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7791,6 +7793,248 @@ function secc(o){
     </summary>
     <div class="s-b">${cuerpo}</div>
   </details>`;
+}
+
+/* ============ ESTADO DE CUENTA MENSUAL + HISTORIAL ============
+   Todo lo que se hizo, guardado y buscable por año, mes y management.
+   El estado de cuenta es el documento que le mandas al management. */
+
+let HIS = {anio:null, mes:'', mg:'', q:''};
+
+async function vHistorial(){
+  const hoyA = Number(hoy().slice(0,4));
+  if(!HIS.anio) HIS.anio = hoyA;
+
+  const d1 = HIS.mes ? `${HIS.anio}-${HIS.mes}-01`
+                     : `${HIS.anio}-01-01`;
+  const d2 = HIS.mes ? finDeMes(HIS.anio, HIS.mes)
+                     : `${HIS.anio}-12-31`;
+
+  let q = sb.from('jobs')
+    .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,po_number,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet, managements(id,nombre), propiedades(nombre)')
+    .eq('departamento',DEPV())
+    .gte('fecha_inicio',d1).lte('fecha_inicio',d2)
+    .order('fecha_inicio',{ascending:false}).limit(1000);
+  if(HIS.mg) q=q.eq('management_id',HIS.mg);
+
+  const [{data:J},{data:MG}] = await Promise.all([
+    q, sb.from('managements').select('id,nombre').eq('activo',true).order('nombre')
+  ]);
+
+  let T = J||[];
+  if(HIS.q){
+    const n=HIS.q.toLowerCase();
+    T = T.filter(x=>[x.folio,x.cliente,x.unidad,x.tipo,x.po_number,x.invoice_num,x.propiedades?.nombre,x.managements?.nombre]
+      .filter(Boolean).some(v=>String(v).toLowerCase().includes(n)));
+  }
+
+  const dinero=VE_DINERO();
+  const monto = x=>Number(x.invoice_monto||0) || Number(x.precio_carpet||0);
+  const facturado = T.filter(x=>x.invoice_num).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const cobrado   = T.filter(x=>x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const anios=[]; for(let a=hoyA; a>=hoyA-6; a--) anios.push(a);
+  const MESES=['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const NOMMES={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
+    '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+
+  // Agrupado por mes cuando ves el año completo
+  const porMes={};
+  T.forEach(x=>{ const m=(x.fecha_inicio||'').slice(5,7)||'??'; (porMes[m]=porMes[m]||[]).push(x); });
+  const meses=Object.keys(porMes).sort().reverse();
+
+  const fila = x=>`<div class="fila" data-hj="${x.id}" style="cursor:pointer">
+    <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</b>
+      <span class="sub">${x.unidad?'Unit '+esc(x.unidad)+' · ':''}${esc(x.tipo||'')}${x.po_number?' · PO '+esc(x.po_number):''}</span>
+      <span class="meta">${esc(x.folio||'')} · ${fmt(x.fecha_inicio)}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+    <div style="text-align:right">
+      ${dinero&&monto(x)?`<div class="disp" style="font-size:16px">${cf(monto(x))}</div>`:''}
+      <span class="chip ${x.invoice_pagado?'verde':x.invoice_num?'azul':x.estatus==='activo'?'ambar':''}">${
+        x.invoice_pagado?'PAGADO':x.invoice_num?'FACTURADO':(x.estatus||'').toUpperCase()}</span></div>
+  </div>`;
+
+  return `
+    ${selectorDep()}
+    <div class="eyebrow">Historial · aquí queda todo</div>
+    <div class="g3" style="margin-bottom:10px">
+      <div><label>Año</label><select id="h_a">${anios.map(a=>`<option ${HIS.anio===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div><label>Mes</label><select id="h_m"><option value="">Todo el año</option>
+        ${MESES.map(m=>`<option value="${m}" ${HIS.mes===m?'selected':''}>${NOMMES[m]}</option>`).join('')}</select></div>
+      <div><label>Management</label><select id="h_g"><option value="">Todos</option>
+        ${(MG||[]).map(m=>`<option value="${m.id}" ${HIS.mg===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select></div>
+    </div>
+    <input id="h_q" value="${esc(HIS.q)}" placeholder="Buscar por folio, unidad, PO, invoice…" style="margin-bottom:12px">
+
+    <div class="row" style="gap:10px;margin-bottom:12px">
+      <div class="stat" style="flex:1"><div class="l">TRABAJOS</div><div class="v">${T.length}</div>
+        <div class="s">${HIS.mes?NOMMES[HIS.mes]+' '+HIS.anio:HIS.anio}</div></div>
+      <div class="stat" style="flex:1"><div class="l">FACTURADO</div>
+        <div class="v" style="color:var(--azul)">${dinero?cf(facturado):T.filter(x=>x.invoice_num).length}</div>
+        <div class="s">${T.filter(x=>x.invoice_num).length} con invoice</div></div>
+      <div class="stat" style="flex:1"><div class="l">COBRADO</div>
+        <div class="v" style="color:var(--verde)">${dinero?cf(cobrado):T.filter(x=>x.invoice_pagado).length}</div>
+        <div class="s">${dinero&&facturado?Math.round(cobrado/facturado*100)+'% del mes':''}</div></div>
+    </div>
+
+    ${HIS.mg?`<button class="btn wide no-print" id="h_edo" style="margin-bottom:14px">
+      Estado de cuenta de ${esc((MG||[]).find(m=>m.id===HIS.mg)?.nombre||'')} · ${HIS.mes?NOMMES[HIS.mes]+' '+HIS.anio:HIS.anio}</button>`
+     :`<div class="sub" style="margin-bottom:14px">Escoge un management arriba para poder generarle su estado de cuenta.</div>`}
+
+    ${!T.length?`<div class="empty"><div class="disp">Nada en este periodo</div>
+      <p>No hay trabajos registrados con esos filtros.</p></div>`
+    : HIS.mes ? T.map(fila).join('')
+    : meses.map(m=>{
+        const L=porMes[m], tot=L.reduce((a,x)=>a+monto(x),0);
+        return `<div class="eyebrow">${NOMMES[m]||m} · ${L.length} ${L.length===1?'trabajo':'trabajos'}${dinero&&tot?' · '+cf(tot):''}</div>
+        ${L.map(fila).join('')}`;
+      }).join('')}`;
+}
+
+function finDeMes(a,m){
+  const d=new Date(Number(a), Number(m), 0);
+  return `${a}-${m}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function engancharHistorial(){
+  engancharDep();
+  const re=()=>render();
+  const a=$('#h_a'); if(a) a.onchange=e=>{HIS.anio=Number(e.target.value); re();};
+  const m=$('#h_m'); if(m) m.onchange=e=>{HIS.mes=e.target.value; re();};
+  const g=$('#h_g'); if(g) g.onchange=e=>{HIS.mg=e.target.value; re();};
+  const q=$('#h_q'); if(q){
+    let t=null;
+    q.oninput=e=>{ clearTimeout(t); const v=e.target.value; t=setTimeout(()=>{HIS.q=v; re();},420); };
+  }
+  document.querySelectorAll('[data-hj]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.hj));
+  const ed=$('#h_edo'); if(ed) ed.onclick=()=>estadoDeCuenta(HIS.mg, HIS.anio, HIS.mes);
+}
+
+/* ============ ESTADO DE CUENTA · el PDF que le mandas al management ============ */
+async function estadoDeCuenta(mgId, anio, mes){
+  if(!mgId) return toast('Escoge primero el management.');
+  toast('Armando el estado de cuenta…');
+  const d1 = mes ? `${anio}-${mes}-01` : `${anio}-01-01`;
+  const d2 = mes ? finDeMes(anio,mes) : `${anio}-12-31`;
+
+  const [{data:mg},{data:J}] = await Promise.all([
+    sb.from('managements').select('*').eq('id',mgId).single(),
+    sb.from('jobs')
+      .select('*, propiedades(nombre)')
+      .eq('management_id',mgId).eq('departamento',DEPV())
+      .gte('fecha_inicio',d1).lte('fecha_inicio',d2)
+      .order('fecha_inicio')
+  ]);
+  const T=J||[];
+  if(!T.length) return toast('No hay trabajos de ese management en el periodo.');
+
+  const E=s=>esc(s==null?'':String(s));
+  const Fc=s=>{ if(!s) return '—'; const d=new Date(s+'T12:00:00');
+    return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); };
+  const NOMMES={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
+    '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+  const periodo = mes ? `${NOMMES[mes]} ${anio}` : `Ejercicio ${anio}`;
+  const M=x=>Number(x.invoice_monto||0)||Number(x.precio_carpet||0);
+
+  const facturados = T.filter(x=>x.invoice_num);
+  const pagados    = T.filter(x=>x.invoice_pagado);
+  const pendientes = facturados.filter(x=>!x.invoice_pagado);
+  const sinFacturar= T.filter(x=>!x.invoice_num && x.estatus==='terminado');
+  const abiertos   = T.filter(x=>x.estatus==='activo');
+  const tFact=facturados.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const tPag =pagados.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const tPend=pendientes.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+
+  const tabla=(lista,conInv)=>`<table><thead><tr>
+    <th>Fecha</th><th>Folio</th><th>Propiedad / unidad</th><th>Servicio</th>
+    ${conInv?'<th>Invoice</th>':''}<th class="n">Importe</th></tr></thead><tbody>
+    ${lista.map(x=>`<tr>
+      <td>${Fc(x.fecha_inicio)}</td><td class="m">${E(x.folio)}</td>
+      <td>${E(x.propiedades?.nombre||x.cliente)}${x.unidad?' · '+E(x.unidad):''}</td>
+      <td>${E(x.tipo)}${x.po_number?'<br><span class="po">PO '+E(x.po_number)+'</span>':''}</td>
+      ${conInv?`<td class="m">${E(x.invoice_num||'—')}${x.invoice_fecha?'<br><span class="po">'+Fc(x.invoice_fecha)+'</span>':''}</td>`:''}
+      <td class="n">${M(x)?cf(M(x)):'—'}</td></tr>`).join('')}
+    </tbody></table>`;
+
+  const doc=`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Estado de cuenta · ${E(mg.nombre)} · ${E(periodo)}</title>
+<style>
+  @page{size:letter;margin:16mm 14mm 18mm}
+  *{box-sizing:border-box}
+  body{font-family:Georgia,'Times New Roman',serif;color:#14181F;font-size:10.5pt;line-height:1.55;margin:0}
+  h1,h2,.m,.n,th,.po,.emp{font-family:'Helvetica Neue',Arial,sans-serif}
+  .port{border-bottom:3px solid #1B56D3;padding-bottom:14px;margin-bottom:20px;overflow:hidden}
+  .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700}
+  h1{font-size:22pt;margin:6px 0 2px}
+  .sub{font-size:11pt;color:#4A5462}
+  .per{float:right;text-align:right}
+  .per .p{font-size:13pt;font-weight:700;font-family:Arial,sans-serif}
+  .per .d{font-size:8.5pt;color:#78828F;font-family:Arial,sans-serif}
+  h2{font-size:9pt;letter-spacing:.16em;text-transform:uppercase;color:#1B56D3;
+    border-bottom:1px solid #D3D9E2;padding-bottom:4px;margin:22px 0 9px}
+  .caja{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 6px}
+  .caja div{border:1px solid #D3D9E2;border-radius:5px;padding:11px 13px}
+  .caja .k{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.1em;
+    text-transform:uppercase;color:#78828F;display:block;margin-bottom:3px}
+  .caja .v{font-size:16pt;font-weight:700;font-family:Arial,sans-serif}
+  .caja .pend .v{color:#C0392B}
+  .caja .pag .v{color:#1E8E5A}
+  table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:9.5pt}
+  th{font-size:7.5pt;letter-spacing:.09em;text-transform:uppercase;text-align:left;
+    color:#4A5462;border-bottom:1.5px solid #14181F;padding:5px 6px}
+  td{padding:5px 6px;border-bottom:1px solid #ECEFF3;vertical-align:top}
+  td.n,th.n{text-align:right;font-family:monospace}
+  td.m{font-family:monospace;font-size:9pt}
+  .po{font-size:7.5pt;color:#78828F}
+  tfoot td{border-top:1.5px solid #14181F;border-bottom:0;font-weight:700;padding-top:7px}
+  .nota{background:#F7F9FC;border-left:2.5px solid #C6CDD6;padding:9px 13px;font-size:9.5pt;margin:10px 0}
+  .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
+    font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
+  .nada{color:#78828F;font-style:italic}
+  @media print{.noimp{display:none}}
+  .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
+    padding:11px 20px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;
+    font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+</style></head><body>
+<button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="port">
+  <div class="per"><div class="p">${E(periodo)}</div>
+    <div class="d">Emitido ${Fc(hoy())}</div></div>
+  <div class="emp">Capri Restoration Services Inc</div>
+  <h1>Estado de cuenta</h1>
+  <div class="sub">${E(mg.nombre)}${mg.telefono?' · '+E(mg.telefono):''}</div>
+</div>
+
+<div class="caja">
+  <div><span class="k">Trabajos del periodo</span><span class="v">${T.length}</span></div>
+  <div class="pag"><span class="k">Pagado</span><span class="v">${cf(tPag)}</span></div>
+  <div class="pend"><span class="k">Saldo pendiente</span><span class="v">${cf(tPend)}</span></div>
+</div>
+<div class="nota">
+  Se facturaron ${facturados.length} ${facturados.length===1?'trabajo':'trabajos'} por un total de <b>${cf(tFact)}</b>.
+  ${pagados.length?`Se recibió pago de ${pagados.length} ${pagados.length===1?'factura':'facturas'} por ${cf(tPag)}.`:''}
+  ${pendientes.length?`${pendientes.length===1?'Queda':'Quedan'} <b>${pendientes.length}</b> ${pendientes.length===1?'factura pendiente':'facturas pendientes'} de pago por <b>${cf(tPend)}</b>.`:'No hay facturas pendientes de pago.'}
+  ${abiertos.length?` Además hay ${abiertos.length} ${abiertos.length===1?'trabajo en proceso que aún no se factura':'trabajos en proceso que aún no se facturan'}.`:''}
+</div>
+
+${pendientes.length?`<h2>Facturas pendientes de pago</h2>${tabla(pendientes,true)}`:''}
+${pagados.length?`<h2>Facturas pagadas</h2>${tabla(pagados,true)}`:''}
+${sinFacturar.length?`<h2>Trabajos concluidos por facturar</h2>${tabla(sinFacturar,false)}`:''}
+${abiertos.length?`<h2>Trabajos en proceso</h2>${tabla(abiertos,false)}`:''}
+
+<h2>Detalle completo del periodo</h2>
+${tabla(T,true).replace('</tbody>',
+  `</tbody><tfoot><tr><td colspan="5">Total del periodo</td>
+   <td class="n">${cf(T.reduce((a,x)=>a+M(x),0))}</td></tr></tfoot>`)}
+
+<div class="pie">
+  Capri Restoration Services Inc · Estado de cuenta de ${E(mg.nombre)} · ${E(periodo)}<br>
+  Cualquier aclaración sobre este documento, favor de comunicarse con nosotros.
+</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
+  w.document.write(doc); w.document.close();
 }
 
 /* ==================== REPORTE COMPLETO DEL TRABAJO ====================
