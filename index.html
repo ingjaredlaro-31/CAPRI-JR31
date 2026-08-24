@@ -238,6 +238,7 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.btn.mini{padding:6px 11px;font-size:12px;letter-spacing:.06em;border-radius:6px;box-shadow:none}
 .btn.ghost{background:var(--sup);color:var(--tinta);border:1px solid #C9CFD6;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .btn.rojo{background:var(--rojo)}
 .btn.wide{width:100%;padding:13px}
@@ -1876,7 +1877,22 @@ function pulsoHTML(datos){
     s:'Nadie los está reportando'});
   if(estViejos.length) n.push({i:'estimados', c:'r', t:`${estViejos.length} ${estViejos.length===1?'estimado lleva':'estimados llevan'} más de una semana`,
     s:'Sin respuesta del management · vale la pena insistir'});
-  if(porCobrar && VE_DINERO()) n.push({i:'estimados', c:'m', t:`${cf(porCobrar)} por cobrar`,
+  // Terminados que nadie ha facturado · esto es lo que se te pierde
+  const sinFact = J.filter(x=>x.estatus==='terminado' && !x.invoice_num);
+  const sinFactViejos = sinFact.filter(x=>dias(x.fecha_cierre||inicioJob(x),h) >= 7);
+  // Facturados que ya se pasaron de 30 días sin pagar
+  const vencidas = J.filter(x=>x.invoice_num && !x.invoice_pagado && x.invoice_fecha
+                              && dias(x.invoice_fecha,h) >= 30);
+
+  if(sinFact.length) n.push({i:'cobranza', c:'r',
+    t:`${sinFact.length} ${sinFact.length===1?'trabajo terminado sin facturar':'trabajos terminados sin facturar'}`,
+    s: sinFactViejos.length
+       ? `${sinFactViejos.length} ${sinFactViejos.length===1?'lleva':'llevan'} más de una semana · el más viejo ${Math.max(...sinFact.map(x=>dias(x.fecha_cierre||inicioJob(x),h)))} días`
+       : 'Ya se pueden cobrar'});
+  if(vencidas.length) n.push({i:'cobranza', c:'r',
+    t:`${vencidas.length} ${vencidas.length===1?'factura vencida':'facturas vencidas'}`,
+    s:`Más de 30 días sin pago${VE_DINERO()?' · '+cf(vencidas.reduce((a,x)=>a+Number(x.invoice_monto||0),0)):''}`});
+  if(porCobrar && VE_DINERO()) n.push({i:'cobranza', c:'m', t:`${cf(porCobrar)} por cobrar`,
     s:'Invoices emitidos que no se han pagado'});
   if(repHoy) n.push({i:'reporte', c:'a', t:`${repHoy} ${repHoy===1?'reporte':'reportes'} de hoy`,
     s:'Ya entraron del campo'});
@@ -3569,8 +3585,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación']])
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
   const esTec = U.rol==='tecnico' || U.rol==='contratista';
@@ -3619,7 +3635,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v100 · importar Google Calendar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v102 · área de Facturación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3717,6 +3733,7 @@ async function render(){
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
+    if(V==='cobranza'){ shell(await vCobranza()); return engancharCobranza(); }
     if(V==='import'){
       if(!ES_ADMIN()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Importar el calendario es solo para administración.</p></div>');
       shell(await vImportar()); return gcEnganchar();
@@ -5594,7 +5611,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='100';
+const VERSION='102';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6534,15 +6551,23 @@ async function vJobs(){
         const rev=g.jobs.reduce((a,x)=>a+etapa(x).revisar,0);
         const sinEst=g.jobs.filter(x=>!etapa(x).tieneEst).length;
         const din=g.jobs.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
-        return `<button class="mos ${rev?'r':sinEst?'m':'a'}" data-jmg="${k}">
+        // Lo que lleva días atorado en este management
+        const sinFac=g.jobs.filter(x=>x.estatus==='terminado' && !x.invoice_num);
+        const diasFac=sinFac.length?Math.max(...sinFac.map(x=>dias(x.fecha_cierre||inicioJob(x),hoy()))):0;
+        const vencidas=g.jobs.filter(x=>x.invoice_num && !x.invoice_pagado && x.invoice_fecha
+                                     && dias(x.invoice_fecha,hoy())>=30);
+        const urgente = diasFac>=7 || vencidas.length;
+        return `<button class="mos ${urgente?'r':rev?'r':sinEst?'m':'a'}" data-jmg="${k}">
           <div class="mos-ic">${svgIC('mgmt')}</div>
           <div class="mos-t">${esc(g.nombre)}</div>
           <div class="mos-s">${props} ${props===1?'propiedad':'propiedades'} · ${g.jobs.length} ${g.jobs.length===1?'trabajo':'trabajos'}</div>
           <div class="mos-b">
+            ${sinFac.length?`<span class="jc-chip rojo">${sinFac.length} SIN FACTURAR${diasFac>=7?' · '+diasFac+'D':''}</span>`:''}
+            ${vencidas.length?`<span class="jc-chip rojo">${vencidas.length} VENCIDA${vencidas.length>1?'S':''}</span>`:''}
             ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
             ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
             ${(din&&VE_DINERO())?`<span class="jc-chip verde">${cf(din)} FACTURADO</span>`:''}
-            ${(!rev&&!sinEst)?'<span class="jc-chip verde">TODO EN ORDEN</span>':''}
+            ${(!rev&&!sinEst&&!sinFac.length&&!vencidas.length)?'<span class="jc-chip verde">TODO EN ORDEN</span>':''}
           </div></button>`;}).join('')}</div>`;
   }
 
@@ -6714,6 +6739,231 @@ async function formTrabajoEspecial(){
     };
   };
   pinta();
+}
+
+/* ==================== COBRANZA · qué falta facturar y cobrar ====================
+   Vive del app, no de QuickBooks. Cuando conectemos QBO, estos mismos
+   campos se llenan solos y la pantalla no cambia. */
+
+let COBTAB = 'estimados';
+
+async function vCobranza(){
+  const h=hoy();
+  const [{data:J},{data:ES}] = await Promise.all([
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,po_number,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,invoice_pago_fecha,precio_carpet,monto_cobrar, managements(nombre), propiedades(nombre)')
+      .eq('departamento',DEPV())
+      .in('estatus',['terminado','facturado'])
+      .order('fecha_cierre',{ascending:true}).limit(400),
+    sb.from('estimados')
+      .select('id,folio,cliente,monto,estatus,fecha_envio,created_at,job_id,departamento')
+      .eq('departamento',DEPV())
+      .in('estatus',['borrador','enviado','aceptado'])
+      .order('created_at',{ascending:true}).limit(300)
+  ]);
+
+  const T=J||[], E=ES||[];
+  const MEST={}; E.forEach(e=>{ if(e.job_id && e.estatus==='aceptado') MEST[e.job_id]=Number(e.monto||0); });
+  const JOBF=new Set(T.filter(x=>x.invoice_num).map(x=>x.id));
+
+  const cierre = x => x.fecha_cierre || x.fecha_inicio || (x.created_at||'').slice(0,10);
+  const sugerido = x => Number(x.invoice_monto||0) || Number(x.precio_carpet||0)
+                     || Number(x.monto_cobrar||0) || MEST[x.id] || 0;
+  const eFecha = e => e.fecha_envio || (e.created_at||'').slice(0,10);
+
+  // ── Las cuatro listas ──
+  const borradores  = E.filter(x=>x.estatus==='borrador');
+  const esperando   = E.filter(x=>x.estatus==='enviado')
+                       .sort((a,b)=>dias(eFecha(b),h)-dias(eFecha(a),h));
+  const aceptSinFac = E.filter(x=>x.estatus==='aceptado' && x.job_id && !JOBF.has(x.job_id));
+  const porFacturar = T.filter(x=>!x.invoice_num).sort((a,b)=>dias(cierre(b),h)-dias(cierre(a),h));
+  const porCobrar   = T.filter(x=>x.invoice_num && !x.invoice_pagado)
+                       .sort((a,b)=>(a.invoice_fecha||'').localeCompare(b.invoice_fecha||''));
+  const pagadas     = T.filter(x=>x.invoice_pagado)
+                       .sort((a,b)=>(b.invoice_pago_fecha||'').localeCompare(a.invoice_pago_fecha||''));
+
+  const totF = porFacturar.reduce((a,x)=>a+sugerido(x),0);
+  const totC = porCobrar.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const totE = esperando.reduce((a,x)=>a+Number(x.monto||0),0);
+  const venc = porCobrar.filter(x=>x.invoice_fecha && dias(x.invoice_fecha,h)>=30);
+
+  // ── LO QUE URGE · lo más viejo de todo, junto ──
+  const urge=[];
+  esperando.filter(x=>dias(eFecha(x),h)>=7).forEach(x=>urge.push({
+    d:dias(eFecha(x),h), tipo:'estimado', id:x.id, esEst:true,
+    t:(x.cliente||'Sin nombre'), s:'estimado enviado sin respuesta',
+    m:Number(x.monto||0), acc:'INSISTIR'}));
+  porFacturar.filter(x=>dias(cierre(x),h)>=7).forEach(x=>urge.push({
+    d:dias(cierre(x),h), tipo:'facturar', id:x.id,
+    t:(x.propiedades?.nombre||x.cliente||'Sin nombre'), s:'terminado y sin facturar',
+    m:sugerido(x), acc:'FACTURAR'}));
+  venc.forEach(x=>urge.push({
+    d:dias(x.invoice_fecha,h), tipo:'cobrar', id:x.id,
+    t:(x.propiedades?.nombre||x.cliente||'Sin nombre'), s:'factura '+(x.invoice_num||'')+' sin pago',
+    m:Number(x.invoice_monto||0), acc:'COBRAR'}));
+  aceptSinFac.forEach(x=>urge.push({
+    d:dias(eFecha(x),h), tipo:'aceptado', id:x.id, esEst:true,
+    t:(x.cliente||'Sin nombre'), s:'estimado aceptado que nunca se facturó',
+    m:Number(x.monto||0), acc:'REVISAR'}));
+  urge.sort((a,b)=>b.d-a.d);
+  const totUrge = urge.reduce((a,x)=>a+x.m,0);
+
+  const LISTA = COBTAB==='estimados' ? esperando.concat(borradores)
+              : COBTAB==='facturar' ? porFacturar
+              : COBTAB==='cobrar' ? porCobrar : pagadas;
+
+  const filaEst = x=>{
+    const d=dias(eFecha(x),h), alerta=x.estatus==='enviado'&&d>=7;
+    return `<div class="fila ${alerta?'r':(x.estatus==='borrador'?'m':'')}" data-est="${x.id}" style="cursor:pointer">
+      <div class="t"><b>${esc(x.cliente||'Sin nombre')}</b>
+        <span class="sub">${esc(x.folio||'')} · ${x.estatus==='borrador'?'borrador sin enviar':'enviado hace '+d+' '+(d===1?'día':'días')}</span>
+        ${alerta?'<span class="meta" style="color:var(--rojo)">Ya urge insistir</span>':''}</div>
+      <div style="text-align:right">
+        ${VE_DINERO()&&x.monto?`<div class="disp" style="font-size:17px">${cf(x.monto)}</div>`:''}
+        <span class="chip ${x.estatus==='borrador'?'ambar':'rojo'}">${x.estatus.toUpperCase()}</span></div>
+    </div>`;
+  };
+
+  const filaJob = x=>{
+    const d = COBTAB==='cobrar' ? dias(x.invoice_fecha||cierre(x),h) : dias(cierre(x),h);
+    const alerta = COBTAB==='cobrar' ? d>=30 : d>=7;
+    const monto = COBTAB==='facturar' ? sugerido(x) : Number(x.invoice_monto||0);
+    return `<div class="fila ${alerta?'r':''}" data-cob="${x.id}" style="cursor:pointer">
+      <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</b>
+        <span class="sub">${x.unidad?'Unit '+esc(x.unidad)+' · ':''}${esc(x.tipo||'')}${x.po_number?' · PO '+esc(x.po_number):''}</span>
+        <span class="meta">${esc(x.folio||'')}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}
+          · ${COBTAB==='cobrar'?'facturado hace':'terminado hace'} ${d} ${d===1?'día':'días'}
+          ${COBTAB==='cobrar'&&x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+      <div style="text-align:right">
+        ${VE_DINERO()&&monto?`<div class="disp" style="font-size:17px">${cf(monto)}</div>`:''}
+        ${COBTAB==='pagadas'
+          ? `<span class="chip azul">PAGADA</span>`
+          : `<button class="btn mini" data-mk="${x.id}">${COBTAB==='facturar'?'FACTURAR':'MARCAR PAGADA'}</button>`}
+      </div></div>`;
+  };
+
+  return `
+    ${selectorDep()}
+
+    ${urge.length?`
+    <div class="alerta" style="margin-bottom:16px">
+      <div class="t">${urge.length} ${urge.length===1?'cosa necesita atención':'cosas necesitan atención'}${VE_DINERO()&&totUrge?' · '+cf(totUrge)+' en juego':''}</div>
+      <div class="sub" style="margin-bottom:10px">Lo más viejo primero. Esto es lo que se te está quedando atorado.</div>
+      ${urge.slice(0,8).map(u=>`
+        <div class="fila r" data-${u.esEst?'est':'cob'}="${u.id}" style="cursor:pointer;margin-bottom:6px">
+          <span class="disp" style="font-size:20px;width:70px;flex:0 0 70px;color:var(--rojo)">${u.d}d</span>
+          <div class="t"><b>${esc(u.t)}</b><span class="sub">${esc(u.s)}</span></div>
+          <div style="text-align:right">
+            ${VE_DINERO()&&u.m?`<div class="disp" style="font-size:16px">${cf(u.m)}</div>`:''}
+            <span class="chip rojo">${u.acc}</span></div>
+        </div>`).join('')}
+      ${urge.length>8?`<div class="sub" style="margin-top:6px">y ${urge.length-8} más abajo</div>`:''}
+    </div>`:`
+    <div class="ok" style="margin-bottom:16px"><div class="t">Todo al corriente.</div>
+      <div class="sub">No hay estimados atorados ni facturas vencidas.</div></div>`}
+
+    <div class="row" style="gap:10px;margin-bottom:14px">
+      <div class="stat" style="flex:1"><div class="l">ESTIMADOS ESPERANDO</div>
+        <div class="v" style="color:var(--ambar)">${VE_DINERO()?cf(totE):esperando.length}</div>
+        <div class="s">${esperando.length} sin respuesta</div></div>
+      <div class="stat" style="flex:1"><div class="l">FALTA FACTURAR</div>
+        <div class="v" style="color:var(--rojo)">${VE_DINERO()?cf(totF):porFacturar.length}</div>
+        <div class="s">${porFacturar.length} ${porFacturar.length===1?'trabajo':'trabajos'}</div></div>
+      <div class="stat" style="flex:1"><div class="l">POR COBRAR</div>
+        <div class="v" style="color:var(--azul)">${VE_DINERO()?cf(totC):porCobrar.length}</div>
+        <div class="s">${venc.length} ${venc.length===1?'vencida':'vencidas'}</div></div>
+    </div>
+
+    <div class="tabs">
+      <button data-ct="estimados" class="${COBTAB==='estimados'?'on':''}">Estimados · ${esperando.length+borradores.length}</button>
+      <button data-ct="facturar" class="${COBTAB==='facturar'?'on':''}">Falta facturar · ${porFacturar.length}</button>
+      <button data-ct="cobrar" class="${COBTAB==='cobrar'?'on':''}">Por cobrar · ${porCobrar.length}</button>
+      <button data-ct="pagadas" class="${COBTAB==='pagadas'?'on':''}">Pagadas · ${pagadas.length}</button>
+    </div>
+
+    ${COBTAB==='facturar'&&porFacturar.length?`<div class="sub" style="margin:10px 0">
+      El monto que ves es el sugerido: sale del estimado aceptado, del precio de Carpet o de lo que capturaste a mano. Lo puedes cambiar al facturar.</div>`:''}
+
+    ${LISTA.length ? LISTA.map(COBTAB==='estimados'?filaEst:filaJob).join('')
+      : `<div class="ok"><div class="t">Nada pendiente aquí.</div>
+         <div class="sub">${COBTAB==='estimados'?'No hay estimados esperando respuesta.'
+           :COBTAB==='facturar'?'Todos los trabajos terminados ya tienen su factura.'
+           :'No hay facturas esperando pago.'}</div></div>`}`;
+}
+
+function engancharCobranza(){
+  engancharDep();
+  document.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{ COBTAB=b.dataset.ct; render(); });
+  document.querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>abrirEstimado(b.dataset.est));
+  document.querySelectorAll('[data-cob]').forEach(b=>b.onclick=e=>{
+    if(e.target.closest('[data-mk]')) return;
+    abrirJob(b.dataset.cob);
+  });
+  document.querySelectorAll('[data-mk]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    COBTAB==='facturar' ? formFacturar(b.dataset.mk) : marcarPagada(b.dataset.mk);
+  });
+}
+
+async function formFacturar(id){
+  const {data:j}=await sb.from('jobs').select('*, propiedades(nombre), managements(nombre)').eq('id',id).single();
+  if(!MIO_DEP(j&&j.departamento)) return sinAcceso();
+  const {data:est}=await sb.from('estimados').select('monto').eq('job_id',id).eq('estatus','aceptado').maybeSingle();
+  const sug = Number(j.precio_carpet||0) || Number(j.monto_cobrar||0) || Number(est?.monto||0) || 0;
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio||'')}</div>
+    <div class="disp" style="font-size:21px;line-height:1">Marcar facturado</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(j.propiedades?.nombre||j.cliente||'')}${j.unidad?' · Unit '+esc(j.unidad):''}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="g2">
+        <div><label>Número de invoice</label><input id="iv_n" class="mono" placeholder="1042"></div>
+        <div><label>Fecha</label><input id="iv_f" type="date" value="${hoy()}"></div>
+      </div>
+      <label>Monto facturado</label>
+      <input class="num" id="iv_m" inputmode="decimal" value="${sug||''}" placeholder="0.00">
+      ${sug?`<div class="sub">Sugerido ${cf(sug)} · ${j.precio_carpet?'precio de Carpet':(est?'del estimado aceptado':'capturado a mano')}</div>`:''}
+      <label>PO number</label>
+      <input id="iv_po" value="${esc(j.po_number||'')}" placeholder="opcional">
+      <div style="height:8px"></div>
+      <label>¿Ya te la pagaron?</label>
+      <div class="si-no" id="iv_pg"><button data-pg="1">Sí</button><button data-pg="0" class="on">No</button></div>
+      <div style="height:14px"></div>
+      <button class="btn wide" id="iv_ok">Guardar</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+
+  let PG=false;
+  $('#c1').onclick=cerrar; $('#c2').onclick=cerrar;
+  document.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{
+    PG=b.dataset.pg==='1';
+    document.querySelectorAll('[data-pg]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+  $('#iv_ok').onclick=async()=>{
+    const num=$('#iv_n').value.trim();
+    if(!num) return toast('Pon el número de invoice.');
+    const monto=Number($('#iv_m').value)||0;
+    const p={invoice_num:num, invoice_fecha:$('#iv_f').value||hoy(),
+      invoice_monto:monto||null, invoice_pagado:PG,
+      invoice_pago_fecha: PG?hoy():null,
+      po_number:$('#iv_po').value.trim()||null, estatus:'facturado'};
+    const {error}=await sb.from('jobs').update(p).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Facturado · invoice '+num); render();
+  };
+}
+
+async function marcarPagada(id){
+  const {data:j}=await sb.from('jobs').select('departamento,invoice_num,invoice_monto').eq('id',id).single();
+  if(!MIO_DEP(j&&j.departamento)) return sinAcceso();
+  if(!confirm('¿Marcar como pagada la invoice '+(j.invoice_num||'')+(j.invoice_monto?' de '+cf(j.invoice_monto):'')+'?')) return;
+  const {error}=await sb.from('jobs').update({invoice_pagado:true, invoice_pago_fecha:hoy()}).eq('id',id);
+  if(error) return toast('No se guardó: '+error.message);
+  toast('Marcada como pagada'); render();
 }
 
 /* ==================== IMPORTAR DE GOOGLE CALENDAR ====================
