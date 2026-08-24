@@ -3842,7 +3842,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v108 · scope inteligente</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v109 · scope inteligente</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5819,7 +5819,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='108';
+const VERSION='109';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7842,6 +7842,29 @@ function limpiaMd(t){
   return t.replace(/\*\*/g,'').replace(/^#{1,6}\s*/,'').replace(/`/g,'').trim();
 }
 
+// Clave para comparar si una reparación ya está capturada,
+// sin picarse con acentos, mayúsculas ni signos.
+function scopeClave(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]/g,'').slice(0,40);
+}
+
+// ¿Esta reparación del scope ya está capturada?
+// Compara con manga ancha: el material tiene que ser el mismo, y si el
+// scope trae área, esa área debe aparecer en el detalle de la partida.
+// Así "Drywall · Guest Bedroom" empata con "Drywall / Guest Bedroom · 1ft x 1ft".
+function yaCapturada(r, partidas){
+  const mat = scopeClave(r.nombre);
+  const area = scopeClave(r.detalle);
+  return (partidas||[]).some(p=>{
+    const pn = scopeClave(p.nombre);
+    if(!pn || (pn!==mat && !pn.includes(mat) && !mat.includes(pn))) return false;
+    if(!area) return true;
+    const pd = scopeClave((p.detalle||'')+(p.nombre||''));
+    return pd.includes(area) || area.includes(pd);
+  });
+}
+
 function esEncabezado(raw){
   const t=raw.trim();
   if(/^#{1,6}\s/.test(t)) return true;
@@ -7987,9 +8010,7 @@ async function abrirJob(id){
 
       ${j.scope?(()=>{
         const EX = extraeReparaciones(j.scope);
-        const marca = r=>scopeClave(r.nombre+'|'+(r.detalle||''));
-        const hechos = new Set(P.map(x=>scopeClave((x.nombre||'')+'|'+(x.detalle||''))));
-        const pend = EX.reps.filter(r=>!hechos.has(marca(r)));
+        const pend = EX.reps.filter(r=>!yaCapturada(r,P));
         return `<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--azul)">
         ${EX.reps.length?`
@@ -7999,7 +8020,7 @@ async function abrirJob(id){
         </div>
         <div class="scope-lista">
           ${EX.reps.map((r,i)=>{
-            const ya = hechos.has(marca(r));
+            const ya = yaCapturada(r,P);
             return `<div class="scope-r ${ya?'ya':''}">
               <span class="scope-mk">${ya?'&#10003;':'&#9675;'}</span>
               <span class="scope-tx">
@@ -8435,7 +8456,6 @@ async function abrirJob(id){
 
   // Cada punto del scope se vuelve reparación con un toque
   const EXJ = extraeReparaciones(j.scope||'');
-  const marcaJ = r=>scopeClave(r.nombre+'|'+(r.detalle||''));
   document.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{
     const r=EXJ.reps[+b.dataset.sc]; if(!r) return;
     // Abre la reparación ya con el material puesto; el área y la medida van al detalle
@@ -8443,8 +8463,7 @@ async function abrirJob(id){
   });
   const sct=$('#sc_todo');
   if(sct) sct.onclick=async()=>{
-    const hechos=new Set((PT||[]).map(x=>scopeClave((x.nombre||'')+'|'+(x.detalle||''))));
-    const pend=EXJ.reps.filter(r=>!hechos.has(marcaJ(r)));
+    const pend=EXJ.reps.filter(r=>!yaCapturada(r,PT));
     if(!pend.length) return toast('Ya están todas.');
     if(!confirm('Se van a capturar '+pend.length+' reparaciones que salen del scope.\n\nDespués les pones contratista y costo desde cada una. ¿Le seguimos?')) return;
     sct.disabled=true; sct.textContent='Capturando…';
