@@ -238,6 +238,32 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Encabezados de grupo del menú ── */
+.side .grp{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:#5A6880;
+  padding:14px 18px 5px;text-transform:uppercase;user-select:none}
+.side .grp:first-of-type{padding-top:8px}
+/* ── Ir a… · buscador rápido ── */
+#iracap{position:fixed;inset:0;z-index:9000;display:flex;align-items:flex-start;justify-content:center}
+.ira-bg{position:absolute;inset:0;background:rgba(6,9,16,.62);backdrop-filter:blur(3px)}
+.ira-box{position:relative;width:min(620px,92vw);margin-top:min(14vh,110px);
+  background:var(--sup);border:1px solid var(--linea);border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.ira-box #iraq{border:0;border-bottom:1px solid var(--linea);border-radius:0;
+  padding:19px 20px;font-size:19px;font-weight:600;background:transparent}
+.ira-box #iraq:focus{outline:0}
+.ira-list{max-height:min(52vh,420px);overflow-y:auto;padding:6px}
+.ira-it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:transparent;border:0;border-radius:9px;padding:11px 13px;cursor:pointer}
+.ira-it.on{background:var(--azul)}
+.ira-it.on .ira-ic,.ira-it.on b,.ira-it.on em{color:#fff}
+.ira-ic{font-family:var(--mono);font-size:14px;color:var(--gris);width:18px;flex:0 0 18px;text-align:center}
+.ira-tx{display:flex;flex-direction:column;min-width:0;flex:1}
+.ira-tx b{font-size:15.5px;font-weight:600;color:var(--tinta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ira-tx em{font-style:normal;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ira-vacio{padding:26px;text-align:center;color:var(--gris);font-size:14px}
+.ira-pie{border-top:1px solid var(--linea);padding:9px 16px;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.05em;color:var(--gris)}
+@media(max-width:640px){ .ira-box{margin-top:6vh} .ira-pie{display:none} }
 .btn.mini{padding:6px 11px;font-size:12px;letter-spacing:.06em;border-radius:6px;box-shadow:none}
 .btn.ghost{background:var(--sup);color:var(--tinta);border:1px solid #C9CFD6;box-shadow:0 1px 2px rgba(11,13,17,.04)}
 .btn.rojo{background:var(--rojo)}
@@ -3587,6 +3613,138 @@ function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
   if(MAPA){try{MAPA.remove();}catch(e){} MAPA=null;}
   portada(); }
 
+/* ==================== IR A… · buscador rápido ====================
+   Ctrl+K o el botón ⌕. Escribes y saltas: a una sección, a un job,
+   a un management o a una propiedad. Sin andar cazando en el menú. */
+
+let MENU_NAV = [];
+let IRA_ABIERTO = false;
+let IRA_SEL = 0;
+let IRA_RES = [];
+let IRA_TIM = null;
+
+// Sinónimos: escribes "factura" y te lleva a Facturación aunque no diga así.
+const IRA_ALIAS = {
+  resumen:'inicio home principal pulso', dia:'control checadas hoy pendientes',
+  jobs:'trabajos obras', inicial:'levantamiento reporte inicial',
+  mapa:'ruta rutas mapa gps direcciones', schedule:'agenda calendario citas',
+  estimados:'estimado cotizacion cotizaciones presupuesto',
+  cobranza:'factura facturas facturacion cobrar pagos invoice dinero',
+  horas:'nomina pago semana', partes:'contratistas subcontratos',
+  mgmt:'management propiedades clientes complejos',
+  equipo:'usuarios personal tecnicos contraseñas acceso',
+  import:'google calendar importar calendario',
+  buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
+};
+
+function iraNorm(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function abrirIrA(){
+  if(IRA_ABIERTO) return cerrarIrA();
+  IRA_ABIERTO=true; IRA_SEL=0;
+  const c=document.createElement('div');
+  c.id='iracap';
+  c.innerHTML=`<div class="ira-bg"></div>
+    <div class="ira-box">
+      <input id="iraq" placeholder="Escribe a dónde quieres ir…" autocomplete="off" spellcheck="false">
+      <div id="iralist" class="ira-list"></div>
+      <div class="ira-pie">↑↓ para moverte · Enter para entrar · Esc para cerrar</div>
+    </div>`;
+  document.body.appendChild(c);
+  c.querySelector('.ira-bg').onclick=cerrarIrA;
+  const q=$('#iraq');
+  q.oninput=()=>iraBuscar(q.value);
+  q.onkeydown=e=>{
+    if(e.key==='Escape'){ e.preventDefault(); return cerrarIrA(); }
+    if(e.key==='ArrowDown'){ e.preventDefault(); IRA_SEL=Math.min(IRA_SEL+1,IRA_RES.length-1); return iraPintar(); }
+    if(e.key==='ArrowUp'){ e.preventDefault(); IRA_SEL=Math.max(IRA_SEL-1,0); return iraPintar(); }
+    if(e.key==='Enter'){ e.preventDefault(); return iraEntrar(IRA_RES[IRA_SEL]); }
+  };
+  iraBuscar('');
+  setTimeout(()=>q.focus(),30);
+}
+
+function cerrarIrA(){
+  IRA_ABIERTO=false;
+  const c=$('#iracap'); if(c) c.remove();
+}
+
+function iraBuscar(txt){
+  const t=iraNorm(txt).trim();
+  // 1. Secciones del menú
+  const secc = MENU_NAV.filter(([k,n])=>{
+    if(!t) return true;
+    return iraNorm(n).includes(t) || iraNorm(IRA_ALIAS[k]||'').includes(t) || iraNorm(k).includes(t);
+  }).map(([k,n])=>({tipo:'nav', k, t:n, s:'sección'}));
+
+  IRA_RES = secc.slice(0,7);
+  IRA_SEL = 0;
+  iraPintar();
+
+  // 2. Jobs, managements y propiedades · solo si escribió algo
+  clearTimeout(IRA_TIM);
+  if(t.length<2) return;
+  IRA_TIM=setTimeout(async()=>{
+    if(!IRA_ABIERTO) return;
+    const like='%'+txt.trim().replace(/\s+/g,'%')+'%';
+    try{
+      let qj=sb.from('jobs').select('id,folio,cliente,unidad,tipo,estatus,departamento, propiedades(nombre)')
+        .or(`folio.ilike.${like},cliente.ilike.${like},unidad.ilike.${like},po_number.ilike.${like}`)
+        .order('created_at',{ascending:false}).limit(6);
+      if(CANDADO()) qj=qj.eq('departamento',CANDADO());
+      const [{data:J},{data:M}] = await Promise.all([
+        qj,
+        sb.from('managements').select('id,nombre').ilike('nombre',like).eq('activo',true).limit(4)
+      ]);
+      if(!IRA_ABIERTO) return;
+      const extra = [
+        ...(J||[]).map(j=>({tipo:'job', k:j.id,
+          t:(j.propiedades?.nombre||j.cliente||'Sin nombre')+(j.unidad?' · '+j.unidad:''),
+          s:(j.folio||'')+' · '+(j.tipo||'')+' · '+(j.estatus||'')})),
+        ...(M||[]).map(m=>({tipo:'mgmt', k:m.id, t:m.nombre, s:'management'}))
+      ];
+      IRA_RES = secc.slice(0,4).concat(extra);
+      if(IRA_SEL>=IRA_RES.length) IRA_SEL=0;
+      iraPintar();
+    }catch(e){}
+  },220);
+}
+
+function iraPintar(){
+  const l=$('#iralist'); if(!l) return;
+  if(!IRA_RES.length){
+    l.innerHTML='<div class="ira-vacio">Nada con ese nombre.</div>'; return;
+  }
+  const ic = {nav:'→', job:'▣', mgmt:'▤'};
+  l.innerHTML = IRA_RES.map((r,i)=>`
+    <button class="ira-it ${i===IRA_SEL?'on':''}" data-i="${i}">
+      <span class="ira-ic">${ic[r.tipo]||'→'}</span>
+      <span class="ira-tx"><b>${esc(r.t)}</b><em>${esc(r.s)}</em></span>
+    </button>`).join('');
+  l.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>iraEntrar(IRA_RES[+b.dataset.i]));
+  const on=l.querySelector('.on'); if(on) on.scrollIntoView({block:'nearest'});
+}
+
+function iraEntrar(r){
+  if(!r) return;
+  cerrarIrA();
+  if(r.tipo==='nav'){ V=r.k; return render(); }
+  if(r.tipo==='job')  return abrirJob(r.k);
+  if(r.tipo==='mgmt') return abrirManagement(r.k);
+}
+
+// Atajos de teclado
+document.addEventListener('keydown', e=>{
+  if(!U) return;
+  const enCampo = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''));
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); return abrirIrA(); }
+  if(e.key==='Escape' && IRA_ABIERTO) return cerrarIrA();
+  // Barra diagonal abre el buscador, como en GitHub
+  if(e.key==='/' && !enCampo && !IRA_ABIERTO){ e.preventDefault(); return abrirIrA(); }
+});
+
 /* ============================ SHELL ============================ */
 function shell(html){
   const inicio = U.rol==='tecnico' ? 'dia' : 'resumen';
@@ -3599,6 +3757,24 @@ function shell(html){
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación']])
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
+  // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
+  const GRUPO_DE = {
+    dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA',
+    jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
+    estimados:'DINERO', cobranza:'DINERO', horas:'DINERO', cpartes:'DINERO', choras:'DINERO',
+    mgmt:'DIRECTORIO', partes:'DIRECTORIO', equipo:'DIRECTORIO',
+    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS'
+  };
+  const ORDEN_GRUPOS = ['DÍA A DÍA','TRABAJOS','DINERO','DIRECTORIO','HERRAMIENTAS'];
+  const restantes = tabs.filter(t=>t[0]!==inicio);
+  const menuHTML = ORDEN_GRUPOS.map(g=>{
+    const items = restantes.filter(t=>(GRUPO_DE[t[0]]||'HERRAMIENTAS')===g);
+    if(!items.length) return '';
+    return `<div class="grp">${g}</div>` + items.map(([k,t])=>
+      `<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}<span>${t}</span></button>`).join('');
+  }).join('');
+  MENU_NAV = restantes;
+
   const esTec = U.rol==='tecnico' || U.rol==='contratista';
   const depTec = esTec ? U.departamento : DEP;
   const azulRojo = depTec==='cleaning';
@@ -3615,7 +3791,7 @@ function shell(html){
           : 'ADMINISTRADOR')}</div>
       </div>
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}<span>${esTec?T('Inicio'):BI('Resumen','Home')}</span></button></div>
-      ${tabs.filter(t=>t[0]!==inicio).map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}<span>${t}</span></button>`).join('')}
+      ${menuHTML}
       <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}<span>${esTec?T('Avisos'):BI('Avisos','Alerts')}${NOTIF?` (${NOTIF})`:''}</span></button>
       <button data-v="salir" style="margin-top:22px;color:#6B7280"><span>${esTec?T('Salir'):BI('Salir','Log out')}</span></button>
     </div>
@@ -3626,6 +3802,7 @@ function shell(html){
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
+        <button class="temabtn" id="irabtn" title="Ir a… (Ctrl+K)" style="margin-left:8px;font-size:15px">⌕</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${
@@ -3645,7 +3822,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v104 · contratistas sin repetidos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v105 · navegación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3659,6 +3836,7 @@ function shell(html){
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
+  const bir=$('#irabtn'); if(bir) bir.onclick=abrirIrA;
   const bi2=$('#idioma'); if(bi2) bi2.onclick=cambiarIdioma;
   const bs=$('#sonido'); if(bs) bs.onclick=()=>{
     SONIDO=!SONIDO;
@@ -5621,7 +5799,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='104';
+const VERSION='105';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
