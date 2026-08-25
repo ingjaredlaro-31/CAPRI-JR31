@@ -238,6 +238,10 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Versión visible: si subes un archivo y este número no cambia, no subió. */
+.vbadge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:4px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:#fff;opacity:.9}
 /* ── Invoices estilo QuickBooks ── */
 .qb-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
 .qb-k{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--gris);
@@ -3943,7 +3947,7 @@ function shell(html){
             U.rol==='contratista' ? 'CAPRI · CONTRATISTA'
             : esTec ? (depTec==='cleaning'?'CAPRI · CARPET DEPARTMENT':'CAPRI · RESTORATION')
             : U.rol==='gerente' ? (U.departamento==='cleaning'?'CAPRI · CARPET DEPARTMENT':'CAPRI · GERENCIA')
-            : 'CAPRI · ADMIN CENTRAL'} <span style="opacity:.55">· v${VERSION}</span></div>
+            : 'CAPRI · ADMIN CENTRAL'} <span class="vbadge">v${VERSION}</span></div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
         <div class="quien">
@@ -3956,7 +3960,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v116 · invoices estilo QuickBooks</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v118 · facturar Carpet a la vista</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5942,7 +5946,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='116';
+const VERSION='118';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6313,7 +6317,7 @@ async function rutaDelTecnico(){
 async function vResumen(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:part},{data:ests},{data:recs}] = await Promise.all([
-    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,origen,docs,lat,lng, propiedades(nombre,lat,lng)'),
+    sb.from('jobs').select('id,folio,cliente,departamento,estatus,tipo,direccion,ciudad,unidad,created_at,fecha_inicio,fecha_cierre,origen,docs,lat,lng,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet,monto_cobrar, propiedades(nombre,lat,lng)'),
     sb.from('asignaciones').select('*, jobs(id,folio,cliente,departamento,unidad,tipo,estatus,direccion,ciudad,precio_carpet, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
     sb.from('reportes').select('job_id,tecnico_id').eq('fecha',h),
     sb.from('partidas').select('*, jobs(folio,cliente,departamento,unidad, propiedades(nombre)), contratistas(nombre)'),
@@ -6341,6 +6345,16 @@ async function vResumen(){
     engancharDep();
     document.querySelectorAll('[data-jobag]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.jobag));
     const ne2=$('#nuevoesp'); if(ne2) ne2.onclick=()=>formTrabajoEspecial();
+    const irf=$('#ir_fact'); if(irf) irf.onclick=()=>{ V='cobranza'; render(); };
+    document.querySelectorAll('[data-facj]').forEach(b=>b.onclick=e=>{
+      if(e.target.closest('[data-facb]')) return;
+      abrirJob(b.dataset.facj);
+    });
+    document.querySelectorAll('[data-facb]').forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      if(!FACTURA()) return toast('No tienes permiso para facturar.');
+      formInvoiceCarpet(b.dataset.facb);
+    });
     const bm=$('#irmapa'); if(bm) bm.onclick=()=>{V='mapa';render();};
     const wd=$('#wadiario');
     if(wd) wd.onclick=async()=>{
@@ -6507,7 +6521,40 @@ async function vResumen(){
       </div>`;}).join('')
     : `<div class="ok"><div class="t">Hoy no hay nada agendado.</div>
        <div class="sub">Administración te vacía la agenda aquí. También puedes crear un trabajo especial con el botón de abajo.</div></div>`}
-    ${EDIT()?`<button class="btn wide no-print" id="nuevoesp" style="margin:12px 0 18px">+ Trabajo especial · tú pones el precio</button>`:''}`;
+    ${EDIT()?`<button class="btn wide no-print" id="nuevoesp" style="margin:12px 0 18px">+ Trabajo especial · tú pones el precio</button>`:''}
+
+    ${(()=>{
+      // Facturación de Carpet, a la vista. Lo que Carlos tiene que facturar
+      // y lo que ya facturó pero no le han pagado.
+      const porFac = J.filter(x=>x.estatus==='terminado' && !x.invoice_num);
+      const abiertas = J.filter(x=>x.invoice_num && !x.invoice_pagado);
+      const tFac = porFac.reduce((a,x)=>a+(Number(x.precio_carpet||0)||Number(x.monto_cobrar||0)),0);
+      const tAbi = abiertas.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+      if(!porFac.length && !abiertas.length) return '';
+      return `
+      <div class="eyebrow">Facturación de Carpet</div>
+      <div class="row" style="gap:10px;margin-bottom:10px">
+        <div class="stat" style="flex:1"><div class="l">POR FACTURAR</div>
+          <div class="v" style="color:var(--rojo)">${VE_DINERO()&&tFac?cf(tFac):porFac.length}</div>
+          <div class="s">${porFac.length} ${porFac.length===1?'trabajo terminado':'trabajos terminados'}</div></div>
+        <div class="stat" style="flex:1"><div class="l">SIN COBRAR</div>
+          <div class="v" style="color:var(--azul)">${VE_DINERO()&&tAbi?cf(tAbi):abiertas.length}</div>
+          <div class="s">${abiertas.length} ${abiertas.length===1?'factura abierta':'facturas abiertas'}</div></div>
+      </div>
+      ${porFac.length?porFac.slice(0,6).map(x=>{
+        const d=dias(x.fecha_cierre||inicioJob(x),hoy());
+        return `<div class="fila ${d>=2?'r':'m'}" data-facj="${x.id}" style="cursor:pointer">
+          <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</b>
+            <span class="sub">${x.unidad?'Unit '+esc(x.unidad)+' · ':''}${esc(x.tipo||'')}</span>
+            <span class="meta">${esc(x.folio||'')} · terminado hace ${d} ${d===1?'día':'días'}</span></div>
+          <div style="text-align:right">
+            ${FACTURA()?`<button class="btn mini" data-facb="${x.id}">FACTURAR</button>`
+             :'<span class="chip ambar">PENDIENTE</span>'}</div>
+        </div>`;}).join(''):''}
+      ${porFac.length>6?`<div class="sub">y ${porFac.length-6} más</div>`:''}
+      <button class="btn ghost wide no-print" id="ir_fact" style="margin:10px 0 18px">
+        Ver todas las facturas de Carpet</button>`;
+    })()}`;
     })():''}
 
     ${faltantes.length?`<div class="alerta" style="margin-bottom:14px">
@@ -8379,7 +8426,9 @@ async function vPrecios(){
   return `
     ${selectorDep()}
     <div class="eyebrow">Catálogo de precios · ${C.length}</div>
-    <div class="sub" style="margin-bottom:12px">De aquí salen los renglones de los invoices. Si un trabajo lleva un precio distinto, se agrega como renglón especial sin tocar el catálogo.</div>
+    <div class="sub" style="margin-bottom:12px">${ES_ADMIN()
+      ? 'De aquí salen los renglones de los invoices. Si un trabajo lleva un precio distinto, se agrega como renglón especial sin tocar el catálogo.'
+      : 'Estos son los precios autorizados. Solo administración los cambia. Si un trabajo lleva otro precio, mételo como <b>renglón especial</b> al facturar.'}</div>
     ${ES_ADMIN()?`<button class="btn wide" id="pr_n" style="margin-bottom:14px">+ Agregar concepto</button>`:''}
     ${C.length? C.map(p=>`<div class="fila ${p.activo?'':'gris'}" ${ES_ADMIN()?`data-pr="${p.id}" style="cursor:pointer"`:''}>
       <div class="t"><b>${esc(p.concepto)}</b>
@@ -8398,6 +8447,10 @@ function engancharPrecios(){
 }
 
 async function formPrecio(id){
+  // El catálogo solo lo edita administración (Jared y Julio).
+  // Carlos lo ve para facturar, pero no cambia precios: si un trabajo
+  // lleva otro precio, lo mete como renglón especial en su invoice.
+  if(!ES_ADMIN()){ cerrar(); return toast('Solo administración puede cambiar los precios.'); }
   let p={concepto:'',unidad:'cuarto',precio:'',notas:'',activo:true,orden:100,departamento:DEPV()};
   if(id){ const {data}=await sb.from('precios_catalogo').select('*').eq('id',id).single(); p=data; }
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
