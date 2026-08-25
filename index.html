@@ -238,6 +238,75 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Invoices estilo QuickBooks ── */
+.qb-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.qb-k{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--gris);
+  border-radius:9px;padding:12px 14px}
+.qb-k.abi{border-top-color:var(--azul)} .qb-k.ven{border-top-color:var(--rojo)}
+.qb-k.pag{border-top-color:var(--verde)}
+.qb-k span{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;color:var(--gris)}
+.qb-k b{display:block;font-family:var(--disp);font-size:26px;line-height:1.1;margin:4px 0 1px}
+.qb-k.ven b{color:var(--rojo)} .qb-k.abi b{color:var(--azul)} .qb-k.pag b{color:var(--verde)}
+.qb-k i{font-style:normal;font-size:11.5px;color:var(--gris)}
+.qb-age{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--linea);
+  border:1px solid var(--linea);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.qb-age div{background:var(--sup);padding:9px 10px;text-align:center}
+.qb-age div.hay{background:var(--rojo-l)}
+.qb-age span{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--gris)}
+.qb-age b{font-family:var(--mono);font-size:13.5px}
+.qb-age div.hay b{color:var(--rojo)}
+.qb-h,.qb-r{display:grid;grid-template-columns:78px 1fr 118px 104px 118px 104px;
+  gap:10px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--linea)}
+.qb-h{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:var(--gris);
+  border-bottom:1.5px solid var(--tinta);padding:7px 8px}
+.qb-r{cursor:pointer}
+.qb-r:hover{background:var(--sup2)}
+.qb-n{font-family:var(--mono);font-size:13.5px;font-weight:600}
+.qb-cl{min-width:0}
+.qb-cl b{display:block;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qb-cl span{display:block;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qb-cl .qb-fo{font-family:var(--mono);font-size:10.5px}
+.qb-f{font-size:12.5px}
+.qb-f span{display:block;font-size:10.5px;color:var(--gris)}
+.qb-m{font-family:var(--mono);font-size:15px;font-weight:600;text-align:right}
+.qb-e{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+  padding:3px 9px;border-radius:4px;border:1px solid}
+.qb-e.pag{color:var(--verde);border-color:var(--verde)}
+.qb-e.abi{color:var(--azul);border-color:var(--azul)}
+.qb-e.ven{color:var(--rojo);border-color:var(--rojo);background:var(--rojo-l)}
+.qb-e.bor{color:var(--gris);border-color:var(--linea)}
+.qb-a{text-align:right}
+@media(max-width:760px){
+  .qb-h{display:none}
+  .qb-r{grid-template-columns:1fr auto;gap:5px;padding:12px 4px}
+  .qb-n{grid-column:1;font-size:12px;color:var(--gris)}
+  .qb-cl{grid-column:1;grid-row:2}
+  .qb-f{grid-column:1;grid-row:3}
+  .qb-m{grid-column:2;grid-row:2;text-align:right}
+  .qb-s{grid-column:2;grid-row:1;text-align:right}
+  .qb-a{grid-column:2;grid-row:3}
+  .qb-age{grid-template-columns:repeat(3,1fr)}
+}
+/* ── Renglones del invoice ── */
+.inv-tab{border-top:1px solid var(--linea)}
+.inv-r{display:grid;grid-template-columns:1fr 58px 58px 78px 84px 30px;gap:6px;
+  align-items:center;padding:7px 0;border-bottom:1px solid var(--linea)}
+.inv-c{display:flex;align-items:center;gap:6px;min-width:0}
+.inv-r input{padding:7px 8px;font-size:14px;border-radius:5px}
+.inv-r .inv-q,.inv-r .inv-p{text-align:right;font-family:var(--mono);font-size:13px}
+.inv-u{font-family:var(--mono);font-size:10.5px;color:var(--gris);text-align:center}
+.inv-t{font-family:var(--mono);font-size:13.5px;font-weight:600;text-align:right}
+.inv-x{background:transparent;border:0;color:var(--gris);cursor:pointer;font-size:15px;padding:4px}
+.inv-x:hover{color:var(--rojo)}
+.inv-tot{margin:14px 0 4px;padding:11px 13px;background:var(--sup2);border-radius:9px}
+.inv-tot div{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14.5px}
+.inv-tot b{font-family:var(--mono);font-weight:600}
+.inv-tot .gr{border-top:1.5px solid var(--tinta);margin-top:7px;padding-top:9px}
+.inv-tot .gr b{font-family:var(--disp);font-size:23px}
+@media(max-width:520px){
+  .inv-r{grid-template-columns:1fr 46px 44px 66px 72px 26px;gap:4px}
+  .inv-r input{padding:6px;font-size:13px}
+}
 /* ── Secciones del job como mosaico ── */
 .sx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
   gap:9px;margin:6px 0 4px}
@@ -1025,6 +1094,9 @@ const iso = d => d.toLocaleDateString('en-CA');
 const ES_ADMIN  = () => U && U.rol==='admin';                       // Jared · todo
 const ES_GEREN  = () => U && U.rol==='gerente';                     // Julio y Carlos
 const EDIT      = () => U && ['admin','gerente','oficina'].includes(U.rol);
+// Quién puede facturar: Jared y Julio (admin) y Carlos (gerente).
+// Los técnicos de Carpet NO facturan, solo dejan su reporte.
+const FACTURA   = () => U && ['admin','gerente'].includes(U.rol);
 const BORRAR    = () => ES_ADMIN();
 const VE_DINERO = () => U && ['admin','gerente'].includes(U.rol);
 // Los gerentes de un área solo ven su área
@@ -1964,6 +2036,13 @@ function pulsoHTML(datos){
     s:'Nadie los está reportando'});
   if(estViejos.length) n.push({i:'estimados', c:'r', t:`${estViejos.length} ${estViejos.length===1?'estimado lleva':'estimados llevan'} más de una semana`,
     s:'Sin respuesta del management · vale la pena insistir'});
+  // Facturación al día: lo que se terminó hoy o ayer y todavía no se factura
+  const alDia = J.filter(x=>x.estatus==='terminado' && !x.invoice_num
+                          && dias(x.fecha_cierre||inicioJob(x),h) <= 1);
+  if(alDia.length) n.push({i:'cobranza', c:'r',
+    t:`${alDia.length} ${alDia.length===1?'trabajo terminado sin facturar hoy':'trabajos terminados sin facturar hoy'}`,
+    s:'Factúralos el mismo día · después se olvidan'});
+
   // Terminados que nadie ha facturado · esto es lo que se te pierde
   const sinFact = J.filter(x=>x.estatus==='terminado' && !x.invoice_num);
   const sinFactViejos = sinFact.filter(x=>dias(x.fecha_cierre||inicioJob(x),h) >= 7);
@@ -3687,6 +3766,7 @@ const IRA_ALIAS = {
   equipo:'usuarios personal tecnicos contraseñas acceso',
   import:'google calendar importar calendario',
   historial:'archivo historial pasado meses estado de cuenta mensual',
+  precios:'precios catalogo lista de precios tarifas costos',
   buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
 };
 
@@ -3806,8 +3886,9 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['precios',BI('Precios','Price list')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['precios','Precios']])
+      .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
   // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
@@ -3816,7 +3897,7 @@ function shell(html){
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     estimados:'DINERO', cobranza:'DINERO', horas:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', partes:'DIRECTORIO', equipo:'DIRECTORIO',
-    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO'
+    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO'
   };
   const ORDEN_GRUPOS = ['DÍA A DÍA','TRABAJOS','DINERO','DIRECTORIO','HERRAMIENTAS'];
   const restantes = tabs.filter(t=>t[0]!==inicio);
@@ -3875,7 +3956,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v114 · cuadrícula + facturados</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v116 · invoices estilo QuickBooks</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3974,8 +4055,16 @@ async function render(){
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
     if(V==='estimados') return shell(await vEstimados());
-    if(V==='cobranza'){ shell(await vCobranza()); return engancharCobranza(); }
+    if(V==='cobranza'){
+      if(U.rol==='tecnico') return shell('<div class="empty"><div class="disp">Sin acceso</div><p>La facturación es de administración y gerencia.</p></div>');
+      if(DEPV()==='cleaning'){ shell(await vInvoicesCarpet()); return engancharInvoicesCarpet(); }
+      shell(await vCobranza()); return engancharCobranza();
+    }
     if(V==='historial'){ shell(await vHistorial()); return engancharHistorial(); }
+    if(V==='precios'){
+      if(!FACTURA()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>El catálogo de precios es de administración y gerencia.</p></div>');
+      shell(await vPrecios()); return engancharPrecios();
+    }
     if(V==='import'){
       if(!ES_ADMIN()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Importar el calendario es solo para administración.</p></div>');
       shell(await vImportar()); return gcEnganchar();
@@ -5853,7 +5942,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='114';
+const VERSION='116';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7866,6 +7955,497 @@ function secc(o){
   </details>`;
 }
 
+/* ============ INVOICES · vista estilo QuickBooks (solo Carpet) ============
+   Lista de facturas con estatus, vencimiento y antigüedad de saldo.
+   Facturan Jared, Julio y Carlos. Los técnicos no entran aquí. */
+
+let QBTAB = 'todas';
+
+const TERMINOS = {'inmediato':0,'net15':15,'net30':30,'net45':45,'net60':60};
+
+function venceEl(fecha, terminos){
+  const d = TERMINOS[terminos||'net30'] ?? 30;
+  const x = new Date((fecha||hoy())+'T12:00:00');
+  x.setDate(x.getDate()+d);
+  return x.toISOString().slice(0,10);
+}
+
+async function vInvoicesCarpet(){
+  const h=hoy();
+  const {data:J} = await sb.from('jobs')
+    .select('id,folio,cliente,unidad,tipo,estatus,fecha_cierre,fecha_inicio,created_at,po_number,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,invoice_pago_fecha,invoice_vence,invoice_terminos,invoice_renglones,precio_carpet, managements(nombre), propiedades(nombre)')
+    .eq('departamento','cleaning')
+    .or('estatus.in.(terminado,facturado),invoice_num.not.is.null')
+    .order('invoice_fecha',{ascending:false}).limit(500);
+
+  const T=J||[];
+  const vence = x => x.invoice_vence || venceEl(x.invoice_fecha, x.invoice_terminos);
+  const diasV = x => x.invoice_fecha ? dias(vence(x), h) : 0;   // + = vencida
+
+  const borrador = T.filter(x=>!x.invoice_num);                       // por facturar
+  const abiertas = T.filter(x=>x.invoice_num && !x.invoice_pagado);
+  const vencidas = abiertas.filter(x=>diasV(x)>0);
+  const alCorr   = abiertas.filter(x=>diasV(x)<=0);
+  const pagadas  = T.filter(x=>x.invoice_pagado);
+
+  const M = x=>Number(x.invoice_monto||0)||Number(x.precio_carpet||0);
+  const tAbier=abiertas.reduce((a,x)=>a+M(x),0);
+  const tVenc =vencidas.reduce((a,x)=>a+M(x),0);
+  const tBorr =borrador.reduce((a,x)=>a+M(x),0);
+
+  // Antigüedad del saldo, como el aging report de QuickBooks
+  const bucket = x=>{ const d=diasV(x);
+    return d<=0?'corriente' : d<=30?'1-30' : d<=60?'31-60' : d<=90?'61-90' : '90+'; };
+  const AG={corriente:0,'1-30':0,'31-60':0,'61-90':0,'90+':0};
+  abiertas.forEach(x=>{ AG[bucket(x)] += M(x); });
+
+  const LISTA = QBTAB==='borrador'? borrador
+              : QBTAB==='abiertas'? abiertas
+              : QBTAB==='vencidas'? vencidas
+              : QBTAB==='pagadas' ? pagadas : T;
+
+  const chip = x=>{
+    if(x.invoice_pagado) return '<span class="qb-e pag">PAGADA</span>';
+    if(!x.invoice_num)   return '<span class="qb-e bor">POR FACTURAR</span>';
+    const d=diasV(x);
+    if(d>0) return `<span class="qb-e ven">VENCIDA ${d}d</span>`;
+    return `<span class="qb-e abi">ABIERTA</span>`;
+  };
+
+  const fila = x=>`<div class="qb-r" data-qb="${x.id}">
+    <div class="qb-n">${x.invoice_num?esc(x.invoice_num):'—'}</div>
+    <div class="qb-cl"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</b>
+      <span>${x.unidad?'Unit '+esc(x.unidad)+' · ':''}${esc(x.tipo||'')}${x.po_number?' · PO '+esc(x.po_number):''}</span>
+      <span class="qb-fo">${esc(x.folio||'')}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}</span></div>
+    <div class="qb-f">${x.invoice_fecha?fmt(x.invoice_fecha):'—'}
+      <span>${x.invoice_num?'vence '+fmt(vence(x)):'sin facturar'}</span></div>
+    <div class="qb-m">${VE_DINERO()&&M(x)?cf(M(x)):'—'}</div>
+    <div class="qb-s">${chip(x)}</div>
+    ${FACTURA()?`<div class="qb-a">
+      ${!x.invoice_num?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`
+       : x.invoice_pagado?'' : `<button class="btn mini" data-qbp="${x.id}">COBRADA</button>`}
+    </div>`:'<div class="qb-a"></div>'}
+  </div>`;
+
+  return `
+    <div class="eyebrow">Invoices · Carpet Department</div>
+
+    <div class="qb-cards">
+      <div class="qb-k"><span>POR FACTURAR</span>
+        <b>${VE_DINERO()?cf(tBorr):borrador.length}</b><i>${borrador.length} trabajos</i></div>
+      <div class="qb-k abi"><span>ABIERTAS</span>
+        <b>${VE_DINERO()?cf(tAbier):abiertas.length}</b><i>${abiertas.length} facturas</i></div>
+      <div class="qb-k ven"><span>VENCIDAS</span>
+        <b>${VE_DINERO()?cf(tVenc):vencidas.length}</b><i>${vencidas.length} facturas</i></div>
+      <div class="qb-k pag"><span>COBRADO</span>
+        <b>${VE_DINERO()?cf(pagadas.reduce((a,x)=>a+M(x),0)):pagadas.length}</b><i>${pagadas.length} pagadas</i></div>
+    </div>
+
+    ${(abiertas.length&&VE_DINERO())?`
+    <div class="eyebrow">Antigüedad del saldo</div>
+    <div class="qb-age">
+      ${Object.entries(AG).map(([k,v])=>`<div class="${v&&k!=='corriente'?'hay':''}">
+        <span>${k==='corriente'?'Al corriente':k+' días'}</span><b>${cf(v)}</b></div>`).join('')}
+    </div>`:''}
+
+    <div class="tabs">
+      <button data-qt="todas" class="${QBTAB==='todas'?'on':''}">Todas · ${T.length}</button>
+      <button data-qt="borrador" class="${QBTAB==='borrador'?'on':''}">Por facturar · ${borrador.length}</button>
+      <button data-qt="abiertas" class="${QBTAB==='abiertas'?'on':''}">Abiertas · ${abiertas.length}</button>
+      <button data-qt="vencidas" class="${QBTAB==='vencidas'?'on':''}">Vencidas · ${vencidas.length}</button>
+      <button data-qt="pagadas" class="${QBTAB==='pagadas'?'on':''}">Pagadas · ${pagadas.length}</button>
+    </div>
+
+    ${LISTA.length?`
+      <div class="qb-h">
+        <div>INVOICE</div><div>CLIENTE</div><div>FECHA</div>
+        <div style="text-align:right">IMPORTE</div><div>ESTADO</div><div></div>
+      </div>
+      ${LISTA.map(fila).join('')}`
+    : `<div class="ok"><div class="t">Nada aquí.</div>
+       <div class="sub">${QBTAB==='vencidas'?'No hay facturas vencidas. Bien.':'No hay facturas en esta vista.'}</div></div>`}
+
+    ${!FACTURA()?'<div class="sub" style="margin-top:14px">Solo administración y el gerente pueden facturar. Tú puedes consultar.</div>':''}`;
+}
+
+function engancharInvoicesCarpet(){
+  document.querySelectorAll('[data-qt]').forEach(b=>b.onclick=()=>{ QBTAB=b.dataset.qt; render(); });
+  document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=e=>{
+    if(e.target.closest('[data-qbf],[data-qbp]')) return;
+    abrirJob(b.dataset.qb);
+  });
+  document.querySelectorAll('[data-qbf]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    formInvoiceCarpet(b.dataset.qbf);
+  });
+  document.querySelectorAll('[data-qbp]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    marcarPagada(b.dataset.qbp);
+  });
+}
+
+/* ==================== FACTURACIÓN CARPET ====================
+   Catálogo de precios que carga administración + renglones especiales
+   cuando el precio no está en la lista. El total del invoice sale
+   de los renglones, no de un monto escrito a mano. */
+
+let INVR = [];          // renglones del invoice que se está armando
+let PCAT = [];          // catálogo de precios en memoria
+
+const UNIDADES = ['cuarto','sqft','escalón','pieza','hora','trabajo','lf','set'];
+
+async function siguienteInvoice(){
+  const {data}=await sb.from('jobs').select('invoice_num').not('invoice_num','is',null).limit(500);
+  const nums=(data||[]).map(x=>parseInt(String(x.invoice_num).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
+  return String(nums.length ? Math.max(...nums)+1 : 1001);
+}
+
+async function formInvoiceCarpet(jobId){
+  const [{data:j},{data:cat}] = await Promise.all([
+    sb.from('jobs').select('*, propiedades(nombre), managements(nombre)').eq('id',jobId).single(),
+    sb.from('precios_catalogo').select('*').eq('departamento','cleaning').eq('activo',true).order('orden').order('concepto')
+  ]);
+  if(!j) return toast('No se encontró el trabajo.');
+  if(!MIO_DEP(j.departamento)) return sinAcceso();
+  if(!FACTURA()){ cerrar(); return toast('Solo administración y el gerente pueden facturar.'); }
+
+  PCAT = cat||[];
+  INVR = Array.isArray(j.invoice_renglones) && j.invoice_renglones.length
+         ? JSON.parse(JSON.stringify(j.invoice_renglones))
+         : [];
+  const numSug = j.invoice_num || await siguienteInvoice();
+  const nom = j.propiedades?.nombre || j.cliente || 'Sin nombre';
+
+  const pinta=()=>{
+    const sub = INVR.reduce((a,r)=>a+(Number(r.cantidad||0)*Number(r.precio||0)),0);
+    const imp = sub * (Number($('#iv_tax')?.value||0)/100);
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">CARPET · ${esc(j.folio||'')}</div>
+      <div class="disp" style="font-size:21px;line-height:1">Crear invoice</div>
+      <div style="font-size:13px;color:#C3D6F7">${esc(nom)}${j.unidad?' · Unit '+esc(j.unidad):''}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+
+        <div class="g2">
+          <div><label>Número de invoice</label><input id="iv_n" class="mono" value="${esc(numSug)}"></div>
+          <div><label>Fecha</label><input id="iv_f" type="date" value="${esc(j.invoice_fecha||hoy())}"></div>
+        </div>
+        <div class="g2">
+          <div><label>PO number</label><input id="iv_po" value="${esc(j.po_number||'')}" placeholder="opcional"></div>
+          <div><label>Términos de pago</label><select id="iv_term">
+            ${Object.keys(TERMINOS).map(t=>`<option value="${t}" ${(j.invoice_terminos||'net30')===t?'selected':''}>${
+              t==='inmediato'?'Pago inmediato':'Net '+TERMINOS[t]+' días'}</option>`).join('')}
+          </select></div>
+        </div>
+
+        <div class="eyebrow">Renglones · ${INVR.length}</div>
+        ${INVR.length?`<div class="inv-tab">
+          ${INVR.map((r,i)=>`<div class="inv-r">
+            <div class="inv-c">
+              <input class="inv-desc" data-f="concepto" data-i="${i}" value="${esc(r.concepto||'')}" placeholder="Concepto">
+              ${r.especial?'<span class="chip ambar">ESPECIAL</span>':''}
+            </div>
+            <input class="num inv-q" data-f="cantidad" data-i="${i}" inputmode="decimal" value="${esc(r.cantidad)}">
+            <span class="inv-u">${esc(r.unidad||'')}</span>
+            <input class="num inv-p" data-f="precio" data-i="${i}" inputmode="decimal" value="${esc(r.precio)}">
+            <span class="inv-t">${cf(Number(r.cantidad||0)*Number(r.precio||0))}</span>
+            <button class="inv-x" data-del="${i}">✕</button>
+          </div>`).join('')}
+        </div>`:'<div class="sub">Todavía no hay renglones. Agrega del catálogo o crea uno especial.</div>'}
+
+        <div class="row" style="gap:8px;margin:10px 0">
+          <button class="btn ghost sm" style="flex:1" id="iv_cat">+ Del catálogo</button>
+          <button class="btn ghost sm" style="flex:1" id="iv_esp">+ Renglón especial</button>
+        </div>
+
+        <div class="inv-tot">
+          <div><span>Subtotal</span><b>${cf(sub)}</b></div>
+          <div><span>Impuesto
+            <input class="num" id="iv_tax" inputmode="decimal" style="width:62px;display:inline-block;padding:4px 6px"
+              value="${esc(j.invoice_tax!=null?j.invoice_tax:0)}">%</span><b>${cf(imp)}</b></div>
+          <div class="gr"><span>Total</span><b>${cf(sub+imp)}</b></div>
+        </div>
+
+        <label>Notas para el cliente</label>
+        <textarea id="iv_nt" placeholder="Lo que quieres que aparezca en la factura">${esc(j.invoice_notas||'')}</textarea>
+
+        <label style="display:flex;align-items:center;gap:9px;margin-top:10px">
+          <input type="checkbox" id="iv_pg" style="width:auto" ${j.invoice_pagado?'checked':''}>
+          <span>Ya me la pagaron</span></label>
+
+        <div style="height:14px"></div>
+        <button class="btn wide" id="iv_ok">Guardar y facturar</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost wide" id="iv_pdf">Ver la factura</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+
+    $('#c1').onclick=$('#c2').onclick=cerrar;
+
+    document.querySelectorAll('[data-f]').forEach(el=>{
+      el.oninput=()=>{
+        const i=+el.dataset.i, f=el.dataset.f;
+        INVR[i][f] = (f==='concepto') ? el.value : el.value;
+      };
+      el.onblur=()=>{ if(el.dataset.f!=='concepto') pinta(); };
+    });
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+      INVR.splice(+b.dataset.del,1); pinta();
+    });
+    const tax=$('#iv_tax'); if(tax) tax.onblur=()=>pinta();
+
+    $('#iv_cat').onclick=()=>pickCatalogo();
+    $('#iv_esp').onclick=()=>{
+      INVR.push({concepto:'', cantidad:1, unidad:'trabajo', precio:'', especial:true});
+      pinta();
+      setTimeout(()=>{ const e=document.querySelectorAll('.inv-desc'); if(e.length) e[e.length-1].focus(); },40);
+    };
+
+    $('#iv_pdf').onclick=()=>{
+      if(!INVR.length) return toast('Agrega al menos un renglón.');
+      facturaPDF(j, {num:$('#iv_n').value.trim(), fecha:$('#iv_f').value,
+        po:$('#iv_po').value.trim(), tax:Number($('#iv_tax').value)||0,
+        notas:$('#iv_nt').value.trim(), renglones:INVR});
+    };
+
+    $('#iv_ok').onclick=async()=>{
+      const num=$('#iv_n').value.trim();
+      if(!num) return toast('Pon el número de invoice.');
+      if(!INVR.length) return toast('Agrega al menos un renglón.');
+      const malos=INVR.filter(r=>!String(r.concepto||'').trim() || !Number(r.precio));
+      if(malos.length) return toast('Hay renglones sin concepto o sin precio.');
+
+      const s = INVR.reduce((a,r)=>a+(Number(r.cantidad||0)*Number(r.precio||0)),0);
+      const t = Number($('#iv_tax').value)||0;
+      const up={
+        invoice_num:num,
+        invoice_fecha:$('#iv_f').value||hoy(),
+        invoice_renglones:INVR,
+        invoice_tax:t,
+        invoice_monto: Math.round((s + s*t/100)*100)/100,
+        invoice_pagado:$('#iv_pg').checked,
+        invoice_pago_fecha: $('#iv_pg').checked ? hoy() : null,
+        invoice_notas:$('#iv_nt').value.trim()||null,
+        invoice_terminos:$('#iv_term').value,
+        invoice_vence:venceEl($('#iv_f').value||hoy(), $('#iv_term').value),
+        po_number:$('#iv_po').value.trim()||null,
+        estatus:'facturado',
+        fecha_cierre: j.fecha_cierre || $('#iv_f').value || hoy()
+      };
+      let docs=(j.docs||[]).filter(x=>x!=='-invoice');
+      if(!docs.includes('invoice')) docs.push('invoice');
+      up.docs=docs;
+
+      const {error}=await sb.from('jobs').update(up).eq('id',jobId);
+      if(error) return toast('No se guardó: '+error.message);
+      await notifIns({tipo:'invoice', departamento:'cleaning',
+        titulo:'Invoice '+num+' · '+nom,
+        texto:`${U.nombre} facturó ${j.folio||''} por ${cf(up.invoice_monto)}`,
+        job_id:jobId, de_usuario:U.nombre, para_rol:'admin'});
+      cerrar(); toast('Invoice '+num+' · '+cf(up.invoice_monto)); render();
+    };
+  };
+
+  // ── Escoger del catálogo ──
+  function pickCatalogo(){
+    if(!PCAT.length){
+      return toast('El catálogo de precios está vacío. Cárgalo desde Precios en el menú.');
+    }
+    const cap=document.createElement('div');
+    cap.id='pcap';
+    cap.innerHTML=`<div class="ira-bg"></div><div class="ira-box">
+      <input id="pcq" placeholder="Busca el servicio…" autocomplete="off">
+      <div id="pclist" class="ira-list"></div>
+      <div class="ira-pie">Toca uno para agregarlo al invoice</div></div>`;
+    document.body.appendChild(cap);
+    cap.querySelector('.ira-bg').onclick=()=>cap.remove();
+    const lista=()=>{
+      const q=($('#pcq').value||'').toLowerCase();
+      const R=PCAT.filter(p=>!q || p.concepto.toLowerCase().includes(q));
+      $('#pclist').innerHTML = R.length ? R.map(p=>`
+        <button class="ira-it" data-p="${p.id}">
+          <span class="ira-tx"><b>${esc(p.concepto)}</b>
+            <em>${cf(p.precio)} por ${esc(p.unidad)}</em></span>
+        </button>`).join('') : '<div class="ira-vacio">Nada con ese nombre.</div>';
+      $('#pclist').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
+        const p=PCAT.find(x=>String(x.id)===b.dataset.p);
+        INVR.push({concepto:p.concepto, cantidad:1, unidad:p.unidad, precio:Number(p.precio), especial:false});
+        cap.remove(); pinta();
+      });
+    };
+    $('#pcq').oninput=lista; lista();
+    setTimeout(()=>$('#pcq').focus(),30);
+  }
+
+  pinta();
+}
+
+/* ============ La factura impresa ============ */
+function facturaPDF(j, inv){
+  const E=s=>esc(s==null?'':String(s));
+  const Fc=s=>{ if(!s) return '—'; const d=new Date(s+'T12:00:00');
+    return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); };
+  const sub=inv.renglones.reduce((a,r)=>a+(Number(r.cantidad||0)*Number(r.precio||0)),0);
+  const imp=sub*(Number(inv.tax||0)/100);
+  const nom=j.propiedades?.nombre||j.cliente||'';
+
+  const doc=`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Invoice ${E(inv.num)} · ${E(nom)}</title><style>
+  @page{size:letter;margin:16mm 15mm}
+  body{font-family:Georgia,'Times New Roman',serif;color:#14181F;font-size:11pt;line-height:1.5;margin:0}
+  h1,.m,th,.emp,.tot{font-family:'Helvetica Neue',Arial,sans-serif}
+  .top{border-bottom:3px solid #1B56D3;padding-bottom:15px;margin-bottom:22px;overflow:hidden}
+  .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700}
+  h1{font-size:26pt;margin:5px 0 0;letter-spacing:-.01em}
+  .inv{float:right;text-align:right;font-family:Arial,sans-serif}
+  .inv .n{font-size:15pt;font-weight:700}
+  .inv .d{font-size:9pt;color:#78828F;margin-top:2px}
+  .para{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-bottom:20px}
+  .para .k{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.11em;
+    text-transform:uppercase;color:#78828F;display:block;margin-bottom:3px}
+  table{width:100%;border-collapse:collapse;margin:6px 0 0;font-size:10.5pt}
+  th{font-size:7.5pt;letter-spacing:.1em;text-transform:uppercase;text-align:left;
+    color:#4A5462;border-bottom:1.5px solid #14181F;padding:6px}
+  td{padding:7px 6px;border-bottom:1px solid #ECEFF3;vertical-align:top}
+  td.n,th.n{text-align:right;font-family:monospace}
+  .tot{margin-top:14px;margin-left:auto;width:59%}
+  .tot div{display:flex;justify-content:space-between;padding:5px 6px;font-size:11pt}
+  .tot .g{border-top:2px solid #14181F;margin-top:5px;padding-top:9px;font-size:15pt;font-weight:700}
+  .nt{margin-top:24px;background:#F7F9FC;border-left:2.5px solid #C6CDD6;padding:11px 14px;font-size:10pt}
+  .pg{display:inline-block;margin-top:12px;border:1.5px solid #1E8E5A;color:#1E8E5A;
+    padding:4px 14px;border-radius:4px;font-family:Arial,sans-serif;font-size:9pt;
+    font-weight:700;letter-spacing:.1em}
+  .pie{margin-top:36px;border-top:1px solid #D3D9E2;padding-top:10px;
+    font-size:8.5pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
+  @media print{.noimp{display:none}}
+  .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
+    padding:11px 20px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;
+    font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+</style></head><body>
+<button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="top">
+  <div class="inv"><div class="n">INVOICE ${E(inv.num)}</div>
+    <div class="d">${Fc(inv.fecha)}${inv.po?'<br>PO '+E(inv.po):''}</div></div>
+  <div class="emp">Capri Restoration Services Inc</div>
+  <h1>Invoice</h1>
+</div>
+
+<div class="para">
+  <div><span class="k">Facturar a</span>
+    <b>${E(j.managements?.nombre||nom)}</b><br>${E(nom)}${j.unidad?' · Unit '+E(j.unidad):''}
+    ${j.direccion?'<br>'+E(j.direccion):''}${j.ciudad?', '+E(j.ciudad):''}</div>
+  <div><span class="k">Trabajo</span>
+    ${E(j.folio||'')}<br>${E(j.tipo||'')}
+    ${j.fecha_inicio?'<br>Servicio del '+Fc(j.fecha_inicio):''}</div>
+</div>
+
+<table><thead><tr>
+  <th>Concepto</th><th class="n">Cant.</th><th>Unidad</th><th class="n">Precio</th><th class="n">Importe</th>
+</tr></thead><tbody>
+${inv.renglones.map(r=>`<tr>
+  <td>${E(r.concepto)}</td><td class="n">${E(r.cantidad)}</td><td>${E(r.unidad||'')}</td>
+  <td class="n">${cf(r.precio)}</td>
+  <td class="n">${cf(Number(r.cantidad||0)*Number(r.precio||0))}</td></tr>`).join('')}
+</tbody></table>
+
+<div class="tot">
+  <div><span>Subtotal</span><span>${cf(sub)}</span></div>
+  ${inv.tax?`<div><span>Impuesto ${inv.tax}%</span><span>${cf(imp)}</span></div>`:''}
+  <div class="g"><span>Total</span><span>${cf(sub+imp)}</span></div>
+</div>
+
+${inv.notas?`<div class="nt">${E(inv.notas)}</div>`:''}
+${j.invoice_pagado?'<div class="pg">PAGADA</div>':''}
+
+<div class="pie">Capri Restoration Services Inc · Carpet Department<br>
+  Gracias por su preferencia.</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
+  w.document.write(doc); w.document.close();
+}
+
+/* ==================== CATÁLOGO DE PRECIOS ==================== */
+async function vPrecios(){
+  const {data}=await sb.from('precios_catalogo').select('*')
+    .eq('departamento',DEPV()).order('orden').order('concepto');
+  const C=data||[];
+  return `
+    ${selectorDep()}
+    <div class="eyebrow">Catálogo de precios · ${C.length}</div>
+    <div class="sub" style="margin-bottom:12px">De aquí salen los renglones de los invoices. Si un trabajo lleva un precio distinto, se agrega como renglón especial sin tocar el catálogo.</div>
+    ${ES_ADMIN()?`<button class="btn wide" id="pr_n" style="margin-bottom:14px">+ Agregar concepto</button>`:''}
+    ${C.length? C.map(p=>`<div class="fila ${p.activo?'':'gris'}" ${ES_ADMIN()?`data-pr="${p.id}" style="cursor:pointer"`:''}>
+      <div class="t"><b>${esc(p.concepto)}</b>
+        <span class="sub">por ${esc(p.unidad)}${p.notas?' · '+esc(p.notas):''}</span></div>
+      <div style="text-align:right"><div class="disp" style="font-size:18px">${cf(p.precio)}</div>
+        ${p.activo?'':'<span class="chip">INACTIVO</span>'}</div>
+    </div>`).join('')
+    : `<div class="empty"><div class="disp">Catálogo vacío</div>
+       <p>Agrega los conceptos que más facturas para no capturarlos cada vez.</p></div>`}`;
+}
+
+function engancharPrecios(){
+  engancharDep();
+  const n=$('#pr_n'); if(n) n.onclick=()=>formPrecio();
+  document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>formPrecio(b.dataset.pr));
+}
+
+async function formPrecio(id){
+  let p={concepto:'',unidad:'cuarto',precio:'',notas:'',activo:true,orden:100,departamento:DEPV()};
+  if(id){ const {data}=await sb.from('precios_catalogo').select('*').eq('id',id).single(); p=data; }
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="disp" style="font-size:21px">${id?'Editar concepto':'Nuevo concepto'}</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(p.departamento==='cleaning'?'Carpet Department':'Restoration')}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <label>Concepto</label>
+      <input id="p_c" value="${esc(p.concepto)}" placeholder="Carpet cleaning">
+      <div class="g2">
+        <div><label>Precio</label><input class="num" id="p_p" inputmode="decimal" value="${esc(p.precio)}"></div>
+        <div><label>Se cobra por</label><select id="p_u">
+          ${UNIDADES.map(u=>`<option ${p.unidad===u?'selected':''}>${u}</option>`).join('')}</select></div>
+      </div>
+      <label>Nota</label>
+      <input id="p_n" value="${esc(p.notas||'')}" placeholder="Mínimo 2 cuartos, por ejemplo">
+      <label style="display:flex;align-items:center;gap:9px;margin-top:12px">
+        <input type="checkbox" id="p_a" style="width:auto" ${p.activo?'checked':''}>
+        <span>Activo · aparece al facturar</span></label>
+      <div style="height:16px"></div>
+      <button class="btn wide" id="p_ok">Guardar</button>
+      ${id?`<div style="height:8px"></div>
+      <button class="btn ghost wide" id="p_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar</button>`:''}
+      <div style="height:8px"></div>
+      <button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#p_ok').onclick=async()=>{
+    const c=$('#p_c').value.trim(), pr=Number($('#p_p').value)||0;
+    if(!c) return toast('Ponle nombre al concepto.');
+    if(!pr) return toast('Ponle precio.');
+    const up={concepto:c, precio:pr, unidad:$('#p_u').value,
+      notas:$('#p_n').value.trim()||null, activo:$('#p_a').checked, departamento:p.departamento};
+    const {error} = id ? await sb.from('precios_catalogo').update(up).eq('id',id)
+                       : await sb.from('precios_catalogo').insert(up);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Guardado'); render();
+  };
+  const d=$('#p_del');
+  if(d) d.onclick=async()=>{
+    if(!confirm('¿Borrar "'+p.concepto+'" del catálogo? Los invoices ya hechos no se tocan.')) return;
+    const {error}=await sb.from('precios_catalogo').delete().eq('id',id);
+    if(error) return toast('No se pudo borrar: '+error.message);
+    cerrar(); toast('Borrado'); render();
+  };
+}
+
 /* ============ ESTADO DE CUENTA MENSUAL + HISTORIAL ============
    Todo lo que se hizo, guardado y buscable por año, mes y management.
    El estado de cuenta es el documento que le mandas al management. */
@@ -9208,7 +9788,7 @@ async function abrirJob(id){
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
     const d=b.dataset.go;
     if(d==='estimados'){ cerrar(); V='estimados'; render(); return; }
-    if(d==='invoice'){ formInvoice(id); return; }
+    if(d==='invoice'){ return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
     const dest=document.getElementById(d==='reportes'?'sec_reportes':'sec_reparaciones');
     if(dest) dest.scrollIntoView({behavior:'smooth',block:'start'});
   });
@@ -9218,7 +9798,8 @@ async function abrirJob(id){
 
     // Invoice creado: aquí es donde el trabajo pasa a FACTURADO.
     // Si todavía no tiene número de invoice, se lo pedimos de una vez.
-    if(k==='invoice' && !estaba && !j.invoice_num){ return formInvoice(id); }
+    if(k==='invoice' && !estaba && !j.invoice_num){
+      return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
 
     let lista=(j.docs||[]).filter(x=>x!==k && x!=='-'+k);
     lista.push(estaba ? '-'+k : k);
