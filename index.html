@@ -238,6 +238,38 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Secciones del job como mosaico ── */
+.sx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+  gap:9px;margin:6px 0 4px}
+.sx-cuadro{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  background:var(--sup);border:1px solid var(--linea);border-radius:11px;padding:13px 13px 11px;
+  cursor:pointer;text-align:left;transition:border-color .13s,transform .13s,box-shadow .13s}
+.sx-cuadro:hover{border-color:var(--azul-b);transform:translateY(-1px);
+  box-shadow:0 4px 14px rgba(27,86,211,.10)}
+.sx-cuadro.on{border-color:var(--azul);border-width:1.5px;background:var(--azul-l);
+  box-shadow:0 3px 12px rgba(27,86,211,.14)}
+.sx-cuadro.vacia{opacity:.5}
+.sx-ic{display:flex;width:19px;height:19px;color:var(--gris)}
+.sx-ic svg{width:100%;height:100%}
+.sx-cuadro.on .sx-ic{color:var(--azul)}
+.sx-t{font-family:var(--disp);font-size:15.5px;line-height:1.12;letter-spacing:.01em;
+  text-transform:uppercase;color:var(--tinta)}
+.sx-cuadro.on .sx-t{color:var(--azul)}
+.sx-n{font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:var(--gris)}
+.sx-al{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;
+  background:var(--rojo);box-shadow:0 0 0 3px rgba(192,57,43,.15)}
+.sx-panel{margin-top:2px}
+.sx-panel.vivo{border-top:2px solid var(--azul);padding-top:12px;margin-top:12px}
+.sx-cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sx-cab b{font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.01em}
+.sx-x{background:transparent;border:1px solid var(--linea);border-radius:6px;
+  padding:5px 12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  color:var(--gris);cursor:pointer}
+.sx-x:hover{border-color:var(--rojo);color:var(--rojo)}
+@media(max-width:520px){
+  .sx-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .sx-t{font-size:14px}
+}
 /* ── Scope of work como lista de pendientes ── */
 .scope-lista{display:flex;flex-direction:column;gap:1px}
 .sc-cab{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;margin-bottom:4px;
@@ -3843,7 +3875,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v112 · invoice creado = facturado</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v114 · cuadrícula + facturados</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5821,7 +5853,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='112';
+const VERSION='114';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6722,9 +6754,16 @@ async function vJobs(){
       tieneEst:auto.estimado, E, P, revisar:P.filter(x=>x.estatus==='terminada'&&!x.revisado).length};
   };
 
-  const J = JTAB==='activos' ? TODOS.filter(x=>!['terminado','facturado'].includes(x.estatus))
-          : JTAB==='terminados' ? TODOS.filter(x=>x.estatus==='terminado')
-          : JTAB==='facturados' ? TODOS.filter(x=>x.estatus==='facturado') : TODOS;
+  // Un job con invoice YA está facturado, aunque el estatus se haya quedado
+  // atrás. Antes se clasificaba solo por estatus y por eso trabajos ya
+  // cobrados seguían saliendo en Activos.
+  const esFact = x => x.estatus==='facturado' || !!x.invoice_num;
+  const esTerm = x => !esFact(x) && x.estatus==='terminado';
+  const esAct  = x => !esFact(x) && !esTerm(x);
+
+  const J = JTAB==='activos' ? TODOS.filter(esAct)
+          : JTAB==='terminados' ? TODOS.filter(esTerm)
+          : JTAB==='facturados' ? TODOS.filter(esFact) : TODOS;
 
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
@@ -6738,9 +6777,9 @@ async function vJobs(){
   },0);
 
   const pestanas=`<div class="tabs" id="jtabs" style="margin-top:14px">
-      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--oro)">${TODOS.filter(x=>!['terminado','facturado'].includes(x.estatus)).length}</span></button>
-      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${TODOS.filter(x=>x.estatus==='terminado').length}</span></button>
-      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--verde,var(--azul))">${TODOS.filter(x=>x.estatus==='facturado').length}</span></button>
+      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--oro)">${TODOS.filter(esAct).length}</span></button>
+      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${TODOS.filter(esTerm).length}</span></button>
+      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--verde,var(--azul))">${TODOS.filter(esFact).length}</span></button>
       <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${TODOS.length}</span></button>
     </div>`;
 
@@ -6966,7 +7005,7 @@ async function vCobranza(){
     sb.from('jobs')
       .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,po_number,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,invoice_pago_fecha,precio_carpet,monto_cobrar, managements(nombre), propiedades(nombre)')
       .eq('departamento',DEPV())
-      .in('estatus',['terminado','facturado'])
+      .or('estatus.in.(terminado,facturado),invoice_num.not.is.null')
       .order('fecha_cierre',{ascending:true}).limit(400),
     sb.from('estimados')
       .select('id,folio,cliente,monto,estatus,fecha_envio,created_at,job_id,departamento')
@@ -7745,26 +7784,29 @@ async function formJob(id, pre){
   };
 }
 
-/* ==================== DETALLE DEL JOB ==================== */
+/* ==================== DETALLE DEL JOB ====================
+   En vez de una torre de acordeones, un mosaico de cuadros arriba.
+   Tocas uno y su contenido se abre abajo, sin perder de vista el resto. */
 function plegarSecciones(){
   const cont = document.querySelector('#sheet .sheet-body');
   if(!cont) return;
   const marcas = [...cont.querySelectorAll('[data-sx]')];
   if(!marcas.length) return;
+
+  const rejilla = document.createElement('div');
+  rejilla.className = 'sx-grid';
+  const panel = document.createElement('div');
+  panel.className = 'sx-panel';
+  marcas[0].parentNode.insertBefore(rejilla, marcas[0]);
+  marcas[0].parentNode.insertBefore(panel, marcas[0]);
+
+  const secciones = [];
+
   marcas.forEach((m,i)=>{
     const [titulo, icono, flag] = m.dataset.sx.split('|');
-    const det = document.createElement('details');
-    det.className = 'secc';
-    if(flag==='abierta') det.open = true;
-    const sum = document.createElement('summary');
-    sum.innerHTML = `<span class="s-ic">${svgIC(icono||'jobs')}</span>
-      <span class="s-t">${titulo}</span><span class="s-r"></span><span class="s-fl">▾</span>`;
-    det.appendChild(sum);
+    // Guarda todo lo que viene después del marcador hasta el siguiente
     const caja = document.createElement('div');
     caja.className = 's-b';
-    det.appendChild(caja);
-    m.parentNode.insertBefore(det, m);
-    // mover todo lo que sigue hasta el próximo marcador
     let nodo = m.nextSibling;
     while(nodo && !(nodo.nodeType===1 && nodo.hasAttribute && nodo.hasAttribute('data-sx'))){
       const sig = nodo.nextSibling;
@@ -7772,13 +7814,42 @@ function plegarSecciones(){
       nodo = sig;
     }
     m.remove();
-    // resumen automático: cuenta lo que hay dentro
-    const chips = caja.querySelectorAll('.chip, .jc-chip').length;
+
+    // Cuenta lo que trae para el contador del cuadro
     const filas = caja.querySelectorAll('.card, .fila, .repcard, .notacard, .etapa').length;
-    const urg = caja.querySelectorAll('.alerta, .chip.rojo, .jc-chip.rojo').length;
-    if(filas) sum.querySelector('.s-r').textContent = filas + (filas===1?' punto':' puntos');
-    if(urg) det.classList.add('urg');
+    const urg   = caja.querySelectorAll('.alerta, .chip.rojo, .jc-chip.rojo').length;
+    const vacia = !caja.textContent.trim() && !caja.querySelector('img,table,input,button');
+
+    const cuadro = document.createElement('button');
+    cuadro.type = 'button';
+    cuadro.className = 'sx-cuadro' + (urg?' urg':'') + (vacia?' vacia':'');
+    cuadro.innerHTML = `<span class="sx-ic">${svgIC(icono||'jobs')}</span>
+      <span class="sx-t">${titulo}</span>
+      <span class="sx-n">${filas?filas+(filas===1?' punto':' puntos'):(vacia?'sin datos':'ver')}</span>
+      ${urg?'<span class="sx-al"></span>':''}`;
+    rejilla.appendChild(cuadro);
+    secciones.push({cuadro, caja, titulo, abierta:flag==='abierta'});
   });
+
+  const mostrar = (s)=>{
+    const yaEsta = s.cuadro.classList.contains('on');
+    secciones.forEach(x=>x.cuadro.classList.remove('on'));
+    panel.innerHTML='';
+    if(yaEsta){ panel.classList.remove('vivo'); return; }   // segundo toque cierra
+    s.cuadro.classList.add('on');
+    const cab = document.createElement('div');
+    cab.className='sx-cab';
+    cab.innerHTML = `<b>${s.titulo}</b><button type="button" class="sx-x">Cerrar</button>`;
+    panel.appendChild(cab);
+    panel.appendChild(s.caja);
+    panel.classList.add('vivo');
+    cab.querySelector('.sx-x').onclick=()=>mostrar(s);
+    panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  };
+
+  secciones.forEach(s=>s.cuadro.onclick=()=>mostrar(s));
+  const inicial = secciones.find(s=>s.abierta) || secciones[0];
+  if(inicial) mostrar(inicial);
 }
 
 function secc(o){
