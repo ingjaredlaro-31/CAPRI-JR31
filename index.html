@@ -3960,7 +3960,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v118 · facturar Carpet a la vista</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v119 · Carlos crea sus facturas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -3993,6 +3993,7 @@ function shell(html){
     if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
     fab.textContent='×'; 
     m.innerHTML=`<div class="fabm">
+      ${(DEP==='cleaning'&&FACTURA())?'<button data-q="fac">+ Nueva factura</button>':''}
       ${DEP==='cleaning'?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="est">+ Nuevo estimado</button>
@@ -4002,6 +4003,7 @@ function shell(html){
     m.querySelectorAll('[data-q]').forEach(b=>b.onclick=async()=>{
       m.innerHTML=''; fab.textContent='+';
       const q=b.dataset.q;
+      if(q==='fac')  return nuevaFacturaCarpet();
       if(q==='esp')  return formTrabajoEspecial();
       if(q==='job')  return formJob();
       if(q==='est')  return formEstimado();
@@ -5946,7 +5948,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='118';
+const VERSION='119';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8002,6 +8004,96 @@ function secc(o){
   </details>`;
 }
 
+/* ============ NUEVA FACTURA DESDE CERO · Carpet ============
+   En QuickBooks facturas sin tener que abrir un trabajo antes.
+   Aquí igual: escoges cliente, servicio y fecha, y pasas directo
+   a los renglones. El job se crea solo por detrás para que quede
+   en el historial y en los reportes. */
+
+async function nuevaFacturaCarpet(){
+  if(!FACTURA()) return toast('Solo administración y el gerente pueden facturar.');
+
+  const [{data:mgs},{data:props}] = await Promise.all([
+    sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip,lat,lng').order('nombre')
+  ]);
+  const MG=mgs||[], PR=props||[];
+  let mgSel='';
+
+  const pinta=()=>{
+    const lista = mgSel ? PR.filter(p=>p.management_id===mgSel) : [];
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">CARPET DEPARTMENT</div>
+      <div class="disp" style="font-size:21px;line-height:1">Nueva factura</div>
+      <div style="font-size:13px;color:#C3D6F7">Paso 1 de 2 · ¿a quién le facturas?</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+        <label>Management</label>
+        <select id="f_mg"><option value="">— particular, sin management —</option>
+          ${MG.map(m=>`<option value="${m.id}" ${mgSel===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select>
+        ${mgSel?`<label>Propiedad</label>
+          <select id="f_pr"><option value="">— escoge —</option>
+            ${lista.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>
+          ${!lista.length?'<div class="sub">Ese management no tiene propiedades cargadas. Escoge otro o factura como particular.</div>':''}`
+        :`<label>Nombre del cliente</label>
+          <input id="f_cli" placeholder="Sra. Martínez">
+          <label>Dirección</label>
+          <input id="f_dir" placeholder="123 Main St">
+          <label>Ciudad</label>
+          <input id="f_ciu" value="San Diego">`}
+        <div class="g2">
+          <div><label>Unidad</label><input id="f_un" placeholder="208"></div>
+          <div><label>Fecha del servicio</label><input id="f_fe" type="date" value="${hoy()}"></div>
+        </div>
+        <label>Servicio</label>
+        <select id="f_tp">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+        <label>PO number</label>
+        <input id="f_po" placeholder="opcional">
+        <div style="height:16px"></div>
+        <button class="btn wide" id="f_ok">Seguir a los renglones ›</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+
+    $('#c1').onclick=$('#c2').onclick=cerrar;
+    $('#f_mg').onchange=e=>{ mgSel=e.target.value; pinta(); };
+
+    $('#f_ok').onclick=async()=>{
+      const fecha=$('#f_fe').value||hoy();
+      let cliente, direccion, ciudad, zip=null, prId=null, pr=null;
+      if(mgSel){
+        prId=$('#f_pr').value;
+        if(!prId) return toast('Escoge la propiedad.');
+        pr=PR.find(x=>x.id===prId);
+        cliente=pr.nombre; direccion=pr.direccion||''; ciudad=pr.ciudad||'San Diego'; zip=pr.zip||null;
+      } else {
+        cliente=$('#f_cli').value.trim();
+        direccion=$('#f_dir').value.trim();
+        ciudad=$('#f_ciu').value.trim()||'San Diego';
+        if(!cliente) return toast('Pon el nombre del cliente.');
+      }
+      const folio=await nuevoFolio('cleaning');
+      const p={folio, departamento:'cleaning', tipo:$('#f_tp').value,
+        estatus:'terminado', origen: mgSel?'management':'particular',
+        management_id:mgSel||null, propiedad_id:prId,
+        cliente, direccion, ciudad, zip,
+        unidad:$('#f_un').value.trim()||null,
+        tipo_propiedad: mgSel?'apartamento':'casa',
+        fecha_inicio:fecha, fecha_cierre:fecha,
+        po_number:$('#f_po').value.trim()||null,
+        trabajo_especial:true, tecnico_id:null,
+        lat: pr?pr.lat:null, lng: pr?pr.lng:null};
+
+      const {data,error}=await sb.from('jobs').insert(p).select().single();
+      if(error) return toast('No se pudo crear: '+error.message);
+      toast(folio+' creado · ahora los renglones');
+      formInvoiceCarpet(data.id);     // pasa directo al armador
+    };
+  };
+  pinta();
+}
+
 /* ============ INVOICES · vista estilo QuickBooks (solo Carpet) ============
    Lista de facturas con estatus, vencimiento y antigüedad de saldo.
    Facturan Jared, Julio y Carlos. Los técnicos no entran aquí. */
@@ -8076,6 +8168,7 @@ async function vInvoicesCarpet(){
 
   return `
     <div class="eyebrow">Invoices · Carpet Department</div>
+    ${FACTURA()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Nueva factura</button>`:''}
 
     <div class="qb-cards">
       <div class="qb-k"><span>POR FACTURAR</span>
@@ -8109,13 +8202,16 @@ async function vInvoicesCarpet(){
         <div style="text-align:right">IMPORTE</div><div>ESTADO</div><div></div>
       </div>
       ${LISTA.map(fila).join('')}`
-    : `<div class="ok"><div class="t">Nada aquí.</div>
-       <div class="sub">${QBTAB==='vencidas'?'No hay facturas vencidas. Bien.':'No hay facturas en esta vista.'}</div></div>`}
+    : `<div class="empty"><div class="disp">${T.length?'Nada en esta vista':'Todavía no hay facturas'}</div>
+       <p>${QBTAB==='vencidas'?'No hay facturas vencidas. Bien.'
+         : T.length?'Cambia de pestaña para ver las demás.'
+         : 'Dale a <b>+ Nueva factura</b> para hacer la primera. También aparecen aquí solas los trabajos de Carpet que se terminen.'}</p></div>`}
 
     ${!FACTURA()?'<div class="sub" style="margin-top:14px">Solo administración y el gerente pueden facturar. Tú puedes consultar.</div>':''}`;
 }
 
 function engancharInvoicesCarpet(){
+  const nb=$('#qb_new'); if(nb) nb.onclick=()=>nuevaFacturaCarpet();
   document.querySelectorAll('[data-qt]').forEach(b=>b.onclick=()=>{ QBTAB=b.dataset.qt; render(); });
   document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=e=>{
     if(e.target.closest('[data-qbf],[data-qbp]')) return;
