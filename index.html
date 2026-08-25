@@ -978,7 +978,7 @@ const ETAPAS = [
   {k:'reparando',  t:'Reparando',         s:'Reconstrucción en proceso'},
   {k:'aceptado',   t:'Estimado aceptado', s:'Autorizado para cobrar'},
   {k:'invoice',    t:'Invoice creado',    s:'Factura generada'},
-  {k:'subido',     t:'Invoice subido',    s:'Cargado a la plataforma del management'}
+  {k:'subido',     t:'Invoice subido',    s:'Ya facturado · falta cargarlo al portal del management'}
 ];
 const DOCS_VIEJO = {
   management:['Work order / PO recibido','Autorización del manager','Fotos de antes','Fotos de después','Reporte final enviado al manager','Factura al management'],
@@ -3843,7 +3843,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v111 · historial y estado de cuenta</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v112 · invoice creado = facturado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5821,7 +5821,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='111';
+const VERSION='112';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8718,9 +8718,13 @@ async function abrirJob(id){
         const estAcep=EST.some(x=>x.estatus==='aceptado');
         const repProc=P.some(x=>['asignada','proceso'].includes(x.estatus));
         const repTodas=P.length>0 && P.every(x=>x.estatus==='terminada');
-        const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas, aceptado:estAcep};
+        const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas,
+          aceptado:estAcep, invoice:!!j.invoice_num};
         const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
           estimado:estEnv?('SÍ TIENE ESTIMADO · '+cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0)):'NO TIENE ESTIMADO',
+          invoice: j.invoice_num
+            ? ('Invoice '+j.invoice_num+(j.invoice_monto&&VE_DINERO()?' · '+cf(j.invoice_monto):'')+(j.invoice_pagado?' · PAGADO':' · sin pago'))
+            : 'Tócalo para crear la factura y pasar el trabajo a facturado',
           reparando:P.length?P.filter(x=>x.estatus==='terminada').length+' de '+P.length+' partidas listas':'sin partidas'};
         const listo=k=> manuales.includes('-'+k) ? false : (manuales.includes(k) || !!auto[k]);
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
@@ -9140,16 +9144,24 @@ async function abrirJob(id){
   document.querySelectorAll('[data-et]').forEach(b=>b.onclick=async()=>{
     const k=b.dataset.et;
     const estaba=b.closest('.etapa').classList.contains('done');
+
+    // Invoice creado: aquí es donde el trabajo pasa a FACTURADO.
+    // Si todavía no tiene número de invoice, se lo pedimos de una vez.
+    if(k==='invoice' && !estaba && !j.invoice_num){ return formInvoice(id); }
+
     let lista=(j.docs||[]).filter(x=>x!==k && x!=='-'+k);
     lista.push(estaba ? '-'+k : k);
     const up={docs:lista};
-    if(k==='subido' && !estaba){
-      if(confirm('¿Cerrar el trabajo y pasarlo a FACTURADOS?')) up.estatus='facturado';
+    if(k==='invoice'){
+      if(!estaba) up.estatus='facturado';
+      else if(j.estatus==='facturado'){
+        if(!confirm('Vas a desmarcar el invoice. El trabajo regresa a TERMINADO y va a volver a salir en "Falta facturar". ¿Le seguimos?')) return;
+        up.estatus='terminado';
+      }
     }
-    if(k==='subido' && estaba && j.estatus==='facturado') up.estatus='terminado';
     const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
-    cerrar(); toast(up.estatus==='facturado'?'Trabajo cerrado y facturado':'Guardado'); abrirJob(id);
+    cerrar(); toast(up.estatus==='facturado'?'Trabajo facturado':'Guardado'); abrirJob(id);
   });
   document.querySelectorAll('[data-rc]').forEach(c=>c.onchange=async()=>{
     await sb.from('recordatorios').update({hecho:c.checked}).eq('id',c.dataset.rc);
@@ -9418,9 +9430,20 @@ async function formInvoice(id){
     let docs=(j.docs||[]).filter(x=>x!=='-invoice');
     if(num && !docs.includes('invoice')) docs.push('invoice');
     up.docs=docs;
+    // En cuanto hay número de invoice, el trabajo ya está FACTURADO,
+    // aunque todavía no se suba al portal del management.
+    if(num && j.estatus!=='facturado'){
+      up.estatus='facturado';
+      if(!j.fecha_cierre) up.fecha_cierre=up.invoice_fecha||hoy();
+    }
+    if(!num && j.estatus==='facturado') up.estatus='terminado';
     const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
-    cerrar(); toast('Invoice guardado'); abrirJob(id);
+    cerrar();
+    toast(up.estatus==='facturado' ? 'Invoice '+num+' · trabajo facturado'
+        : up.estatus==='terminado' ? 'Invoice quitado · regresó a terminado'
+        : 'Invoice guardado');
+    abrirJob(id);
   };
 }
 
