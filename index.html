@@ -238,6 +238,38 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Tablero del día · Carpet ── */
+.cp-hoy{background:var(--sup);border:1px solid var(--linea);border-left:5px solid var(--azul);
+  border-radius:12px;padding:15px 18px;margin-bottom:16px}
+.cp-fecha{font-family:var(--disp);font-size:22px;text-transform:capitalize;line-height:1.1}
+.cp-nums{display:flex;gap:26px;margin-top:10px}
+.cp-nums b{display:block;font-family:var(--disp);font-size:29px;line-height:1}
+.cp-nums span{font-family:var(--mono);font-size:10px;letter-spacing:.11em;color:var(--gris)}
+.cp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;margin-bottom:8px}
+.cp-card{background:var(--sup);border:1px solid var(--linea);border-left:5px solid var(--gris);
+  border-radius:12px;padding:14px 16px 16px;display:flex;flex-direction:column}
+.cp-card.r{border-left-color:var(--rojo)}
+.cp-card.m{border-left-color:var(--oro)}
+.cp-card.v{border-left-color:var(--verde)}
+.cp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.cp-h{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--azul)}
+.cp-est{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:3px 9px;
+  border-radius:4px;border:1px solid;margin-left:auto}
+.cp-est.r{color:var(--rojo);border-color:var(--rojo);background:var(--rojo-l)}
+.cp-est.m{color:var(--oro);border-color:var(--oro)}
+.cp-est.v{color:var(--verde);border-color:var(--verde)}
+.cp-nom{font-family:var(--disp);font-size:23px;line-height:1.08;text-transform:uppercase}
+.cp-sub{font-size:15px;color:var(--tinta);margin-top:3px}
+.cp-pie{font-family:var(--mono);font-size:10.5px;color:var(--gris);margin-top:5px;flex:1}
+.cp-b{display:block;width:100%;margin-top:13px;padding:15px;border:0;border-radius:9px;
+  font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.02em;
+  color:#fff;cursor:pointer;transition:transform .1s}
+.cp-b:active{transform:translateY(1px)}
+.cp-b.rep{background:var(--oro);color:#1A1206}
+.cp-b.fac{background:var(--verde);color:#042415}
+.cp-b.ver{background:transparent;color:var(--gris);border:1px solid var(--linea)}
+.cp-b.esp{background:var(--sup2);color:var(--gris);cursor:default}
+@media(max-width:520px){ .cp-grid{grid-template-columns:1fr} .cp-nums{gap:18px} }
 /* Versión visible: si subes un archivo y este número no cambia, no subió. */
 .vbadge{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:4px;
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
@@ -3964,7 +3996,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v122 · hacer invoice y accesos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v123 · tablero del día Carpet</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4055,6 +4087,9 @@ async function render(){
     if(V==='notif')     return shell(await vNotificaciones());
     if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
+    if(V==='resumen' && DEPV()==='cleaning'){
+      shell(await vHoyCarpet()); return engancharHoyCarpet();
+    }
     if(V==='resumen')   return shell(await vResumen());
     if(V==='mgmt')      return shell(await vManagements());
     if(V==='mapa')      return shell(await vMapa());
@@ -5952,7 +5987,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='122';
+const VERSION='123';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8009,6 +8044,120 @@ function secc(o){
     </summary>
     <div class="s-b">${cuerpo}</div>
   </details>`;
+}
+
+/* ============ TABLERO DEL DÍA · CARPET ============
+   Pantalla principal del área. Un trabajo por tarjeta y UN solo
+   botón grande en cada uno. Nada de decidir entre cinco cosas:
+   el trabajo te dice qué sigue. */
+
+async function vHoyCarpet(){
+  const h=hoy();
+  const [{data:asig},{data:reps},{data:jobs}] = await Promise.all([
+    sb.from('asignaciones')
+      .select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,estatus,departamento,direccion,invoice_num,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre)), usuarios(nombre)')
+      .eq('fecha',h).order('hora'),
+    sb.from('reportes').select('job_id,fecha,tecnico_id').gte('fecha',hace(45)),
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,tipo,estatus,fecha_cierre,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre)')
+      .eq('departamento','cleaning')
+      .or('estatus.in.(activo,terminado),invoice_num.not.is.null')
+      .order('fecha_inicio',{ascending:false}).limit(120)
+  ]);
+
+  const conRep = new Set((reps||[]).map(r=>r.job_id));
+  const repHoy = new Set((reps||[]).filter(r=>r.fecha===h).map(r=>r.job_id));
+
+  // Lo de hoy: lo agendado + lo que se terminó hoy
+  const A = (asig||[]).filter(a=>a.jobs && a.jobs.departamento==='cleaning');
+  const idsHoy = new Set(A.map(a=>a.job_id));
+  const J = jobs||[];
+
+  // Lo que quedó colgado de días pasados
+  const atras = J.filter(x=>!idsHoy.has(x.id) &&
+    ((x.estatus==='terminado' && !x.invoice_num) || (x.estatus==='activo' && !conRep.has(x.id))));
+
+  const facHoy = J.filter(x=>x.invoice_num && (x.fecha_cierre===h));
+  const totHoy = facHoy.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+
+  // Qué sigue para este trabajo · esto decide el botón
+  const paso = x=>{
+    if(x.invoice_pagado) return {k:'pagado', t:'PAGADO', c:'v'};
+    if(x.invoice_num)    return {k:'listo',  t:'FACTURADO', c:'v'};
+    if(x.estatus==='terminado' || conRep.has(x.id))
+      return {k:'facturar', t:'FALTA EL INVOICE', c:'r'};
+    return {k:'reporte', t:'FALTA EL REPORTE', c:'m'};
+  };
+
+  const tarjeta = (x, hora, tec)=>{
+    const p=paso(x);
+    const puedeFac = FACTURA();
+    let btn='';
+    if(p.k==='reporte')       btn=`<button class="cp-b rep" data-cprep="${x.id}">Dejar reporte</button>`;
+    else if(p.k==='facturar') btn= puedeFac
+        ? `<button class="cp-b fac" data-cpfac="${x.id}">Hacer invoice</button>`
+        : `<button class="cp-b esp" disabled>Esperando factura</button>`;
+    else                      btn=`<button class="cp-b ver" data-cpver="${x.id}">Ver la factura</button>`;
+
+    return `<div class="cp-card ${p.c}">
+      <div class="cp-top">
+        ${hora?`<span class="cp-h">${esc(hora)}</span>`:''}
+        <span class="cp-est ${p.c}">${p.t}</span>
+      </div>
+      <div class="cp-nom">${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</div>
+      <div class="cp-sub">${x.unidad?'Unidad '+esc(x.unidad):'sin unidad'} · ${esc(x.tipo||'')}</div>
+      <div class="cp-pie">${esc(x.folio||'')}${tec?' · '+esc(tec):''}${
+        x.invoice_num?' · inv '+esc(x.invoice_num)+(VE_DINERO()&&x.invoice_monto?' · '+cf(x.invoice_monto):''):''}</div>
+      ${btn}
+    </div>`;
+  };
+
+  const F=new Date(h+'T12:00:00');
+  const dia=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+
+  return `
+    ${selectorDep()}
+    <div class="cp-hoy">
+      <div class="cp-fecha">${dia}</div>
+      <div class="cp-nums">
+        <div><b>${A.length}</b><span>hoy</span></div>
+        <div><b>${facHoy.length}</b><span>facturados</span></div>
+        ${VE_DINERO()?`<div><b>${cf(totHoy)}</b><span>del día</span></div>`:''}
+      </div>
+    </div>
+
+    ${FACTURA()?`<button class="btn wide" id="cp_new" style="margin-bottom:16px">+ Hacer invoice nuevo</button>`:''}
+
+    <div class="eyebrow">Tus trabajos de hoy</div>
+    ${A.length
+      ? `<div class="cp-grid">${A.map(a=>tarjeta(a.jobs, a.hora, a.usuarios?.nombre)).join('')}</div>`
+      : `<div class="ok"><div class="t">Hoy no tienes trabajos agendados.</div>
+         <div class="sub">Cuando administración te asigne uno, aparece aquí.</div></div>`}
+
+    ${atras.length?`
+      <div class="eyebrow">Se quedaron pendientes · ${atras.length}</div>
+      <div class="sub" style="margin-bottom:10px">De días pasados. Ciérralos para que no se acumulen.</div>
+      <div class="cp-grid">${atras.slice(0,12).map(x=>tarjeta(x,null,null)).join('')}</div>
+      ${atras.length>12?`<div class="sub">y ${atras.length-12} más en Jobs</div>`:''}`:''}
+
+    <div style="height:14px"></div>
+    <button class="btn ghost wide" id="cp_todas">Ver todas las facturas de Carpet</button>`;
+}
+
+function engancharHoyCarpet(){
+  engancharDep();
+  const n=$('#cp_new');   if(n) n.onclick=()=>nuevaFacturaCarpet();
+  const t=$('#cp_todas'); if(t) t.onclick=()=>{ V='cobranza'; render(); };
+  document.querySelectorAll('[data-cprep]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.cprep;
+    // Al técnico lo mandamos directo a su reporte de ese trabajo
+    reporteGuiado ? reporteGuiado(id) : abrirJob(id);
+  });
+  document.querySelectorAll('[data-cpfac]').forEach(b=>b.onclick=()=>{
+    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    formInvoiceCarpet(b.dataset.cpfac);
+  });
+  document.querySelectorAll('[data-cpver]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.cpver));
 }
 
 /* ============ NUEVA FACTURA DESDE CERO · Carpet ============
