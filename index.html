@@ -238,6 +238,18 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Cambiar estatus del job de un toque ── */
+.est-sw{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 6px}
+.est-sw button{background:var(--sup);border:1px solid var(--linea);border-radius:8px;
+  padding:11px 6px;font-family:var(--disp);font-size:14.5px;text-transform:uppercase;
+  letter-spacing:.02em;color:var(--gris);cursor:pointer;transition:all .12s}
+.est-sw button:hover{border-color:var(--azul-b);color:var(--tinta)}
+.est-sw button.on{color:#fff;border-color:transparent}
+.est-sw button.on.activo{background:var(--oro);color:#1A1206}
+.est-sw button.on.pausado{background:var(--gris)}
+.est-sw button.on.terminado{background:var(--azul)}
+.est-sw button.on.facturado{background:var(--verde);color:#042415}
+@media(max-width:520px){ .est-sw{grid-template-columns:repeat(2,1fr)} }
 /* ── Tablero del día · Carpet ── */
 .cp-hoy{background:var(--sup);border:1px solid var(--linea);border-left:5px solid var(--azul);
   border-radius:12px;padding:15px 18px;margin-bottom:16px}
@@ -1115,7 +1127,7 @@ const ETAPAS = [
   {k:'reparando',  t:'Reparando',         s:'Reconstrucción en proceso'},
   {k:'aceptado',   t:'Estimado aceptado', s:'Autorizado para cobrar'},
   {k:'invoice',    t:'Invoice creado',    s:'Factura generada'},
-  {k:'subido',     t:'Invoice subido',    s:'Ya facturado · falta cargarlo al portal del management'}
+  {k:'subido',     t:'Cerrar trabajo',    s:'Listo y sin pendientes'}
 ];
 const DOCS_VIEJO = {
   management:['Work order / PO recibido','Autorización del manager','Fotos de antes','Fotos de después','Reporte final enviado al manager','Factura al management'],
@@ -2519,7 +2531,7 @@ function pintaPortal(data){
     {k:'estimado', t:'Estimate sent'}, {k:'trabajando', t:'In progress'},
     {k:'seco', t:'Dry'}, {k:'reparando', t:'Repairs'},
     {k:'aceptado', t:'Estimate approved'}, {k:'invoice', t:'Invoice issued'},
-    {k:'subido', t:'Invoice submitted'}
+    {k:'subido', t:'Job closed'}
   ];
   const man = j.docs||[];
   const auto = {inicial:R.length>0, reportes:R.length>0,
@@ -3996,7 +4008,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v123 · tablero del día Carpet</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v125 · cerrar trabajo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5987,7 +5999,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='123';
+const VERSION='125';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9527,7 +9539,13 @@ async function abrirJob(id){
           <span class="chip ${j.ocupada==='ocupada'?'rojo':'azul'}">UNIDAD ${esc((j.ocupada||'vacia').toUpperCase())}</span>
           ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
         </div>
-        ${EDIT()?'<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>':''}
+        ${EDIT()?`<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
+        <div class="eyebrow">Estatus del trabajo</div>
+        <div class="est-sw no-print">
+          ${[['activo','Activo'],['pausado','En pausa'],['terminado','Terminado'],['facturado','Facturado']]
+            .map(([k,t])=>`<button data-jest="${k}" class="${j.estatus===k?'on '+k:''}">${t}</button>`).join('')}
+        </div>
+        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>`:''}
       </div>
 
       ${CT.length?`<div class="eyebrow">Contactos de la propiedad · ${CT.length}</div>
@@ -9985,6 +10003,27 @@ async function abrirJob(id){
   $('#c1').onclick=$('#c2').onclick=cerrar;
   plegarSecciones();
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
+
+  // Cambiar el estatus de un toque, sin entrar a editar datos
+  document.querySelectorAll('[data-jest]').forEach(b=>b.onclick=async()=>{
+    const nuevo=b.dataset.jest;
+    if(nuevo===j.estatus) return;
+    const up={estatus:nuevo};
+    if(nuevo==='facturado'){
+      if(!j.invoice_num && !confirm('Este trabajo no tiene número de invoice.\n\nSe va a marcar como FACTURADO de todas formas, pero va a salir en "Por cobrar" con el chip SIN NÚMERO hasta que se lo captures.\n\n¿Le seguimos?')) return;
+      if(!j.fecha_cierre) up.fecha_cierre = j.invoice_fecha || hoy();
+      let docs=(j.docs||[]).filter(x=>x!=='-invoice');
+      if(!docs.includes('invoice')) docs.push('invoice');
+      up.docs=docs;
+    }
+    if(nuevo==='terminado' && !j.fecha_cierre) up.fecha_cierre=hoy();
+    if(nuevo==='activo' && j.invoice_num
+       && !confirm('Este trabajo ya tiene el invoice '+j.invoice_num+'.\n\nSi lo regresas a ACTIVO va a salir descuadrado en Facturación. ¿Le seguimos?')) return;
+    const {error}=await sb.from('jobs').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    toast('Ahora está '+nuevo);
+    abrirJob(id);
+  });
   const vmj=$('#vermas_j');
   if(vmj) vmj.onclick=()=>{
     const n=$('#scope_j'); const ab=n.classList.toggle('clamp');
@@ -10150,6 +10189,29 @@ async function abrirJob(id){
     // Si todavía no tiene número de invoice, se lo pedimos de una vez.
     if(k==='invoice' && !estaba && !j.invoice_num){
       return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
+
+    // CERRAR TRABAJO · la última etapa. Deja el job listo y sin pendientes.
+    if(k==='subido' && !estaba){
+      const faltan=[];
+      if(!j.invoice_num) faltan.push('no tiene número de invoice');
+      const pend=(PT||[]).filter(x=>(x.clase||'reparacion')==='reparacion' && x.estatus!=='terminado');
+      if(pend.length) faltan.push(pend.length+(pend.length===1?' reparación sin terminar':' reparaciones sin terminar'));
+      const aviso = faltan.length
+        ? 'Ojo, este trabajo todavía:\n\n· '+faltan.join('\n· ')+'\n\n¿Aun así lo cierras?'
+        : '¿Cerrar este trabajo? Queda listo y sin pendientes.';
+      if(!confirm(aviso)) return;
+      const cerrar_up={
+        docs:(j.docs||[]).filter(x=>x!=='subido' && x!=='-subido').concat(['subido']),
+        estatus:'facturado',
+        fecha_cierre: j.fecha_cierre || j.invoice_fecha || hoy()
+      };
+      const r=await sb.from('jobs').update(cerrar_up).eq('id',id);
+      if(r.error) return toast('No se pudo cerrar: '+r.error.message);
+      cerrar(); toast('Trabajo cerrado'); return render();
+    }
+    if(k==='subido' && estaba){
+      if(!confirm('Vas a reabrir el trabajo. Va a volver a salir como pendiente. ¿Le seguimos?')) return;
+    }
 
     let lista=(j.docs||[]).filter(x=>x!==k && x!=='-'+k);
     lista.push(estaba ? '-'+k : k);
