@@ -1343,7 +1343,9 @@ async function revisarFaltantes(){
     .select('id,folio,cliente,unidad,fecha_inicio,created_at,departamento,tecnico_id, propiedades(nombre), usuarios(nombre)')
     .eq('departamento',DEPV())
     .not('estatus','in','("terminado","facturado")');
-  const J=jobs||[];
+  // Segunda red: aunque la consulta ya filtra, se vuelve a filtrar aquí.
+  // Si un job trae el departamento mal en la base, no se cuela igual.
+  const J=(jobs||[]).filter(x=>x.departamento===DEPV());
   if(!J.length) return [];
   const ids=J.map(x=>x.id);
   const {data:reps}=await sb.from('reportes').select('job_id,fecha').in('job_id',ids).gte('fecha',hace(30));
@@ -3960,7 +3962,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v120 · precios 2026 y listas especiales</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v121 · candado extra de área</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5948,7 +5950,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='120';
+const VERSION='121';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
