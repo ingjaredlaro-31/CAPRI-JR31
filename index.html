@@ -3960,7 +3960,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v119 · Carlos crea sus facturas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v120 · precios 2026 y listas especiales</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5948,7 +5948,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='119';
+const VERSION='120';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8072,7 +8072,11 @@ async function nuevaFacturaCarpet(){
         direccion=$('#f_dir').value.trim();
         ciudad=$('#f_ciu').value.trim()||'San Diego';
         if(!cliente) return toast('Pon el nombre del cliente.');
+        if(!direccion) return toast('Pon la dirección.');
       }
+      // La factura tiene que salir completa: sin unidad ni fecha no pasa.
+      if(!$('#f_un').value.trim()) return toast('Falta la unidad. Toda factura la lleva.');
+      if(!$('#f_fe').value) return toast('Falta la fecha del servicio.');
       const folio=await nuevoFolio('cleaning');
       const p={folio, departamento:'cleaning', tipo:$('#f_tp').value,
         estatus:'terminado', origen: mgSel?'management':'particular',
@@ -8237,7 +8241,8 @@ function engancharInvoicesCarpet(){
 let INVR = [];          // renglones del invoice que se está armando
 let PCAT = [];          // catálogo de precios en memoria
 
-const UNIDADES = ['cuarto','sqft','escalón','pieza','hora','trabajo','lf','set'];
+const UNIDADES = ['trabajo','pieza','área','cuarto','escalón','hora','lf','ln ft','sq/yd','sqft','parche','set'];
+const CATEGORIAS = ['Carpet cleaning','Tile and grout','Vinyl','Upholstery','Vents','Stains removal','Carpet repair','Patches','Power wash','Otros'];
 
 async function siguienteInvoice(){
   const {data}=await sb.from('jobs').select('invoice_num').not('invoice_num','is',null).limit(500);
@@ -8254,7 +8259,12 @@ async function formInvoiceCarpet(jobId){
   if(!MIO_DEP(j.departamento)) return sinAcceso();
   if(!FACTURA()){ cerrar(); return toast('Solo administración y el gerente pueden facturar.'); }
 
-  PCAT = cat||[];
+  // Lista de precios de esta propiedad. Si la propiedad tiene precio
+  // especial para un concepto, ese manda sobre el general.
+  const espec = (cat||[]).filter(x=>x.propiedad_id && x.propiedad_id===j.propiedad_id);
+  const clavesEsp = new Set(espec.map(x=>(x.concepto||'').toLowerCase().trim()));
+  const general = (cat||[]).filter(x=>!x.propiedad_id && !clavesEsp.has((x.concepto||'').toLowerCase().trim()));
+  PCAT = espec.concat(general);
   INVR = Array.isArray(j.invoice_renglones) && j.invoice_renglones.length
          ? JSON.parse(JSON.stringify(j.invoice_renglones))
          : [];
@@ -8408,16 +8418,21 @@ async function formInvoiceCarpet(jobId){
     cap.querySelector('.ira-bg').onclick=()=>cap.remove();
     const lista=()=>{
       const q=($('#pcq').value||'').toLowerCase();
-      const R=PCAT.filter(p=>!q || p.concepto.toLowerCase().includes(q));
+      const R=PCAT.filter(p=>!q || (p.concepto+' '+(p.categoria||'')).toLowerCase().includes(q));
       $('#pclist').innerHTML = R.length ? R.map(p=>`
         <button class="ira-it" data-p="${p.id}">
           <span class="ira-tx"><b>${esc(p.concepto)}</b>
-            <em>${cf(p.precio)} por ${esc(p.unidad)}</em></span>
+            <em>${p.por_cotizar?'POR COTIZAR · tú pones el precio':cf(p.precio)+' por '+esc(p.unidad)}${
+              p.categoria?' · '+esc(p.categoria):''}${p.notas?' · '+esc(p.notas):''}</em></span>
+          ${p.propiedad_id?'<span class="chip azul">ESPECIAL</span>':''}
         </button>`).join('') : '<div class="ira-vacio">Nada con ese nombre.</div>';
       $('#pclist').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
         const p=PCAT.find(x=>String(x.id)===b.dataset.p);
-        INVR.push({concepto:p.concepto, cantidad:1, unidad:p.unidad, precio:Number(p.precio), especial:false});
+        INVR.push({concepto:p.concepto, cantidad:1, unidad:p.unidad,
+          precio: p.por_cotizar ? '' : Number(p.precio),
+          especial: !!p.propiedad_id || !!p.por_cotizar});
         cap.remove(); pinta();
+        if(p.por_cotizar) toast('Ese va por cotización · ponle el precio');
       });
     };
     $('#pcq').oninput=lista; lista();
@@ -8516,9 +8531,12 @@ ${j.invoice_pagado?'<div class="pg">PAGADA</div>':''}
 
 /* ==================== CATÁLOGO DE PRECIOS ==================== */
 async function vPrecios(){
-  const {data}=await sb.from('precios_catalogo').select('*')
+  const {data}=await sb.from('precios_catalogo')
+    .select('*, propiedades(nombre)')
     .eq('departamento',DEPV()).order('orden').order('concepto');
   const C=data||[];
+  const CAT={}; C.forEach(x=>{ const k=x.categoria||'Otros'; (CAT[k]=CAT[k]||[]).push(x); });
+  const esp=C.filter(x=>x.propiedad_id).length;
   return `
     ${selectorDep()}
     <div class="eyebrow">Catálogo de precios · ${C.length}</div>
@@ -8526,14 +8544,21 @@ async function vPrecios(){
       ? 'De aquí salen los renglones de los invoices. Si un trabajo lleva un precio distinto, se agrega como renglón especial sin tocar el catálogo.'
       : 'Estos son los precios autorizados. Solo administración los cambia. Si un trabajo lleva otro precio, mételo como <b>renglón especial</b> al facturar.'}</div>
     ${ES_ADMIN()?`<button class="btn wide" id="pr_n" style="margin-bottom:14px">+ Agregar concepto</button>`:''}
-    ${C.length? C.map(p=>`<div class="fila ${p.activo?'':'gris'}" ${ES_ADMIN()?`data-pr="${p.id}" style="cursor:pointer"`:''}>
-      <div class="t"><b>${esc(p.concepto)}</b>
-        <span class="sub">por ${esc(p.unidad)}${p.notas?' · '+esc(p.notas):''}</span></div>
-      <div style="text-align:right"><div class="disp" style="font-size:18px">${cf(p.precio)}</div>
-        ${p.activo?'':'<span class="chip">INACTIVO</span>'}</div>
-    </div>`).join('')
+    ${esp?`<div class="sub" style="margin-bottom:12px">${esp} ${esp===1?'concepto tiene':'conceptos tienen'} precio especial por propiedad. Esos le ganan al general nada más en su propiedad.</div>`:''}
+    ${C.length? Object.keys(CAT).map(k=>`
+      <div class="eyebrow">${esc(k)} · ${CAT[k].length}</div>
+      ${CAT[k].map(p=>`<div class="fila ${p.activo?'':'gris'}${p.propiedad_id?' a':''}" ${ES_ADMIN()?`data-pr="${p.id}" style="cursor:pointer"`:''}>
+        <div class="t"><b>${esc(p.concepto)}</b>
+          <span class="sub">por ${esc(p.unidad)}${p.notas?' · '+esc(p.notas):''}</span>
+          ${p.propiedad_id?`<span class="meta" style="color:var(--azul)">Solo ${esc(p.propiedades?.nombre||'')}</span>`:''}</div>
+        <div style="text-align:right">
+          <div class="disp" style="font-size:18px">${p.por_cotizar?'—':cf(p.precio)}</div>
+          ${p.por_cotizar?'<span class="chip ambar">POR COTIZAR</span>':''}
+          ${p.propiedad_id?'<span class="chip azul">ESPECIAL</span>':''}
+          ${p.activo?'':'<span class="chip">INACTIVO</span>'}</div>
+      </div>`).join('')}`).join('')
     : `<div class="empty"><div class="disp">Catálogo vacío</div>
-       <p>Agrega los conceptos que más facturas para no capturarlos cada vez.</p></div>`}`;
+       <p>Corre el capri_db_45.sql para cargar la lista general 2026, o agrega los conceptos a mano.</p></div>`}`;
 }
 
 function engancharPrecios(){
@@ -8547,23 +8572,39 @@ async function formPrecio(id){
   // Carlos lo ve para facturar, pero no cambia precios: si un trabajo
   // lleva otro precio, lo mete como renglón especial en su invoice.
   if(!ES_ADMIN()){ cerrar(); return toast('Solo administración puede cambiar los precios.'); }
-  let p={concepto:'',unidad:'cuarto',precio:'',notas:'',activo:true,orden:100,departamento:DEPV()};
+  let p={concepto:'',unidad:'trabajo',precio:'',notas:'',activo:true,orden:100,
+          departamento:DEPV(),propiedad_id:null,es_especial:false,por_cotizar:false,categoria:'Carpet cleaning'};
   if(id){ const {data}=await sb.from('precios_catalogo').select('*').eq('id',id).single(); p=data; }
+  const {data:PRP}=await sb.from('propiedades').select('id,nombre').order('nombre');
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
     <div><div class="disp" style="font-size:21px">${id?'Editar concepto':'Nuevo concepto'}</div>
     <div style="font-size:13px;color:#C3D6F7">${esc(p.departamento==='cleaning'?'Carpet Department':'Restoration')}</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+      <label>Lista de precios</label>
+      <select id="p_pr"><option value="">GENERAL 2026 · aplica a todos</option>
+        ${(PRP||[]).map(x=>`<option value="${x.id}" ${p.propiedad_id===x.id?'selected':''}>Solo ${esc(x.nombre)}</option>`).join('')}</select>
+      <div class="sub">Si escoges una propiedad, ese precio le gana al general nada más ahí. Así van DEZI, OLYMPUS y THE AVALYN.</div>
+
+      <label>Categoría</label>
+      <select id="p_ct">${CATEGORIAS.map(c=>`<option ${p.categoria===c?'selected':''}>${c}</option>`).join('')}</select>
+
       <label>Concepto</label>
-      <input id="p_c" value="${esc(p.concepto)}" placeholder="Carpet cleaning">
+      <input id="p_c" value="${esc(p.concepto)}" placeholder="Unit 2 bedrooms">
       <div class="g2">
         <div><label>Precio</label><input class="num" id="p_p" inputmode="decimal" value="${esc(p.precio)}"></div>
         <div><label>Se cobra por</label><select id="p_u">
           ${UNIDADES.map(u=>`<option ${p.unidad===u?'selected':''}>${u}</option>`).join('')}</select></div>
       </div>
+      <label style="display:flex;align-items:center;gap:9px;margin-top:8px">
+        <input type="checkbox" id="p_q" style="width:auto" ${p.por_cotizar?'checked':''}>
+        <span>Va por cotización · el precio se pone al facturar</span></label>
+      <label style="display:flex;align-items:center;gap:9px;margin-top:8px">
+        <input type="checkbox" id="p_e" style="width:auto" ${p.es_especial?'checked':''}>
+        <span>Marcar como <b>precio especial</b></span></label>
       <label>Nota</label>
-      <input id="p_n" value="${esc(p.notas||'')}" placeholder="Mínimo 2 cuartos, por ejemplo">
+      <input id="p_n" value="${esc(p.notas||'')}" placeholder="Hasta 5 manchas, por ejemplo">
       <label style="display:flex;align-items:center;gap:9px;margin-top:12px">
         <input type="checkbox" id="p_a" style="width:auto" ${p.activo?'checked':''}>
         <span>Activo · aparece al facturar</span></label>
@@ -8577,9 +8618,13 @@ async function formPrecio(id){
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#p_ok').onclick=async()=>{
     const c=$('#p_c').value.trim(), pr=Number($('#p_p').value)||0;
+    const cot=$('#p_q').checked;
     if(!c) return toast('Ponle nombre al concepto.');
-    if(!pr) return toast('Ponle precio.');
+    if(!pr && !cot) return toast('Ponle precio, o márcalo como por cotización.');
+    const propSel=$('#p_pr').value||null;
     const up={concepto:c, precio:pr, unidad:$('#p_u').value,
+      categoria:$('#p_ct').value, propiedad_id:propSel,
+      por_cotizar:cot, es_especial:$('#p_e').checked||!!propSel,
       notas:$('#p_n').value.trim()||null, activo:$('#p_a').checked, departamento:p.departamento};
     const {error} = id ? await sb.from('precios_catalogo').update(up).eq('id',id)
                        : await sb.from('precios_catalogo').insert(up);
