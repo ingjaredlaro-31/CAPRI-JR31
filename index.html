@@ -3732,16 +3732,18 @@ async function entrar(){
   if(!data) return errLogin('Usuario o contraseña incorrectos.');
   const areaP = AREA_PUERTA[PUERTA];
   if(areaP){
-    // por esta puerta entran gerentes y técnicos de esa área
-    if(!['gerente','tecnico'].includes(data.rol))
-      return errLogin('Esa cuenta no es de esta área. Regresa y entra por tu puerta.');
-    if(data.departamento!=='ambos' && data.departamento!==areaP)
+    // Por esta puerta entran gerentes y técnicos del área.
+    // Administración entra por donde quiera: Jared y Julio ven todo.
+    if(!['gerente','tecnico','admin','oficina'].includes(data.rol))
+      return errLogin('Tu cuenta tiene el rol "'+data.rol+'", que no entra por aquí. Avísale a administración.');
+    if(data.rol!=='admin' && data.departamento!=='ambos' && data.departamento!==areaP)
       return errLogin('Tu cuenta es de '+data.departamento+'. Regresa y entra por esa puerta.');
   } else if(PUERTA && data.rol!==PUERTA){
     return errLogin('Esa cuenta es de '+(PUERTAS[data.rol]?PUERTAS[data.rol].t.toLowerCase():data.rol)+'. Regresa y entra por esa puerta.');
   }
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
-  DEP = areaP || (U.departamento==='ambos' ? 'restoration' : U.departamento);
+  DEP = (U.rol==='admin' && U.departamento==='ambos' && areaP) ? areaP
+      : (areaP || (U.departamento==='ambos' ? 'restoration' : U.departamento));
   V = U.rol==='tecnico' ? 'reporte' : 'resumen';
   bienvenida(U, render);
 }
@@ -3962,7 +3964,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v121 · candado extra de área</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v122 · hacer invoice y accesos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5950,7 +5952,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='121';
+const VERSION='122';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6350,6 +6352,7 @@ async function vResumen(){
     document.querySelectorAll('[data-jobag]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.jobag));
     const ne2=$('#nuevoesp'); if(ne2) ne2.onclick=()=>formTrabajoEspecial();
     const irf=$('#ir_fact'); if(irf) irf.onclick=()=>{ V='cobranza'; render(); };
+    const hin=$('#hacer_inv'); if(hin) hin.onclick=()=>nuevaFacturaCarpet();
     document.querySelectorAll('[data-facj]').forEach(b=>b.onclick=e=>{
       if(e.target.closest('[data-facb]')) return;
       abrirJob(b.dataset.facj);
@@ -6556,7 +6559,9 @@ async function vResumen(){
              :'<span class="chip ambar">PENDIENTE</span>'}</div>
         </div>`;}).join(''):''}
       ${porFac.length>6?`<div class="sub">y ${porFac.length-6} más</div>`:''}
-      <button class="btn ghost wide no-print" id="ir_fact" style="margin:10px 0 18px">
+      ${FACTURA()?`<button class="btn wide no-print" id="hacer_inv" style="margin:10px 0 8px">
+        + Hacer invoice</button>`:''}
+      <button class="btn ghost wide no-print" id="ir_fact" style="margin:0 0 18px">
         Ver todas las facturas de Carpet</button>`;
     })()}`;
     })():''}
@@ -8174,7 +8179,7 @@ async function vInvoicesCarpet(){
 
   return `
     <div class="eyebrow">Invoices · Carpet Department</div>
-    ${FACTURA()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Nueva factura</button>`:''}
+    ${FACTURA()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Hacer invoice</button>`:''}
 
     <div class="qb-cards">
       <div class="qb-k"><span>POR FACTURAR</span>
