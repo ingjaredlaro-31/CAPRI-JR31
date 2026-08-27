@@ -238,6 +238,25 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Barra de búsqueda en la barra superior ── */
+.buscabar{display:flex;align-items:center;gap:8px;flex:0 1 330px;min-width:150px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+  border-radius:9px;padding:0 12px;height:40px;margin:0 14px;
+  transition:background .15s,border-color .15s,flex-basis .18s}
+.buscabar:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.22)}
+.buscabar:focus-within{background:rgba(255,255,255,.14);border-color:var(--azul);flex-basis:400px}
+.bb-ic{color:#8FA2BC;font-size:16px;flex-shrink:0}
+.buscabar input{flex:1;min-width:0;background:transparent;border:0;padding:0;
+  color:#fff;font-size:14.5px;height:100%}
+.buscabar input::placeholder{color:#7C8CA5}
+.buscabar input:focus{outline:0}
+.solomovil{display:none}
+@media(max-width:640px){ .solomovil{display:inline-flex} }
+.bb-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:#7C8CA5;
+  border:1px solid rgba(255,255,255,.16);border-radius:4px;padding:2px 6px;flex-shrink:0}
+@media(max-width:900px){ .bb-k{display:none} .buscabar{flex-basis:190px;margin:0 8px} }
+@media(max-width:640px){ .buscabar{display:none} }
+
 /* ── Zonas donde trabajamos ── */
 .z-mapa{height:230px;border-radius:11px;overflow:hidden;border:1px solid var(--linea);
   margin-bottom:11px;background:var(--sup2)}
@@ -4210,7 +4229,7 @@ function shell(html){
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
-        <button class="temabtn" id="irabtn" title="Ir a… (Ctrl+K)" style="margin-left:8px;font-size:15px">⌕</button>
+        <button class="temabtn solomovil" id="irabtn" title="Buscar" style="margin-left:8px;font-size:16px">⌕</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
           <div class="marca">${
@@ -4220,6 +4239,14 @@ function shell(html){
             : 'CAPRI · ADMIN CENTRAL'} <span class="vbadge">v${VERSION}</span></div>
           <div class="t">${esTec?'JR31':(V==='dia'?'Control del día':(tabs.find(t=>t[0]===V)||['','JR31'])[1])}</div>
         </div>
+
+        <div class="buscabar" id="buscabar">
+          <span class="bb-ic">⌕</span>
+          <input id="bb_in" autocomplete="off" spellcheck="false"
+            placeholder="${ING()?'Search work, unit, invoice…':'Buscar trabajo, unidad, invoice…'}">
+          <span class="bb-k">Ctrl K</span>
+        </div>
+
         <div class="quien">
           <b>${esc((U.nombre||'').split('·')[0].trim())}</b>
           <span>${esc(esTec?(depTec==='cleaning'?'Cleaning':'Restoration'):U.rol)}</span>
@@ -4230,7 +4257,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v138 · mapa de zonas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v139 · barra de búsqueda</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4245,6 +4272,14 @@ function shell(html){
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
   const bir=$('#irabtn'); if(bir) bir.onclick=abrirIrA;
+  const bb=$('#bb_in');
+  if(bb){
+    // La barra de arriba abre el buscador rápido y le pasa lo que ya escribiste
+    const abrir=()=>{ const v=bb.value; abrirIrA(); setTimeout(()=>{
+      const q=$('#iraq'); if(q && v){ q.value=v; iraBuscar(v); } },60); bb.value=''; };
+    bb.onfocus=abrir;
+    bb.onkeydown=e=>{ if(e.key!=='Tab'){ e.preventDefault(); abrir(); } };
+  }
   const bi2=$('#idioma'); if(bi2) bi2.onclick=cambiarIdioma;
   const bs=$('#sonido'); if(bs) bs.onclick=()=>{
     SONIDO=!SONIDO;
@@ -6226,7 +6261,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='138';
+const VERSION='139';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
