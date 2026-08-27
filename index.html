@@ -4154,7 +4154,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v129 · portada de clientes</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v130 · cargar precios desde el app</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6146,7 +6146,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='129';
+const VERSION='130';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8973,6 +8973,66 @@ ${j.invoice_pagado?'<div class="pg">PAGADA</div>':''}
 }
 
 /* ==================== CATÁLOGO DE PRECIOS ==================== */
+
+/* La lista general 2026 tal cual el PDF de Capri.
+   Se carga desde el botón en Precios, sin tener que correr SQL. */
+const PRECIOS_2026 = [
+ ['Carpet cleaning','Studio','trabajo',70,'Ocupada o vacante'],
+ ['Carpet cleaning','Unit 1 bedroom','trabajo',75,'Ocupada o vacante'],
+ ['Carpet cleaning','Unit 2 bedrooms','trabajo',85,'Ocupada o vacante'],
+ ['Carpet cleaning','Unit 3 bedrooms','trabajo',95,'Ocupada o vacante'],
+ ['Carpet cleaning','Portable machine · multilevel','trabajo',35,'Cargo extra en edificios de varios niveles'],
+ ['Carpet cleaning','Stairs · 5 escalones o más','trabajo',35,'Cargo extra'],
+ ['Carpet cleaning','Enzyme treatment','trabajo',45,''],
+ ['Carpet cleaning','Brushing and encapsulating','trabajo',45,'Comercial y alfombra regular'],
+ ['Carpet cleaning','Pet scan','trabajo',75,''],
+ ['Tile and grout','Tile and grout · entry, kitchen, bathroom','área',0,'Por cotización y estimado',1],
+ ['Vinyl','Vinyl floor steam cleaning','trabajo',160,''],
+ ['Upholstery','Upholstery cleaning','ln ft',15,'Por pie lineal'],
+ ['Vents','AC hasta 5 vents','trabajo',150,''],
+ ['Vents','AC hasta 11 vents','trabajo',200,''],
+ ['Vents','Dryer vent clean','pieza',120,''],
+ ['Vents','Dryer vent multi unit','trabajo',0,'Por estimado',1],
+ ['Stains removal','Red stains','set',25,'Hasta 5 manchas'],
+ ['Stains removal','Color stains','set',25,'Café, amarillo, verde, azul · hasta 5 manchas'],
+ ['Stains removal','Bleach stains · removal','pieza',25,'Tamaño QT'],
+ ['Stains removal','Pet treatment','área',45,'Por área'],
+ ['Stains removal','Scrubber','trabajo',35,''],
+ ['Stains removal','Wax / gum','pieza',15,''],
+ ['Carpet repair','Carpet stretching','área',28,'Por área'],
+ ['Carpet repair','Metal strips','pieza',28,'Hasta 4 LF'],
+ ['Carpet repair','Tack strips','lf',1.5,'Por pie'],
+ ['Carpet repair','Bleach stains · repair','pieza',25,'Tamaño QT'],
+ ['Carpet repair','Carpet relay labor','hora',75,'Por hora'],
+ ['Carpet repair','Carpet padding 7/16 rebound','sq/yd',3.8,'Material'],
+ ['Carpet repair','Seam repair 1 a 4 feet','pieza',25,''],
+ ['Carpet repair','Clean and deodorize carpet','pieza',25,''],
+ ['Patches','Patch chico · 1ft x 1ft o menos','parche',30,''],
+ ['Patches','Patch mediano · 2ft x 2ft','parche',65,''],
+ ['Patches','Patch grande · más de 2ft x 2ft','parche',0,'Por cotización y estimado',1],
+ ['Power wash','Power wash','trabajo',0,'Por cotización y estimado',1]
+];
+
+async function cargarPrecios2026(){
+  if(!ES_ADMIN()) return toast('Solo administración carga el catálogo.');
+  if(!confirm('Se van a cargar los '+PRECIOS_2026.length+' conceptos de la lista GENERAL 2026.\n\nLos que ya existan no se tocan, no se duplica nada. ¿Le seguimos?')) return;
+  const filas = PRECIOS_2026.map((r,i)=>({
+    departamento:'cleaning', categoria:r[0], concepto:r[1], unidad:r[2],
+    precio:r[3], notas:r[4]||null, por_cotizar:!!r[5], es_especial:false,
+    propiedad_id:null, activo:true, orden:(i+1)*10
+  }));
+  let ok=0, ya=0, err=null;
+  for(const f of filas){
+    const {error}=await sb.from('precios_catalogo').insert(f);
+    if(!error) ok++;
+    else if(/duplicate|unique/i.test(error.message)) ya++;
+    else if(!err) err=error.message;
+  }
+  if(err && !ok) return toast('No se pudo: '+err+' · ¿ya corriste el capri_db_43.sql?');
+  toast(ok+' cargados'+(ya?' · '+ya+' ya estaban':''));
+  render();
+}
+
 async function vPrecios(){
   const {data}=await sb.from('precios_catalogo')
     .select('*, propiedades(nombre)')
@@ -8986,7 +9046,10 @@ async function vPrecios(){
     <div class="sub" style="margin-bottom:12px">${ES_ADMIN()
       ? 'De aquí salen los renglones de los invoices. Si un trabajo lleva un precio distinto, se agrega como renglón especial sin tocar el catálogo.'
       : 'Estos son los precios autorizados. Solo administración los cambia. Si un trabajo lleva otro precio, mételo como <b>renglón especial</b> al facturar.'}</div>
-    ${ES_ADMIN()?`<button class="btn wide" id="pr_n" style="margin-bottom:14px">+ Agregar concepto</button>`:''}
+    ${ES_ADMIN()?`
+      ${C.filter(x=>!x.propiedad_id).length < 30 ? `<button class="btn wide" id="pr_load" style="margin-bottom:9px">
+        Cargar lista GENERAL 2026 · ${PRECIOS_2026.length} conceptos</button>`:''}
+      <button class="btn ghost wide" id="pr_n" style="margin-bottom:14px">+ Agregar concepto</button>`:''}
     ${esp?`<div class="sub" style="margin-bottom:12px">${esp} ${esp===1?'concepto tiene':'conceptos tienen'} precio especial por propiedad. Esos le ganan al general nada más en su propiedad.</div>`:''}
     ${C.length? Object.keys(CAT).map(k=>`
       <div class="eyebrow">${esc(k)} · ${CAT[k].length}</div>
@@ -9007,6 +9070,7 @@ async function vPrecios(){
 function engancharPrecios(){
   engancharDep();
   const n=$('#pr_n'); if(n) n.onclick=()=>formPrecio();
+  const lg=$('#pr_load'); if(lg) lg.onclick=()=>cargarPrecios2026();
   document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>formPrecio(b.dataset.pr));
 }
 
