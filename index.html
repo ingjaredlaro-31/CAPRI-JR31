@@ -238,6 +238,26 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Rastro de ubicación ── */
+.ra-t{background:var(--sup);border:1px solid var(--linea);border-radius:10px;
+  padding:11px 14px;margin-bottom:11px}
+.ra-h{display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  padding-bottom:9px;border-bottom:1px solid var(--linea)}
+.ra-h b{font-family:var(--disp);font-size:19px}
+.ra-h span{font-size:13px;color:var(--gris)}
+.ra-h .btn{margin-left:auto}
+.ra-l{display:flex;flex-direction:column}
+.ra-p{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--linea)}
+.ra-p:last-child{border-bottom:0}
+.ra-ic{font-family:var(--mono);font-size:13px;color:var(--azul);width:16px;text-align:center}
+.ra-hh{font-family:var(--mono);font-size:14px;font-weight:600;width:56px;flex:0 0 56px}
+.ra-tx{flex:1;min-width:0}
+.ra-tx b{display:block;font-size:14.5px;font-weight:600}
+.ra-tx em{font-style:normal;font-size:12.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ra-go{font-family:var(--mono);font-size:11px;color:var(--azul);text-decoration:none;flex-shrink:0}
+.ra-go:hover{text-decoration:underline}
+
 /* ── Arranque del día ── */
 .ar-box{background:var(--sup);border:1px solid var(--linea);border-radius:10px;
   padding:10px 13px;margin-bottom:14px}
@@ -1386,7 +1406,7 @@ async function enviarLevantamiento(){
     texto:`${U.nombre} · ${d.unidad?'Unit '+d.unidad+' · ':''}${d.tipo} · ${d.areas.join(', ')||'sin áreas'} · ${d.fotos.length} fotos`,
     de_usuario:U.nombre, para_rol:'admin'
   });
-  cerrar(); toast('Reporte inicial enviado a oficina'); render();
+  marcarUbicacion('inicial', data?data.id:null); cerrar(); toast('Reporte inicial enviado a oficina'); render();
 }
 
 /* ---------- ADMIN: bandeja de reportes iniciales ---------- */
@@ -4124,8 +4144,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['precios',BI('Precios','Price list')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['precios','Precios']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['precios',BI('Precios','Price list')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['precios','Precios'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
@@ -4135,7 +4155,7 @@ function shell(html){
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     estimados:'DINERO', cobranza:'DINERO', horas:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', partes:'DIRECTORIO', equipo:'DIRECTORIO',
-    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO'
+    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO', rastro:'DÍA A DÍA'
   };
   const ORDEN_GRUPOS = ['DÍA A DÍA','TRABAJOS','DINERO','DIRECTORIO','HERRAMIENTAS'];
   const restantes = tabs.filter(t=>t[0]!==inicio);
@@ -4194,7 +4214,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v136 · resumen por WhatsApp</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v137 · rastro de ubicación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4305,6 +4325,10 @@ async function render(){
       shell(await vCobranza()); return engancharCobranza();
     }
     if(V==='historial'){ shell(await vHistorial()); return engancharHistorial(); }
+    if(V==='rastro'){
+      if(!EDIT()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>El rastro es de administración.</p></div>');
+      shell(await vRastro()); return engancharRastro();
+    }
     if(V==='precios'){
       if(!FACTURA()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>El catálogo de precios es de administración y gerencia.</p></div>');
       shell(await vPrecios()); return engancharPrecios();
@@ -4642,7 +4666,7 @@ async function formReporte(jobId,fecha,tecOverride){
       const nuevas=[...new Set((j.areas||[]).concat(AREAS))];
       await sb.from('jobs').update({areas:nuevas,ocupada:OC}).eq('id',jobId);
     }
-    borrarBorrador(); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
+    borrarBorrador(); marcarUbicacion('reporte', G.job?G.job.id:null); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
   };
 }
 
@@ -5556,7 +5580,7 @@ async function enviarGuiado(){
     const nuevas=[...new Set((G.job.areas||[]).concat(d.areas))];
     await sb.from('jobs').update({areas:nuevas, ocupada:d.ocupada}).eq('id',jobId);
   }
-  borrarBorrador(); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
+  borrarBorrador(); marcarUbicacion('reporte', G.job?G.job.id:null); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
 }
 
 /* ==================== REPORTE EN FORMATO DE CAMPO ==================== */
@@ -6186,7 +6210,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='136';
+const VERSION='137';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8243,6 +8267,102 @@ function secc(o){
     </summary>
     <div class="s-b">${cuerpo}</div>
   </details>`;
+}
+
+/* ============ RASTRO DE UBICACIÓN ============
+   No es seguimiento en vivo: son puntos con hora en los momentos
+   que importan (checadas, reportes, cierres). Sirve para comprobar
+   que sí estuvo ahí, y protege al técnico de reclamos.
+   Solo se toma cuando él usa la app y da permiso. */
+
+async function marcarUbicacion(tipo, jobId){
+  try{
+    const g = await ubicame();
+    if(!g) return null;
+    await sb.from('ubicaciones').insert({
+      usuario_id:U.id, nombre:U.nombre, tipo, job_id:jobId||null,
+      lat:g.lat, lng:g.lng, fecha:hoy(),
+      departamento: (U.departamento && U.departamento!=='ambos') ? U.departamento : DEP
+    });
+    return g;
+  }catch(e){ return null; }
+}
+
+const ICOTIPO={entrada:'▶', salida:'■', reporte:'✎', cierre:'✓', inicial:'★'};
+const NOMTIPO={entrada:'Checó entrada', salida:'Checó salida', reporte:'Mandó reporte',
+               cierre:'Cerró trabajo', inicial:'Levantamiento'};
+
+async function vRastro(){
+  const h = RASTRO_DIA || hoy();
+  const [{data:pts},{data:asis},{data:tecs}] = await Promise.all([
+    sb.from('ubicaciones')
+      .select('*, jobs(folio,cliente,unidad, propiedades(nombre))')
+      .eq('fecha',h).eq('departamento',DEPV()).order('created_at'),
+    sb.from('asistencias').select('*').eq('fecha',h),
+    sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true)
+  ]);
+
+  const T=(tecs||[]).filter(t=>t.departamento==='ambos'||t.departamento===DEPV());
+  const P=pts||[], AS=asis||[];
+  // Las checadas también son puntos, aunque vivan en otra tabla
+  const extra=[];
+  AS.forEach(a=>{
+    if(a.ent_lat) extra.push({usuario_id:a.usuario_id, nombre:a.nombre, tipo:'entrada',
+      lat:a.ent_lat, lng:a.ent_lng, dir:a.ent_dir, created_at:a.entrada});
+    if(a.sal_lat) extra.push({usuario_id:a.usuario_id, nombre:a.nombre, tipo:'salida',
+      lat:a.sal_lat, lng:a.sal_lng, dir:a.sal_dir, created_at:a.salida});
+  });
+  const TODOS=P.concat(extra).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+
+  const porTec={};
+  TODOS.forEach(p=>{ (porTec[p.usuario_id] ||= []).push(p); });
+
+  const hh=s=>{ try{ return new Date(s).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return '—'; } };
+  const km=(a,b)=>{ const R=6371, r=x=>x*Math.PI/180;
+    const dLa=r(b.lat-a.lat), dLo=r(b.lng-a.lng);
+    const x=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); };
+
+  return `
+    ${selectorDep()}
+    <div class="eyebrow">Rastro del día</div>
+    <div class="sub" style="margin-bottom:10px">Puntos con hora de cuando el técnico usó la app. No es seguimiento en vivo: una app web no puede leer el GPS con el teléfono bloqueado.</div>
+    <input type="date" id="ra_f" value="${h}" style="margin-bottom:14px">
+
+    ${T.length? T.map(t=>{
+      const L=porTec[t.id]||[];
+      let rec=0;
+      for(let i=1;i<L.length;i++) if(L[i-1].lat&&L[i].lat) rec+=km(L[i-1],L[i]);
+      return `
+      <div class="ra-t">
+        <div class="ra-h">
+          <b>${esc(t.nombre)}</b>
+          <span>${L.length?L.length+' '+(L.length===1?'punto':'puntos')+(rec>0.3?' · '+rec.toFixed(1)+' km recorridos':''):'sin actividad'}</span>
+          ${L.length?`<button class="btn mini" data-ramap="${t.id}">VER EN MAPA</button>`:''}
+        </div>
+        ${L.length? `<div class="ra-l">${L.map(p=>`
+          <div class="ra-p">
+            <span class="ra-ic">${ICOTIPO[p.tipo]||'·'}</span>
+            <span class="ra-hh">${hh(p.created_at)}</span>
+            <span class="ra-tx"><b>${NOMTIPO[p.tipo]||p.tipo}</b>
+              ${p.jobs?`<em>${esc(p.jobs.propiedades?.nombre||p.jobs.cliente||'')}${p.jobs.unidad?' · '+esc(p.jobs.unidad):''} · ${esc(p.jobs.folio||'')}</em>`
+                : p.dir?`<em>${esc(p.dir)}</em>`:''}</span>
+            ${p.lat?`<a class="ra-go" target="_blank" rel="noopener"
+              href="https://maps.google.com/?q=${p.lat},${p.lng}">mapa ›</a>`:'<span class="chip">SIN GPS</span>'}
+          </div>`).join('')}</div>`
+        : '<div class="sub" style="padding:8px 2px">No abrió la app o no dio permiso de ubicación.</div>'}
+      </div>`;
+    }).join('')
+    : '<div class="empty"><div class="disp">Sin técnicos</div><p>No hay técnicos activos en esta área.</p></div>'}`;
+}
+
+let RASTRO_DIA=null;
+function engancharRastro(){
+  engancharDep();
+  const f=$('#ra_f'); if(f) f.onchange=e=>{ RASTRO_DIA=e.target.value; render(); };
+  document.querySelectorAll('[data-ramap]').forEach(b=>b.onclick=()=>{
+    V='mapa'; render();
+  });
 }
 
 /* ============ ARRANQUE DEL DÍA ============
@@ -10875,7 +10995,7 @@ async function abrirJob(id){
       };
       const r=await sb.from('jobs').update(cerrar_up).eq('id',id);
       if(r.error) return toast('No se pudo cerrar: '+r.error.message);
-      cerrar(); toast('Trabajo cerrado'); return render();
+      marcarUbicacion('cierre', id); cerrar(); toast('Trabajo cerrado'); return render();
     }
     if(k==='subido' && estaba){
       if(!confirm('Vas a reabrir el trabajo. Va a volver a salir como pendiente. ¿Le seguimos?')) return;
