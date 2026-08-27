@@ -238,6 +238,43 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ══ Portada del cliente · fondo oscuro, no blanco ══ */
+.clientebox{background:linear-gradient(168deg,#101827 0%,#0B111C 55%,#0A0E15 100%)!important;
+  border:1px solid #1E2838!important;box-shadow:0 18px 50px rgba(0,0,0,.34)}
+.clientebox .cb-tag{background:transparent!important;color:var(--oro)!important;
+  border-bottom:1px solid #1E2838;letter-spacing:.2em}
+.clientebox .cb-globo{background:#18202E!important;border-color:#2A3546!important;color:#E8EDF5!important}
+.clientebox .cb-globo b{color:#fff!important}
+.clientebox .cb-globo span{color:#9FB0C7!important}
+.clientebox .cb-globo::before,.clientebox .cb-globo::after{border-right-color:#2A3546!important}
+
+/* El botón principal, solo y grande */
+.cb-btn.solo{width:100%;background:linear-gradient(135deg,#E0B34E 0%,#C8922F 100%)!important;
+  border:0!important;border-radius:14px;padding:24px 26px;position:relative;cursor:pointer;
+  text-align:left;box-shadow:0 8px 26px rgba(224,179,78,.30);margin-bottom:18px;
+  transition:transform .13s, box-shadow .18s}
+.cb-btn.solo:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(224,179,78,.42)}
+.cb-btn.solo:active{transform:translateY(0) scale(.99)}
+.cb-btn.solo .t{font-family:var(--disp);font-size:31px;line-height:1;color:#1A1206;
+  text-transform:uppercase;letter-spacing:.01em}
+.cb-btn.solo .s{font-size:13.5px;color:#4A360F;margin-top:5px;max-width:82%}
+.cb-btn.solo .fl{position:absolute;right:24px;top:50%;transform:translateY(-50%);
+  font-size:34px;color:#1A1206;opacity:.6}
+
+/* Lo que hacemos */
+.cb-serv{border-top:1px solid #1E2838;padding-top:16px;margin-bottom:16px}
+.cb-st{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--oro);
+  text-align:center;margin-bottom:13px}
+.cb-sg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cb-si{background:rgba(255,255,255,.035);border:1px solid #1E2838;border-left:2px solid var(--oro);
+  border-radius:8px;padding:10px 12px;transition:background .15s,border-color .15s}
+.cb-si:hover{background:rgba(224,179,78,.09);border-left-color:#fff}
+.cb-si b{display:block;font-family:var(--disp);font-size:15.5px;line-height:1.12;
+  color:#F2F5FA;text-transform:uppercase;letter-spacing:.01em}
+.cb-si span{display:block;font-size:11px;color:#8B9BB4;margin-top:2px;line-height:1.3}
+.cb-sp{text-align:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  color:#6C7B92;margin-top:12px}
+@media(max-width:520px){ .cb-sg{grid-template-columns:1fr} .cb-btn.solo .t{font-size:26px} }
 /* ══ Interacción · que todo botón se sienta al tocarlo ══ */
 button{-webkit-tap-highlight-color:transparent}
 .btn,.cp-b,.est-sw button,.hm-kpi button,.hm-it,.sx-cuadro,.mos,.hm-ir button{
@@ -3755,11 +3792,29 @@ function portada(){
         </div>
       </div>
       <div class="cb-cuerpo">
-        <button class="cb-btn" id="p_cliente">
+        <button class="cb-btn solo" id="p_cliente">
           <div class="t">${PT('Track my job','Ver mi trabajo')}</div>
           <div class="s">${PT('Property managers · enter your job number','Managers · escriba su número de trabajo')}</div>
           <div class="fl">›</div>
         </button>
+
+        <div class="cb-serv">
+          <div class="cb-st">${PT('WHAT WE DO','LO QUE HACEMOS')}</div>
+          <div class="cb-sg">
+            ${[
+              ['Water damage','Daño por agua','Extraction, drying and equipment','Extracción, secado y equipo'],
+              ['Mold remediation','Remediación de moho','Containment and treatment','Containment y tratamiento'],
+              ['Fire and smoke','Fuego y humo','Cleaning and deodorizing','Limpieza y desodorizado'],
+              ['Reconstruction','Reconstrucción','Drywall, paint and flooring','Drywall, pintura y pisos'],
+              ['Carpet cleaning','Limpieza de alfombra','Steam and deep cleaning','Vapor y limpieza profunda'],
+              ['Tile and grout','Tile y grout','Scrub, rinse and seal','Lavado y sellado'],
+              ['Upholstery','Tapicería','Sofas, chairs and mattresses','Sofás, sillas y colchones'],
+              ['Pressure washing','Pressure washing','Exteriors and walkways','Exteriores y banquetas']
+            ].map(([a,b,c,d])=>`<div class="cb-si"><b>${PT(a,b)}</b><span>${PT(c,d)}</span></div>`).join('')}
+          </div>
+          <div class="cb-sp">${PT('Licensed and insured · San Diego County','Con licencia y seguro · Condado de San Diego')}</div>
+        </div>
+
         <div class="emerg">
           <div class="masc-cara emerg-masc"></div>
           <div class="l"><span class="punto"></span>24 HR EMERGENCY SERVICE</div>
@@ -3882,6 +3937,8 @@ async function entrar(){
 }
 function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
   if(RELOJ){clearInterval(RELOJ);RELOJ=null;}
+  if(VIGIA){clearInterval(VIGIA);VIGIA=null;}
+  NOTIF=0;
   if(MAPA){try{MAPA.remove();}catch(e){} MAPA=null;}
   portada(); }
 
@@ -4097,7 +4154,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v128 · home sintetizado</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v129 · portada de clientes</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6089,7 +6146,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='128';
+const VERSION='129';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11709,6 +11766,9 @@ function borrarBorrador(){
 
 /* Acciones globales: funcionan sin importar cuándo se pinte la pantalla */
 document.addEventListener('click', e=>{
+  // Sin sesión no hay nada que despachar aquí: la portada y el portal
+  // del cliente tienen sus propios botones.
+  if(!U && !e.target.closest('[data-puerta],[data-track],#sheet')) { /* deja pasar */ }
   if(!U) return;
   try{ accionGlobal(e); }catch(err){ console.error(err); toast('Error: '+(err.message||err)); }
 });
@@ -11791,7 +11851,7 @@ function accionGlobal(e){
 
   const jb = el('data-job');
   if(jb){ e.preventDefault();
-    return U.rol==='tecnico' ? verJobTecnico(jb.dataset.job) : abrirJob(jb.dataset.job); }
+    return (U && U.rol==='tecnico') ? verJobTecnico(jb.dataset.job) : abrirJob(jb.dataset.job); }
 
   // reportes
   const rgi = el('data-rgi');
