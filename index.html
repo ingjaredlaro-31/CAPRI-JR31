@@ -238,6 +238,14 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Botones más grandes y con más respuesta al tacto */
+.btn{min-height:50px;padding:14px 22px}
+.btn.sm{min-height:44px;padding:11px 18px;font-size:15.5px}
+.btn.mini{min-height:34px}
+.btn:hover{filter:brightness(1.07)}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn.wide{min-height:56px;font-size:19px}
+.est-sw button{min-height:48px}
 /* ── Cambiar estatus del job de un toque ── */
 .est-sw{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 6px}
 .est-sw button{background:var(--sup);border:1px solid var(--linea);border-radius:8px;
@@ -4008,7 +4016,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v125 · cerrar trabajo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v126 · botones arreglados</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5999,7 +6007,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='125';
+const VERSION='126';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10001,7 +10009,9 @@ async function abrirJob(id){
     </div></div>`;
 
   $('#c1').onclick=$('#c2').onclick=cerrar;
-  plegarSecciones();
+  // OJO: plegarSecciones() va HASTA EL FINAL. Desprende del DOM las secciones
+  // cerradas, así que si corre antes, los botones de esas secciones se quedan
+  // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
 
   // Cambiar el estatus de un toque, sin entrar a editar datos
@@ -10307,6 +10317,9 @@ async function abrirJob(id){
   const ap=$('#ap'); if(ap) ap.onclick=()=>{ cerrar(); formPartida(id); };
   document.querySelectorAll('[data-sug]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,null,b.dataset.sug); });
   document.querySelectorAll('[data-ep2]').forEach(b=>b.onclick=()=>{ cerrar(); formPartida(id,b.dataset.ep2); });
+
+  // Ya con todos los botones enganchados, ahora sí se pliega en cuadrícula.
+  plegarSecciones();
 }
 
 async function formFinanzas(id){
