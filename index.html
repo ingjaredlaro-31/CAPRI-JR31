@@ -238,6 +238,74 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ══ Interacción · que todo botón se sienta al tocarlo ══ */
+button{-webkit-tap-highlight-color:transparent}
+.btn,.cp-b,.est-sw button,.hm-kpi button,.hm-it,.sx-cuadro,.mos,.hm-ir button{
+  transition:transform .11s cubic-bezier(.2,.8,.3,1), box-shadow .16s, border-color .16s, background .16s}
+.btn:active,.cp-b:active,.est-sw button:active,.hm-kpi button:active,
+.hm-it:active,.sx-cuadro:active,.mos:active,.hm-ir button:active{transform:scale(.975)}
+.fila{transition:background .14s, transform .11s}
+.fila:hover{background:var(--sup2)}
+.fila:active{transform:scale(.995)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offset:2px;border-radius:6px}
+
+/* ══ HOME · tablero del día ══ */
+.hm-top{display:flex;justify-content:space-between;align-items:flex-start;
+  gap:14px;margin-bottom:15px}
+.hm-sal{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--gris)}
+.hm-nom{font-family:var(--disp);font-size:30px;line-height:1.05;margin-top:2px}
+.hm-fec{text-align:right;flex-shrink:0}
+.hm-fec b{display:block;font-family:var(--disp);font-size:31px;line-height:1;
+  font-variant-numeric:tabular-nums}
+.hm-fec span{font-size:11.5px;color:var(--gris);text-transform:capitalize}
+
+.hm-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.hm-kpi button{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--linea);
+  border-radius:11px;padding:14px 10px 12px;cursor:pointer;text-align:left}
+.hm-kpi button:hover{border-color:var(--azul-b);box-shadow:0 4px 16px rgba(27,86,211,.10)}
+.hm-kpi b{display:block;font-family:var(--disp);font-size:30px;line-height:1;color:var(--tinta)}
+.hm-kpi span{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--gris)}
+.hm-kpi .al{border-top-color:var(--rojo)} .hm-kpi .al b{color:var(--rojo)}
+.hm-kpi .az{border-top-color:var(--azul)} .hm-kpi .az b{color:var(--azul)}
+.hm-kpi .off{opacity:.5}
+
+.hm-ag{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
+.hm-ags{flex:0 0 auto;min-width:172px;background:var(--sup);border:1px solid var(--linea);
+  border-left:3px solid var(--azul);border-radius:10px;padding:10px 13px;text-align:left;cursor:pointer}
+.hm-ags b{display:block;font-family:var(--mono);font-size:15px;color:var(--azul)}
+.hm-ags span{display:block;font-family:var(--disp);font-size:16px;line-height:1.1;margin-top:2px}
+.hm-ags em{font-style:normal;font-size:11px;color:var(--gris)}
+
+.hm-lista{display:flex;flex-direction:column;gap:7px}
+.hm-it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
+  background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--gris);
+  border-radius:10px;padding:12px 14px}
+.hm-it:hover{box-shadow:0 3px 14px rgba(0,0,0,.08)}
+.hm-it.r{border-left-color:var(--rojo)} .hm-it.am{border-left-color:var(--oro)}
+.hm-it.m{border-left-color:var(--oro)}
+.hm-d{font-family:var(--disp);font-size:23px;width:48px;flex:0 0 48px;color:var(--rojo)}
+.hm-it.am .hm-d,.hm-it.m .hm-d{color:var(--oro)}
+.hm-tx{flex:1;min-width:0}
+.hm-tx b{display:block;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hm-tx em{font-style:normal;font-size:12px;color:var(--gris)}
+.hm-ac{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--azul);
+  border:1px solid var(--azul);padding:5px 11px;border-radius:5px;flex-shrink:0}
+
+.hm-rev{width:100%;text-align:left;background:var(--azul-l);border:1px solid var(--azul-b);
+  border-radius:10px;padding:13px 15px;cursor:pointer;font-size:15px}
+.hm-rev b{font-family:var(--disp);font-size:21px;margin-right:5px;color:var(--azul)}
+
+.hm-ir{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.hm-ir button{display:flex;flex-direction:column;align-items:center;gap:7px;
+  background:var(--sup);border:1px solid var(--linea);border-radius:11px;
+  padding:15px 8px;cursor:pointer;font-size:12.5px;color:var(--tinta);text-align:center}
+.hm-ir button:hover{border-color:var(--azul);color:var(--azul)}
+.hm-ir span{display:flex;width:23px;height:23px;opacity:.62}
+.hm-ir svg{width:100%;height:100%}
+@media(max-width:560px){
+  .hm-kpi,.hm-ir{grid-template-columns:repeat(2,1fr)}
+  .hm-nom{font-size:25px} .hm-fec b{font-size:26px}
+}
 /* ── Ficha técnica del trabajo ── */
 .fic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px;margin:4px 0}
 .fic{background:var(--sup2);border:1px solid var(--linea);border-left:3px solid var(--gris);
@@ -4029,7 +4097,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v127 · ficha técnica del job</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v128 · home sintetizado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4123,6 +4191,7 @@ async function render(){
     if(V==='resumen' && DEPV()==='cleaning'){
       shell(await vHoyCarpet()); return engancharHoyCarpet();
     }
+    if(V==='resumen' && EDIT()){ shell(await vHome()); return engancharHome(); }
     if(V==='resumen')   return shell(await vResumen());
     if(V==='mgmt')      return shell(await vManagements());
     if(V==='mapa')      return shell(await vMapa());
@@ -6020,7 +6089,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='127';
+const VERSION='128';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8077,6 +8146,134 @@ function secc(o){
     </summary>
     <div class="s-b">${cuerpo}</div>
   </details>`;
+}
+
+/* ============ HOME · qué hay que hacer hoy ============
+   Un tablero corto: cuatro números que se tocan, y una lista
+   priorizada de lo que urge. Nada de scroll infinito. */
+
+async function vHome(){
+  const h=hoy();
+  const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts}] = await Promise.all([
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre), usuarios(nombre)')
+      .eq('departamento',DEPV()).limit(500),
+    sb.from('asignaciones').select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
+    sb.from('reportes').select('job_id,fecha,revisado').gte('fecha',hace(40)),
+    sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at').eq('departamento',DEPV()).eq('estatus','enviado'),
+    sb.from('partidas').select('id,job_id,nombre,estatus,revisado')
+  ]);
+
+  const J=jobs||[], R=reps||[], E=ests||[], P=parts||[];
+  const A=(asig||[]).filter(a=>a.jobs && a.jobs.departamento===DEPV());
+  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus) && !x.invoice_num);
+  const ultRep={}; R.forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
+
+  // ── Las cuatro cosas que importan ──
+  const sinRep = activos.filter(x=>{
+    const u=ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10);
+    return dias(u,h)>=2;
+  }).map(x=>({d:dias(ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10),h), x,
+             tipo:'rep', txt:'sin reporte', acc:'VER'}));
+  const espera = E.map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e,
+             tipo:'est', txt:'estimado sin respuesta', acc:'INSISTIR'})).filter(o=>o.d>=5);
+  const porFac = J.filter(x=>x.estatus==='terminado' && !x.invoice_num)
+    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac', txt:'falta facturar', acc:'FACTURAR'}));
+  const porCob = J.filter(x=>x.invoice_num && !x.invoice_pagado)
+    .map(x=>({d:x.invoice_fecha?dias(x.invoice_fecha,h):0, x, tipo:'cob', txt:'factura sin pago', acc:'COBRAR'}))
+    .filter(o=>o.d>=30);
+  const porRev = P.filter(x=>x.estatus==='terminado' && !x.revisado);
+
+  const tCob = J.filter(x=>x.invoice_num&&!x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
+
+  const nom=(o)=> o.tipo==='est' ? (o.x.cliente||'Sin nombre')
+                : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
+  const col={rep:'m',est:'am',fac:'r',cob:'r'};
+
+  const F=new Date(h+'T12:00:00');
+  const dia=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  const hora=new Date().getHours();
+  const saludo = hora<12?'Buenos días':hora<19?'Buenas tardes':'Buenas noches';
+
+  return `
+    ${selectorDep()}
+
+    <div class="hm-top">
+      <div>
+        <div class="hm-sal">${saludo}</div>
+        <div class="hm-nom">${esc((U.nombre||'').split('·')[0].trim())}</div>
+      </div>
+      <div class="hm-fec"><b id="hm_reloj">${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</b>
+        <span>${dia}</span></div>
+    </div>
+
+    <div class="hm-kpi">
+      <button data-hk="jobs" class="${activos.length?'':'off'}">
+        <b>${activos.length}</b><span>activos</span></button>
+      <button data-hk="rep" class="${sinRep.length?'al':'off'}">
+        <b>${sinRep.length}</b><span>sin reporte</span></button>
+      <button data-hk="fac" class="${porFac.length?'al':'off'}">
+        <b>${porFac.length}</b><span>por facturar</span></button>
+      <button data-hk="cob" class="${tCob?'az':'off'}">
+        <b>${VE_DINERO()?cf(tCob):porCob.length}</b><span>por cobrar</span></button>
+    </div>
+
+    ${A.length?`
+      <div class="eyebrow">Agenda de hoy · ${A.length}</div>
+      <div class="hm-ag">${A.map(a=>`<button class="hm-ags" data-hj="${a.job_id}">
+        <b>${esc(a.hora||'--:--')}</b>
+        <span>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</span>
+        <em>${esc(a.usuarios?.nombre||'sin técnico')}</em></button>`).join('')}</div>`:''}
+
+    <div class="eyebrow">Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
+    ${urge.length? `<div class="hm-lista">${urge.slice(0,7).map(o=>`
+      <button class="hm-it ${col[o.tipo]}" data-hu="${o.tipo}:${o.x.id}">
+        <span class="hm-d">${o.d}d</span>
+        <span class="hm-tx"><b>${esc(nom(o))}${o.x.unidad?' · '+esc(o.x.unidad):''}</b>
+          <em>${o.txt}${o.x.folio?' · '+esc(o.x.folio):''}</em></span>
+        <span class="hm-ac">${o.acc}</span>
+      </button>`).join('')}</div>
+      ${urge.length>7?`<button class="btn ghost wide" id="hm_mas" style="margin-top:9px">Ver los otros ${urge.length-7}</button>`:''}`
+    : `<div class="ok"><div class="t">Todo al corriente.</div>
+       <div class="sub">No hay nada atrasado en ${esc(DEPV()==='cleaning'?'Carpet':'Restoration')}.</div></div>`}
+
+    ${porRev.length?`<div class="eyebrow">Por revisar</div>
+      <button class="hm-rev" data-hk="rev">
+        <b>${porRev.length}</b> ${porRev.length===1?'partida terminada espera tu visto bueno':'partidas terminadas esperan tu visto bueno'}</button>`:''}
+
+    <div class="eyebrow">Ir a</div>
+    <div class="hm-ir">
+      <button data-hk="dia"><span>${svgIC('dia')}</span>Control del día</button>
+      <button data-hk="mapa"><span>${svgIC('mapa')}</span>Mapa y rutas</button>
+      <button data-hk="cobranza"><span>${svgIC('estimados')}</span>Facturación</button>
+      <button data-hk="schedule"><span>${svgIC('schedule')}</span>Calendario</button>
+    </div>`;
+}
+
+function engancharHome(){
+  engancharDep();
+  const rl=$('#hm_reloj');
+  if(rl){ if(RELOJ) clearInterval(RELOJ);
+    RELOJ=setInterval(()=>{ const e=$('#hm_reloj'); if(e) e.textContent=
+      new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); },20000); }
+
+  const IR={jobs:'jobs', rep:'dia', fac:'cobranza', cob:'cobranza', rev:'dia',
+            dia:'dia', mapa:'mapa', cobranza:'cobranza', schedule:'schedule'};
+  document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{
+    const d=IR[b.dataset.hk]; if(!d) return;
+    if(b.dataset.hk==='fac') COBTAB='facturar';
+    if(b.dataset.hk==='cob') COBTAB='cobrar';
+    V=d; render();
+  });
+  document.querySelectorAll('[data-hj]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.hj));
+  document.querySelectorAll('[data-hu]').forEach(b=>b.onclick=()=>{
+    const [t,id]=b.dataset.hu.split(':');
+    if(t==='est') return abrirEstimado(id);
+    if(t==='fac') return DEPV()==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id);
+    return abrirJob(id);
+  });
+  const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
 }
 
 /* ============ TABLERO DEL DÍA · CARPET ============
