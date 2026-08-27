@@ -238,6 +238,19 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Ficha técnica del trabajo ── */
+.fic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px;margin:4px 0}
+.fic{background:var(--sup2);border:1px solid var(--linea);border-left:3px solid var(--gris);
+  border-radius:9px;padding:10px 12px}
+.fic.az{border-left-color:var(--azul)}
+.fic.ro{border-left-color:var(--rojo)}
+.fic.am{border-left-color:var(--oro)}
+.fic span{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--gris);margin-bottom:3px}
+.fic b{font-family:var(--disp);font-size:19px;line-height:1.1;text-transform:uppercase;
+  letter-spacing:.01em;display:block}
+.fic.ro b{color:var(--rojo)} .fic.am b{color:var(--oro)} .fic.az b{color:var(--azul)}
+@media(max-width:520px){ .fic-grid{grid-template-columns:repeat(2,1fr)} .fic b{font-size:17px} }
 /* Botones más grandes y con más respuesta al tacto */
 .btn{min-height:50px;padding:14px 22px}
 .btn.sm{min-height:44px;padding:11px 18px;font-size:15.5px}
@@ -4016,7 +4029,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v126 · botones arreglados</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v127 · ficha técnica del job</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6007,7 +6020,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='126';
+const VERSION='127';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9543,10 +9556,51 @@ async function abrirJob(id){
           <div><div class="meta" style="font-size:10px">TÉCNICO ENCARGADO</div><div class="sub" style="color:var(--tinta)">${esc(j.usuarios?.nombre||'sin asignar')}</div></div>
         </div>
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
-        <div class="row" style="margin-top:10px">
-          <span class="chip ${j.ocupada==='ocupada'?'rojo':'azul'}">UNIDAD ${esc((j.ocupada||'vacia').toUpperCase())}</span>
-          ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
-        </div>
+        ${(()=>{
+          // FICHA TÉCNICA · lo que define el trabajo de un vistazo,
+          // sacado de los reportes que ya subió el técnico.
+          const ini=(R||[]).find(x=>x.tipo_reporte==='inicial') || (R||[])[0] || {};
+          const cat = ini.categoria_agua || j.categoria_agua;
+          const visitas=(R||[]).filter(x=>!x.no_visita);
+          const ah=visitas.filter(x=>x.after_hours).length;
+          const eq=(R||[]).reduce((a,r)=>({
+            d:Math.max(a.d,Number(r.deshu_inst||0)),
+            a:Math.max(a.a,Number(r.air_inst||0)),
+            s:Math.max(a.s,Number(r.scrub_inst||0))}),{d:0,a:0,s:0});
+          const packs=eq.d+eq.a+eq.s;
+          const areas=[...new Set((j.areas||[]).concat((R||[]).flatMap(r=>r.areas||[])))];
+          const servs=[...new Set((R||[]).flatMap(r=>r.servicios||[]))];
+          const esRem=/remediation|mold|moho/i.test((j.tipo||'')+' '+servs.join(' '));
+          const esFlood=/flood|water|agua/i.test((j.tipo||''))||j.extraccion;
+          const cont=servs.some(x=>/containment/i.test(x));
+          const t=(l,v,c)=>`<div class="fic ${c||''}"><span>${l}</span><b>${v}</b></div>`;
+          return `
+          <div class="eyebrow">Ficha del trabajo</div>
+          <div class="fic-grid">
+            ${t('TIPO', esc(j.tipo||'—'), esFlood?'az':esRem?'ro':'')}
+            ${cat?t('CATEGORÍA DE AGUA','CAT '+esc(cat), String(cat)==='3'?'ro':String(cat)==='2'?'am':'az'):''}
+            ${t('UNIDAD', (j.ocupada==='ocupada'?'Ocupada':'Vacía'), j.ocupada==='ocupada'?'ro':'')}
+            ${t('HORARIO', ah?(ah+' de '+visitas.length+' after hours'):'Regular hour', ah?'am':'')}
+            ${t('ÁREAS', areas.length?areas.length+(areas.length===1?' área':' áreas'):'—')}
+            ${packs?t('EQUIPO', packs+(packs===1?' pieza':' piezas'),'az'):''}
+            ${eq.s?t('HEPA / SCRUBBER', eq.s+(eq.s===1?' equipo':' equipos'),'az'):''}
+            ${t('VISITAS', visitas.length+(ini.fecha?' desde '+fmt(ini.fecha):''))}
+          </div>
+          <div class="row" style="margin-top:9px;flex-wrap:wrap;gap:6px">
+            ${esFlood?'<span class="chip azul">FLOOD</span>':''}
+            ${esRem?'<span class="chip rojo">REMEDIATION</span>':''}
+            ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
+            ${cont?'<span class="chip ambar">CONTAINMENT</span>':''}
+            ${eq.s?'<span class="chip azul">HEPA</span>':''}
+            ${(j.removido||[]).length?'<span class="chip ambar">DEMO · '+(j.removido||[]).length+' materiales</span>':''}
+            ${ah?'<span class="chip ambar">AFTER HOURS</span>':''}
+          </div>
+          ${(eq.d||eq.a||eq.s)?`<div class="sub" style="margin-top:7px">Equipo máximo en sitio: ${
+            [eq.d?eq.d+' deshumidificador'+(eq.d>1?'es':''):'',
+             eq.a?eq.a+' air mover'+(eq.a>1?'s':''):'',
+             eq.s?eq.s+' air scrubber'+(eq.s>1?'s':''):''].filter(Boolean).join(' · ')}</div>`:''}
+          ${areas.length?`<div class="sub" style="margin-top:5px"><b>Áreas:</b> ${areas.map(esc).join(' · ')}</div>`:''}`;
+        })()}
         ${EDIT()?`<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
         <div class="eyebrow">Estatus del trabajo</div>
         <div class="est-sw no-print">
