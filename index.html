@@ -239,31 +239,31 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
 /* ── Arranque del día ── */
-.ar-box{background:var(--sup);border:1px solid var(--linea);border-radius:12px;
-  padding:14px 16px;margin-bottom:18px}
-.ar-cab{display:flex;align-items:center;gap:26px;flex-wrap:wrap;
-  padding-bottom:12px;border-bottom:1px solid var(--linea);margin-bottom:4px}
-.ar-cab b{display:block;font-family:var(--disp);font-size:28px;line-height:1}
-.ar-cab i{font-style:normal;font-size:17px;color:var(--gris)}
-.ar-cab span{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--gris)}
-.ar-cab .btn{margin-left:auto}
+.ar-box{background:var(--sup);border:1px solid var(--linea);border-radius:10px;
+  padding:10px 13px;margin-bottom:14px}
+.ar-cab{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding-bottom:9px;border-bottom:1px solid var(--linea)}
+.ar-cab b{font-family:var(--disp);font-size:21px;line-height:1;margin-right:5px}
+.ar-cab i{font-style:normal;font-size:14px;color:var(--gris)}
+.ar-cab span{font-size:13px;color:var(--gris)}
+.ar-cab .btn{margin-left:auto;min-height:38px;padding:9px 15px;font-size:14px}
 .ar-tecs{display:flex;flex-direction:column}
-.ar-t{display:flex;align-items:center;gap:11px;padding:11px 2px;
+.ar-t{display:flex;align-items:center;gap:10px;padding:9px 2px;
   border-bottom:1px solid var(--linea);cursor:pointer;transition:background .13s}
 .ar-t:last-child{border-bottom:0}
 .ar-t:hover{background:var(--sup2)}
-.ar-pt{width:9px;height:9px;border-radius:50%;background:var(--linea);flex-shrink:0}
+.ar-pt{width:8px;height:8px;border-radius:50%;background:var(--linea);flex-shrink:0}
 .ar-pt.on{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
 .ar-n{flex:1;min-width:0}
-.ar-n b{display:block;font-size:15.5px;font-weight:650}
-.ar-n span{font-size:11.5px;color:var(--gris)}
-.ar-d{text-align:right;flex-shrink:0}
-.ar-d b{display:block;font-family:var(--disp);font-size:22px;line-height:1}
-.ar-d span{font-family:var(--mono);font-size:9px;letter-spacing:.07em;color:var(--gris)}
-.ar-d em{font-style:normal;font-size:11.5px;color:var(--verde)}
+.ar-n b{display:block;font-size:16px;font-weight:650;line-height:1.2}
+.ar-n span{font-size:13px;color:var(--gris)}
+.ar-d{text-align:right;flex-shrink:0;display:flex;align-items:baseline;gap:6px}
+.ar-d b{font-family:var(--disp);font-size:21px;line-height:1}
+.ar-d span{font-size:12.5px;color:var(--gris)}
+.ar-d em{font-style:normal;font-size:13px;color:var(--verde)}
 .ar-t.r .ar-d b{color:var(--rojo)}
 .ar-t.m .ar-d b{color:var(--oro)}
-@media(max-width:520px){ .ar-cab{gap:16px} .ar-cab .btn{margin-left:0;width:100%;margin-top:8px} }
+@media(max-width:520px){ .ar-cab{gap:13px} .ar-cab .btn{margin-left:0;width:100%;margin-top:7px} }
 /* ── Revisión de invoices ── */
 .rev-sw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 4px}
 .rev-sw button{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
@@ -4194,7 +4194,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v135 · arranque del día</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v136 · resumen por WhatsApp</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6186,7 +6186,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='135';
+const VERSION='136';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8284,7 +8284,7 @@ async function bloqueArranque(){
       <div class="ar-cab">
         <div><b>${totalRep}</b><span>${totalRep===1?'reporte pendiente':'reportes pendientes'}</span></div>
         <div><b>${T.length-sinChecar}<i>/${T.length}</i></b><span>ya checaron</span></div>
-        ${EDIT()&&totalRep?`<button class="btn sm" id="ar_send">Mandarles su resumen</button>`:''}
+        ${EDIT()?`<button class="btn sm" id="ar_send">Mandar por WhatsApp</button>`:''}
       </div>
       ${deuda.length? `<div class="ar-tecs">${deuda.map(d=>`
         <div class="ar-t ${d.faltan?(d.viejo>=7?'r':'m'):'v'}" data-artec="${d.t.id}">
@@ -8299,12 +8299,14 @@ async function bloqueArranque(){
     </div>`;
 }
 
-/* Manda a CADA técnico su resumen del día, detallado */
+/* El resumen se manda por WhatsApp, uno por uno.
+   El navegador no deja abrir varias ventanas de golpe, así que
+   se muestra la lista y tú vas mandando. */
 async function mandarResumenTecnicos(){
   if(!EDIT()) return toast('Solo administración manda los resúmenes.');
   const h=hoy();
   const [{data:tecs},{data:jobs}] = await Promise.all([
-    sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
+    sb.from('usuarios').select('id,nombre,departamento,telefono').eq('rol','tecnico').eq('activo',true),
     sb.from('jobs').select('id,folio,cliente,unidad,departamento,tecnico_id,fecha_inicio,created_at, propiedades(nombre)')
       .eq('departamento',DEPV()).not('estatus','in','("terminado","facturado")')
   ]);
@@ -8315,30 +8317,51 @@ async function mandarResumenTecnicos(){
     .in('job_id',J.length?J.map(x=>x.id):['-']).gte('fecha',hace(30));
   const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
 
-  let mandados=0, sinDeuda=0;
-  for(const t of T){
+  const armados = T.map(t=>{
     const suyos=J.filter(x=>x.tecnico_id===t.id);
-    const detalle=[];
-    let total=0;
+    const detalle=[]; let total=0;
     suyos.forEach(j=>{
       const f=diasFaltantes(j, porJob[j.id]||new Set());
-      if(f.length){
-        total+=f.length;
-        detalle.push(`${j.folio||''} · ${(j.propiedades?.nombre||j.cliente||'')}${j.unidad?' Unit '+j.unidad:''} — ${f.length} ${f.length===1?'día':'días'} (desde ${fmt(f[0])})`);
-      }
+      if(f.length){ total+=f.length;
+        detalle.push(`${j.folio||''} · ${(j.propiedades?.nombre||j.cliente||'')}${j.unidad?' Unit '+j.unidad:''} — ${f.length} ${f.length===1?'día':'días'} desde ${fmt(f[0])}`); }
     });
-    if(!total){ sinDeuda++; continue; }
-    await notifIns({
-      tipo:'recordatorio', clave:'brief-'+t.id+'-'+h,
-      titulo:'Tu resumen · debes '+total+(total===1?' reporte':' reportes'),
-      texto:`Hoy tienes ${suyos.length} ${suyos.length===1?'trabajo':'trabajos'} abiertos y te faltan ${total} ${total===1?'reporte':'reportes'}:\n\n· ${detalle.join('\n· ')}\n\nÁbrelos en la app y ciérralos, o marca por qué no fuiste.`,
-      para_rol:'tecnico', para_usuario:t.id});
-    mandados++;
-  }
-  toast(mandados
-    ? mandados+' '+(mandados===1?'resumen mandado':'resúmenes mandados')+(sinDeuda?' · '+sinDeuda+' al corriente':'')
-    : 'Todos al corriente, no había qué mandar');
-  render();
+    const primero=(t.nombre||'').split(' ')[0];
+    const msg = total
+      ? `Buenos días ${primero}.\n\nTu resumen de hoy ${fmt(h)}:\nTienes ${suyos.length} ${suyos.length===1?'trabajo abierto':'trabajos abiertos'} y te faltan ${total} ${total===1?'reporte':'reportes'}.\n\n${detalle.map(d=>'• '+d).join('\n')}\n\nÁbrelos en la app y ciérralos, o marca por qué no fuiste. Gracias.`
+      : `Buenos días ${primero}.\n\nVas al corriente, no debes reportes. Tienes ${suyos.length} ${suyos.length===1?'trabajo abierto':'trabajos abiertos'}. Gracias.`;
+    return {t, suyos:suyos.length, total, msg, tel:(t.telefono||'').replace(/[^0-9]/g,'')};
+  }).sort((a,b)=>b.total-a.total);
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">${fmt(h)}</div>
+    <div class="disp" style="font-size:21px;line-height:1">Mandar resumen por WhatsApp</div>
+    <div style="font-size:13px;color:#C3D6F7">${armados.length} ${armados.length===1?'técnico':'técnicos'}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="sub" style="margin-bottom:12px">Se abre WhatsApp con el mensaje ya escrito. Nada más le das enviar.</div>
+      ${armados.map((a,i)=>`<div class="fila ${a.total?(a.total>5?'r':'m'):'a'}">
+        <div class="t"><b>${esc(a.t.nombre)}</b>
+          <span class="sub">${a.suyos} ${a.suyos===1?'trabajo':'trabajos'} · ${a.total?a.total+(a.total===1?' reporte pendiente':' reportes pendientes'):'al corriente'}</span>
+          ${!a.tel?'<span class="meta" style="color:var(--rojo)">Sin teléfono cargado</span>':''}</div>
+        <div style="text-align:right">
+          ${a.tel?`<button class="btn sm" data-wa="${i}">WHATSAPP</button>`
+                 :'<span class="chip">FALTA TEL</span>'}
+        </div></div>`).join('')}
+      <div style="height:14px"></div>
+      <button class="btn ghost wide" id="c2">Cerrar</button>
+    </div></div>`;
+
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  document.querySelectorAll('[data-wa]').forEach(b=>b.onclick=async()=>{
+    const a=armados[+b.dataset.wa];
+    window.open('https://wa.me/'+a.tel+'?text='+encodeURIComponent(a.msg),'_blank');
+    b.textContent='ENVIADO'; b.classList.add('ghost');
+    // Queda también como aviso dentro de la app
+    await notifIns({tipo:'recordatorio', clave:'brief-'+a.t.id+'-'+h,
+      titulo: a.total?('Tu resumen · debes '+a.total+(a.total===1?' reporte':' reportes')):'Tu resumen del día',
+      texto: a.msg, para_rol:'tecnico', para_usuario:a.t.id});
+  });
 }
 
 /* ============ HOME · qué hay que hacer hoy ============
