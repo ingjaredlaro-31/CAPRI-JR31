@@ -238,6 +238,22 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Zonas donde trabajamos ── */
+.z-mapa{height:230px;border-radius:11px;overflow:hidden;border:1px solid var(--linea);
+  margin-bottom:11px;background:var(--sup2)}
+.z-lista{display:flex;flex-direction:column}
+.z-r{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--linea)}
+.z-r:last-child{border-bottom:0}
+.z-m{font-size:19px;width:26px;text-align:center;flex-shrink:0}
+.z-n{flex:1;min-width:0}
+.z-n b{display:block;font-size:15.5px;font-weight:650}
+.z-n span{font-size:12.5px;color:var(--gris)}
+.z-bar{height:5px;background:var(--sup2);border-radius:3px;margin-top:5px;overflow:hidden}
+.z-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--azul),var(--oro));border-radius:3px}
+.z-d{text-align:right;flex-shrink:0}
+.z-d b{display:block;font-family:var(--disp);font-size:19px;line-height:1}
+.z-d span{font-size:11px;color:var(--gris)}
+
 /* ── Rastro de ubicación ── */
 .ra-t{background:var(--sup);border:1px solid var(--linea);border-radius:10px;
   padding:11px 14px;margin-bottom:11px}
@@ -4214,7 +4230,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v137 · rastro de ubicación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v138 · mapa de zonas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6210,7 +6226,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='137';
+const VERSION='138';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8269,6 +8285,84 @@ function secc(o){
   </details>`;
 }
 
+/* ============ ZONAS DONDE TRABAJAMOS ============
+   Saca del historial completo dónde se concentra el trabajo.
+   Los círculos crecen según cuántos trabajos hubo ahí. */
+
+let ZMAPA=null;
+
+async function bloqueZonas(){
+  const {data:jobs} = await sb.from('jobs')
+    .select('id,ciudad,zip,lat,lng,estatus,invoice_monto,fecha_inicio,created_at, propiedades(nombre,ciudad,zip,lat,lng)')
+    .eq('departamento',DEPV()).limit(1500);
+  const J=jobs||[];
+  if(!J.length) return '';
+
+  const zonas={};
+  J.forEach(j=>{
+    const ciudad = (j.ciudad || j.propiedades?.ciudad || 'Sin ciudad').trim();
+    const k = ciudad.toUpperCase();
+    const z = zonas[k] || (zonas[k]={nombre:ciudad, n:0, activos:0, monto:0, lat:0, lng:0, geo:0});
+    z.n++;
+    if(!['terminado','facturado'].includes(j.estatus)) z.activos++;
+    z.monto += Number(j.invoice_monto||0);
+    const la=j.lat||j.propiedades?.lat, ln=j.lng||j.propiedades?.lng;
+    if(la&&ln){ z.lat+=Number(la); z.lng+=Number(ln); z.geo++; }
+  });
+  const Z=Object.values(zonas).map(z=>({...z,
+      lat: z.geo?z.lat/z.geo:null, lng: z.geo?z.lng/z.geo:null}))
+    .sort((a,b)=>b.n-a.n);
+  const max=Z[0]?Z[0].n:1;
+  const conGeo=Z.filter(z=>z.lat&&z.lng);
+  ZONAS_GEO = conGeo;
+
+  const medalla=i=>['🥇','🥈','🥉'][i]||'📍';
+
+  return `
+    <div class="eyebrow">🗺️ Zonas donde trabajamos · ${Z.length}</div>
+    ${conGeo.length?`<div id="zmapa" class="z-mapa"></div>`:''}
+    <div class="z-lista">
+      ${Z.slice(0,8).map((z,i)=>`
+        <div class="z-r">
+          <span class="z-m">${medalla(i)}</span>
+          <div class="z-n"><b>${esc(z.nombre)}</b>
+            <span>${z.n} ${z.n===1?'trabajo':'trabajos'}${z.activos?' · '+z.activos+' activos':''}</span>
+            <div class="z-bar"><i style="width:${Math.round(z.n/max*100)}%"></i></div>
+          </div>
+          <div class="z-d">${VE_DINERO()&&z.monto?`<b>${cf(z.monto)}</b>`:`<b>${Math.round(z.n/J.length*100)}%</b>`}
+            <span>${VE_DINERO()&&z.monto?'facturado':'del total'}</span></div>
+        </div>`).join('')}
+    </div>
+    ${Z.length>8?`<div class="sub">y ${Z.length-8} ${Z.length-8===1?'zona más':'zonas más'}</div>`:''}`;
+}
+
+let ZONAS_GEO=[];
+
+function pintarZonas(){
+  const el=document.getElementById('zmapa');
+  if(!el || typeof L==='undefined' || !ZONAS_GEO.length) return;
+  if(ZMAPA){ try{ZMAPA.remove();}catch(e){} ZMAPA=null; }
+  ZMAPA=L.map(el,{scrollWheelZoom:false, zoomControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(ZMAPA);
+
+  const max=Math.max(...ZONAS_GEO.map(z=>z.n));
+  const pts=[];
+  ZONAS_GEO.forEach(z=>{
+    const peso=z.n/max;
+    const color = peso>0.66?'#D42129' : peso>0.33?'#E0B34E' : '#1B56D3';
+    L.circleMarker([z.lat,z.lng],{
+      radius: 9 + peso*26, color, weight:2,
+      fillColor:color, fillOpacity:.28
+    }).addTo(ZMAPA).bindPopup(
+      `<b>${esc(z.nombre)}</b><br>${z.n} trabajos${z.activos?' · '+z.activos+' activos':''}`);
+    pts.push([z.lat,z.lng]);
+  });
+  if(pts.length===1) ZMAPA.setView(pts[0],11);
+  else ZMAPA.fitBounds(pts,{padding:[30,30]});
+  setTimeout(()=>{ try{ZMAPA.invalidateSize();}catch(e){} },200);
+}
+
 /* ============ RASTRO DE UBICACIÓN ============
    No es seguimiento en vivo: son puntos con hora en los momentos
    que importan (checadas, reportes, cierres). Sirve para comprobar
@@ -8325,7 +8419,7 @@ async function vRastro(){
 
   return `
     ${selectorDep()}
-    <div class="eyebrow">Rastro del día</div>
+    <div class="eyebrow">📍 Rastro del día</div>
     <div class="sub" style="margin-bottom:10px">Puntos con hora de cuando el técnico usó la app. No es seguimiento en vivo: una app web no puede leer el GPS con el teléfono bloqueado.</div>
     <input type="date" id="ra_f" value="${h}" style="margin-bottom:14px">
 
@@ -8399,7 +8493,7 @@ async function bloqueArranque(){
   const sinChecar = deuda.filter(x=>!x.checo).length;
 
   return `
-    <div class="eyebrow">Arranque del día</div>
+    <div class="eyebrow">☀️ Arranque del día</div>
     <div class="ar-box">
       <div class="ar-cab">
         <div><b>${totalRep}</b><span>${totalRep===1?'reporte pendiente':'reportes pendientes'}</span></div>
@@ -8523,7 +8617,7 @@ async function vHome(){
   const tCob = J.filter(x=>x.invoice_num&&!x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
   const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
 
-  const arranque = await bloqueArranque();
+  const [arranque, zonas] = await Promise.all([bloqueArranque(), bloqueZonas()]);
   const nom=(o)=> o.tipo==='est' ? (o.x.cliente||'Sin nombre')
                 : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
   const col={rep:'m',est:'am',fac:'r',cob:'r'};
@@ -8547,17 +8641,17 @@ async function vHome(){
 
     <div class="hm-kpi">
       <button data-hk="jobs" class="${activos.length?'':'off'}">
-        <b>${activos.length}</b><span>activos</span></button>
+        <b>${activos.length}</b><span>🔧 activos</span></button>
       <button data-hk="rep" class="${sinRep.length?'al':'off'}">
-        <b>${sinRep.length}</b><span>sin reporte</span></button>
+        <b>${sinRep.length}</b><span>📋 sin reporte</span></button>
       <button data-hk="fac" class="${porFac.length?'al':'off'}">
-        <b>${porFac.length}</b><span>por facturar</span></button>
+        <b>${porFac.length}</b><span>🧾 por facturar</span></button>
       <button data-hk="cob" class="${tCob?'az':'off'}">
-        <b>${VE_DINERO()?cf(tCob):porCob.length}</b><span>por cobrar</span></button>
+        <b>${VE_DINERO()?cf(tCob):porCob.length}</b><span>💰 por cobrar</span></button>
     </div>
 
     ${A.length?`
-      <div class="eyebrow">Agenda de hoy · ${A.length}</div>
+      <div class="eyebrow">📅 Agenda de hoy · ${A.length}</div>
       <div class="hm-ag">${A.map(a=>`<button class="hm-ags" data-hj="${a.job_id}">
         <b>${esc(a.hora||'--:--')}</b>
         <span>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</span>
@@ -8565,7 +8659,7 @@ async function vHome(){
 
     ${arranque}
 
-    <div class="eyebrow">Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
+    <div class="eyebrow">🔥 Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
     ${urge.length? `<div class="hm-lista">${urge.slice(0,7).map(o=>`
       <button class="hm-it ${col[o.tipo]}" data-hu="${o.tipo}:${o.x.id}">
         <span class="hm-d">${o.d}d</span>
@@ -8577,11 +8671,13 @@ async function vHome(){
     : `<div class="ok"><div class="t">Todo al corriente.</div>
        <div class="sub">No hay nada atrasado en ${esc(DEPV()==='cleaning'?'Carpet':'Restoration')}.</div></div>`}
 
-    ${porRev.length?`<div class="eyebrow">Por revisar</div>
+    ${porRev.length?`<div class="eyebrow">👀 Por revisar</div>
       <button class="hm-rev" data-hk="rev">
         <b>${porRev.length}</b> ${porRev.length===1?'partida terminada espera tu visto bueno':'partidas terminadas esperan tu visto bueno'}</button>`:''}
 
-    <div class="eyebrow">Ir a</div>
+    ${zonas}
+
+    <div class="eyebrow">🚀 Ir a</div>
     <div class="hm-ir">
       <button data-hk="dia"><span>${svgIC('dia')}</span>Control del día</button>
       <button data-hk="mapa"><span>${svgIC('mapa')}</span>Mapa y rutas</button>
@@ -8613,6 +8709,7 @@ function engancharHome(){
     return abrirJob(id);
   });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
+  pintarZonas();
   const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
     if(confirm('Se le manda a cada técnico su resumen detallado: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
   };
@@ -8704,7 +8801,7 @@ async function vHoyCarpet(){
 
     ${FACTURA()?`<button class="btn wide" id="cp_new" style="margin-bottom:16px">+ Hacer invoice nuevo</button>`:''}
 
-    <div class="eyebrow">Tus trabajos de hoy</div>
+    <div class="eyebrow">🧹 Tus trabajos de hoy</div>
     ${A.length
       ? `<div class="cp-grid">${A.map(a=>tarjeta(a.jobs, a.hora, a.usuarios?.nombre)).join('')}</div>`
       : `<div class="ok"><div class="t">Hoy no tienes trabajos agendados.</div>
@@ -9017,7 +9114,7 @@ async function vInvoicesCarpet(){
   </div>`;
 
   return `
-    <div class="eyebrow">Invoices · Carpet Department</div>
+    <div class="eyebrow">🧾 Invoices · Carpet Department</div>
     ${FACTURA()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Hacer invoice</button>`:''}
 
     <div class="qb-cards">
@@ -9032,7 +9129,7 @@ async function vInvoicesCarpet(){
     </div>
 
     ${(abiertas.length&&VE_DINERO())?`
-    <div class="eyebrow">Antigüedad del saldo</div>
+    <div class="eyebrow">⏳ Antigüedad del saldo</div>
     <div class="qb-age">
       ${Object.entries(AG).map(([k,v])=>`<div class="${v&&k!=='corriente'?'hay':''}">
         <span>${k==='corriente'?'Al corriente':k+' días'}</span><b>${cf(v)}</b></div>`).join('')}
@@ -9612,7 +9709,7 @@ async function vHistorial(){
 
   return `
     ${selectorDep()}
-    <div class="eyebrow">Historial · aquí queda todo</div>
+    <div class="eyebrow">📚 Historial · aquí queda todo</div>
     <div class="g3" style="margin-bottom:10px">
       <div><label>Año</label><select id="h_a">${anios.map(a=>`<option ${HIS.anio===a?'selected':''}>${a}</option>`).join('')}</select></div>
       <div><label>Mes</label><select id="h_m"><option value="">Todo el año</option>
@@ -10299,7 +10396,7 @@ async function abrirJob(id){
           const cont=servs.some(x=>/containment/i.test(x));
           const t=(l,v,c)=>`<div class="fic ${c||''}"><span>${l}</span><b>${v}</b></div>`;
           return `
-          <div class="eyebrow">Ficha del trabajo</div>
+          <div class="eyebrow">📌 Ficha del trabajo</div>
           <div class="fic-grid">
             ${t('TIPO', esc(j.tipo||'—'), esFlood?'az':esRem?'ro':'')}
             ${cat?t('CATEGORÍA DE AGUA','CAT '+esc(cat), String(cat)==='3'?'ro':String(cat)==='2'?'am':'az'):''}
