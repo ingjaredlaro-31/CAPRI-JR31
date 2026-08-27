@@ -238,6 +238,32 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* ── Arranque del día ── */
+.ar-box{background:var(--sup);border:1px solid var(--linea);border-radius:12px;
+  padding:14px 16px;margin-bottom:18px}
+.ar-cab{display:flex;align-items:center;gap:26px;flex-wrap:wrap;
+  padding-bottom:12px;border-bottom:1px solid var(--linea);margin-bottom:4px}
+.ar-cab b{display:block;font-family:var(--disp);font-size:28px;line-height:1}
+.ar-cab i{font-style:normal;font-size:17px;color:var(--gris)}
+.ar-cab span{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--gris)}
+.ar-cab .btn{margin-left:auto}
+.ar-tecs{display:flex;flex-direction:column}
+.ar-t{display:flex;align-items:center;gap:11px;padding:11px 2px;
+  border-bottom:1px solid var(--linea);cursor:pointer;transition:background .13s}
+.ar-t:last-child{border-bottom:0}
+.ar-t:hover{background:var(--sup2)}
+.ar-pt{width:9px;height:9px;border-radius:50%;background:var(--linea);flex-shrink:0}
+.ar-pt.on{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
+.ar-n{flex:1;min-width:0}
+.ar-n b{display:block;font-size:15.5px;font-weight:650}
+.ar-n span{font-size:11.5px;color:var(--gris)}
+.ar-d{text-align:right;flex-shrink:0}
+.ar-d b{display:block;font-family:var(--disp);font-size:22px;line-height:1}
+.ar-d span{font-family:var(--mono);font-size:9px;letter-spacing:.07em;color:var(--gris)}
+.ar-d em{font-style:normal;font-size:11.5px;color:var(--verde)}
+.ar-t.r .ar-d b{color:var(--rojo)}
+.ar-t.m .ar-d b{color:var(--oro)}
+@media(max-width:520px){ .ar-cab{gap:16px} .ar-cab .btn{margin-left:0;width:100%;margin-top:8px} }
 /* ── Revisión de invoices ── */
 .rev-sw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 4px}
 .rev-sw button{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
@@ -4168,7 +4194,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v134 · borrar invoices malos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v135 · arranque del día</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6160,7 +6186,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='134';
+const VERSION='135';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8219,6 +8245,102 @@ function secc(o){
   </details>`;
 }
 
+/* ============ ARRANQUE DEL DÍA ============
+   Lo que necesitas ver a primera hora: quién debe qué reporte,
+   quién ya checó entrada, y el botón para mandarles su resumen. */
+
+async function bloqueArranque(){
+  const h=hoy();
+  const [{data:tecs},{data:jobs},{data:reps},{data:asis}] = await Promise.all([
+    sb.from('usuarios').select('id,nombre,departamento,telefono').eq('rol','tecnico').eq('activo',true).order('nombre'),
+    sb.from('jobs').select('id,folio,cliente,unidad,departamento,tecnico_id,fecha_inicio,created_at, propiedades(nombre)')
+      .eq('departamento',DEPV()).not('estatus','in','("terminado","facturado")'),
+    sb.from('reportes').select('job_id,fecha,tecnico_id').gte('fecha',hace(30)),
+    sb.from('asistencias').select('usuario_id,tipo,fecha').eq('fecha',h)
+  ]);
+
+  const T=(tecs||[]).filter(t=>t.departamento==='ambos'||t.departamento===DEPV());
+  const J=jobs||[];
+  const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
+  const entro=new Set((asis||[]).filter(a=>a.tipo==='entrada').map(a=>a.usuario_id));
+
+  // Cuánto debe cada técnico
+  const deuda = T.map(t=>{
+    const suyos=J.filter(x=>x.tecnico_id===t.id);
+    let total=0, cons=0, viejo=0;
+    suyos.forEach(j=>{
+      const f=diasFaltantes(j, porJob[j.id]||new Set());
+      if(f.length){ total+=f.length; cons++; viejo=Math.max(viejo, dias(f[0],h)); }
+    });
+    return {t, jobs:suyos.length, faltan:total, conFalta:cons, viejo, checo:entro.has(t.id)};
+  }).sort((a,b)=>b.faltan-a.faltan);
+
+  const totalRep = deuda.reduce((a,x)=>a+x.faltan,0);
+  const sinChecar = deuda.filter(x=>!x.checo).length;
+
+  return `
+    <div class="eyebrow">Arranque del día</div>
+    <div class="ar-box">
+      <div class="ar-cab">
+        <div><b>${totalRep}</b><span>${totalRep===1?'reporte pendiente':'reportes pendientes'}</span></div>
+        <div><b>${T.length-sinChecar}<i>/${T.length}</i></b><span>ya checaron</span></div>
+        ${EDIT()&&totalRep?`<button class="btn sm" id="ar_send">Mandarles su resumen</button>`:''}
+      </div>
+      ${deuda.length? `<div class="ar-tecs">${deuda.map(d=>`
+        <div class="ar-t ${d.faltan?(d.viejo>=7?'r':'m'):'v'}" data-artec="${d.t.id}">
+          <span class="ar-pt ${d.checo?'on':''}"></span>
+          <div class="ar-n"><b>${esc(d.t.nombre)}</b>
+            <span>${d.jobs} ${d.jobs===1?'trabajo':'trabajos'} · ${d.checo?'ya checó':'sin checar'}</span></div>
+          <div class="ar-d">${d.faltan
+            ? `<b>${d.faltan}</b><span>${d.faltan===1?'reporte':'reportes'}${d.viejo?' · '+d.viejo+'d':''}</span>`
+            : '<em>al corriente</em>'}</div>
+        </div>`).join('')}</div>`
+      : '<div class="sub">No hay técnicos activos en esta área.</div>'}
+    </div>`;
+}
+
+/* Manda a CADA técnico su resumen del día, detallado */
+async function mandarResumenTecnicos(){
+  if(!EDIT()) return toast('Solo administración manda los resúmenes.');
+  const h=hoy();
+  const [{data:tecs},{data:jobs}] = await Promise.all([
+    sb.from('usuarios').select('id,nombre,departamento').eq('rol','tecnico').eq('activo',true),
+    sb.from('jobs').select('id,folio,cliente,unidad,departamento,tecnico_id,fecha_inicio,created_at, propiedades(nombre)')
+      .eq('departamento',DEPV()).not('estatus','in','("terminado","facturado")')
+  ]);
+  const T=(tecs||[]).filter(t=>t.departamento==='ambos'||t.departamento===DEPV());
+  const J=jobs||[];
+  if(!T.length) return toast('No hay técnicos activos en esta área.');
+  const {data:reps}=await sb.from('reportes').select('job_id,fecha')
+    .in('job_id',J.length?J.map(x=>x.id):['-']).gte('fecha',hace(30));
+  const porJob={}; (reps||[]).forEach(r=>(porJob[r.job_id] ||= new Set()).add(r.fecha));
+
+  let mandados=0, sinDeuda=0;
+  for(const t of T){
+    const suyos=J.filter(x=>x.tecnico_id===t.id);
+    const detalle=[];
+    let total=0;
+    suyos.forEach(j=>{
+      const f=diasFaltantes(j, porJob[j.id]||new Set());
+      if(f.length){
+        total+=f.length;
+        detalle.push(`${j.folio||''} · ${(j.propiedades?.nombre||j.cliente||'')}${j.unidad?' Unit '+j.unidad:''} — ${f.length} ${f.length===1?'día':'días'} (desde ${fmt(f[0])})`);
+      }
+    });
+    if(!total){ sinDeuda++; continue; }
+    await notifIns({
+      tipo:'recordatorio', clave:'brief-'+t.id+'-'+h,
+      titulo:'Tu resumen · debes '+total+(total===1?' reporte':' reportes'),
+      texto:`Hoy tienes ${suyos.length} ${suyos.length===1?'trabajo':'trabajos'} abiertos y te faltan ${total} ${total===1?'reporte':'reportes'}:\n\n· ${detalle.join('\n· ')}\n\nÁbrelos en la app y ciérralos, o marca por qué no fuiste.`,
+      para_rol:'tecnico', para_usuario:t.id});
+    mandados++;
+  }
+  toast(mandados
+    ? mandados+' '+(mandados===1?'resumen mandado':'resúmenes mandados')+(sinDeuda?' · '+sinDeuda+' al corriente':'')
+    : 'Todos al corriente, no había qué mandar');
+  render();
+}
+
 /* ============ HOME · qué hay que hacer hoy ============
    Un tablero corto: cuatro números que se tocan, y una lista
    priorizada de lo que urge. Nada de scroll infinito. */
@@ -8258,6 +8380,7 @@ async function vHome(){
   const tCob = J.filter(x=>x.invoice_num&&!x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
   const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
 
+  const arranque = await bloqueArranque();
   const nom=(o)=> o.tipo==='est' ? (o.x.cliente||'Sin nombre')
                 : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
   const col={rep:'m',est:'am',fac:'r',cob:'r'};
@@ -8296,6 +8419,8 @@ async function vHome(){
         <b>${esc(a.hora||'--:--')}</b>
         <span>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</span>
         <em>${esc(a.usuarios?.nombre||'sin técnico')}</em></button>`).join('')}</div>`:''}
+
+    ${arranque}
 
     <div class="eyebrow">Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
     ${urge.length? `<div class="hm-lista">${urge.slice(0,7).map(o=>`
@@ -8345,6 +8470,10 @@ function engancharHome(){
     return abrirJob(id);
   });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
+  const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
+    if(confirm('Se le manda a cada técnico su resumen detallado: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
+  };
+  document.querySelectorAll('[data-artec]').forEach(b=>b.onclick=()=>{ V='dia'; render(); });
 }
 
 /* ============ TABLERO DEL DÍA · CARPET ============
