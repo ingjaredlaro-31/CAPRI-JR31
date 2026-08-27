@@ -4168,7 +4168,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v133 · borrar trabajos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v134 · borrar invoices malos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6160,7 +6160,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='133';
+const VERSION='134';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -8559,40 +8559,6 @@ async function nuevaFacturaCarpet(){
 }
 
 
-/* Borrar un trabajo completo · SOLO administración.
-   Ocho tablas cuelgan de job_id, así que se limpian primero
-   o Supabase rechaza el borrado por llave foránea. */
-async function borrarJobCompleto(id){
-  if(!ES_ADMIN()) return toast('Solo administración puede borrar trabajos.');
-  const {data:j}=await sb.from('jobs').select('folio,cliente,unidad,departamento,invoice_num, propiedades(nombre)').eq('id',id).single();
-  if(!j) return toast('No se encontró el trabajo.');
-
-  const [{count:nr},{count:np},{count:ne}] = await Promise.all([
-    sb.from('reportes').select('*',{count:'exact',head:true}).eq('job_id',id),
-    sb.from('partidas').select('*',{count:'exact',head:true}).eq('job_id',id),
-    sb.from('estimados').select('*',{count:'exact',head:true}).eq('job_id',id)
-  ]);
-  const nom=(j.propiedades&&j.propiedades.nombre)||j.cliente||'sin nombre';
-  const trae=[nr?nr+' reportes':'', np?np+' partidas':'', ne?ne+' estimados':'',
-              j.invoice_num?'el invoice '+j.invoice_num:''].filter(Boolean);
-
-  if(!confirm('BORRAR '+(j.folio||'')+' · '+nom+(j.unidad?' · Unit '+j.unidad:'')+
-    (trae.length?'\n\nSe va a borrar también: '+trae.join(', ')+'.':'\n\nNo tiene nada colgando.')+
-    '\n\nEsto NO se puede deshacer. ¿Le seguimos?')) return;
-  if(trae.length && !confirm('Última confirmación.\n\nEscribiste que sí. Se borra '+(j.folio||'')+' y todo lo suyo, para siempre.')) return;
-
-  const hijos=['reportes','reportes_iniciales','partidas','asignaciones','notas',
-               'recordatorios','notificaciones','estimados'];
-  for(const t of hijos){
-    const {error}=await sb.from(t).delete().eq('job_id',id);
-    if(error && !/does not exist|column/i.test(error.message))
-      return toast('No se pudo limpiar '+t+': '+error.message);
-  }
-  const {error}=await sb.from('jobs').delete().eq('id',id);
-  if(error) return toast('No se pudo borrar el trabajo: '+error.message);
-  cerrar(); toast((j.folio||'Trabajo')+' borrado'); render();
-}
-
 /* ============ REVISIÓN DE INVOICES · solo administración ============
    Jared y Julio revisan lo que factura Carlos: lo aprueban o le piden
    corrección con una nota, y a Carlos le llega el aviso. También pueden
@@ -8650,7 +8616,8 @@ async function revisarInvoice(id){
       <div style="height:14px"></div>
       <button class="btn wide" id="rv_ok">Guardar y avisarle a Carlos</button>
       <div style="height:8px"></div>
-      <button class="btn ghost wide" id="rv_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar este invoice</button>
+      <div class="sub" style="margin:14px 0 6px">Si la factura está mal de raíz y prefieres que Carlos la haga de nuevo, bórrala. El trabajo no se toca.</div>
+      <button class="btn ghost wide" id="rv_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar solo el invoice ${esc(j.invoice_num)}</button>
       <div style="height:8px"></div>
       <button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
@@ -8683,7 +8650,7 @@ async function revisarInvoice(id){
   };
 
   $('#rv_del').onclick=async()=>{
-    if(!confirm('Se va a borrar el invoice '+j.invoice_num+' de '+cf(j.invoice_monto||0)+'.\n\nEl TRABAJO no se borra: regresa a "terminado" y va a salir otra vez en Por facturar.\n\n¿Le seguimos?')) return;
+    if(!confirm('Se borra SOLO la factura '+j.invoice_num+' de '+cf(j.invoice_monto||0)+'.\n\nEl trabajo, sus reportes y sus fotos NO se tocan. El job regresa a "terminado" y vuelve a salir en Por facturar para que Carlos la rehaga.\n\n¿Le seguimos?')) return;
     const up={invoice_num:null, invoice_fecha:null, invoice_monto:null,
       invoice_renglones:null, invoice_tax:0, invoice_pagado:false, invoice_pago_fecha:null,
       invoice_vence:null, invoice_notas:null,
@@ -8771,8 +8738,7 @@ async function vInvoicesCarpet(){
     <div class="qb-s">${chip(x)}</div>
     <div class="qb-a">
       ${!x.invoice_num
-        ? `${FACTURA()?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`:''}
-           ${ES_ADMIN()?`<button class="btn mini bor" data-qbd="${x.id}">BORRAR</button>`:''}`
+        ? (FACTURA()?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`:'')
         : `${ES_ADMIN()?`<button class="btn mini" data-qbr="${x.id}">REVISAR</button>`:''}
            ${(FACTURA()&&!x.invoice_pagado)?`<button class="btn mini" data-qbp="${x.id}">COBRADA</button>`:''}`}
     </div>
@@ -8826,16 +8792,13 @@ function engancharInvoicesCarpet(){
   const nb=$('#qb_new'); if(nb) nb.onclick=()=>nuevaFacturaCarpet();
   document.querySelectorAll('[data-qt]').forEach(b=>b.onclick=()=>{ QBTAB=b.dataset.qt; render(); });
   document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=e=>{
-    if(e.target.closest('[data-qbf],[data-qbp],[data-qbr],[data-qbd]')) return;
+    if(e.target.closest('[data-qbf],[data-qbp],[data-qbr]')) return;
     abrirJob(b.dataset.qb);
   });
   document.querySelectorAll('[data-qbf]').forEach(b=>b.onclick=e=>{
     e.stopPropagation();
     if(!FACTURA()) return toast('No tienes permiso para facturar.');
     formInvoiceCarpet(b.dataset.qbf);
-  });
-  document.querySelectorAll('[data-qbd]').forEach(b=>b.onclick=e=>{
-    e.stopPropagation(); borrarJobCompleto(b.dataset.qbd);
   });
   document.querySelectorAll('[data-qbr]').forEach(b=>b.onclick=e=>{
     e.stopPropagation(); revisarInvoice(b.dataset.qbr);
@@ -10096,9 +10059,7 @@ async function abrirJob(id){
           ${[['activo','Activo'],['pausado','En pausa'],['terminado','Terminado'],['facturado','Facturado']]
             .map(([k,t])=>`<button data-jest="${k}" class="${j.estatus===k?'on '+k:''}">${t}</button>`).join('')}
         </div>
-        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>
-        ${ES_ADMIN()?`<div class="row no-print" style="margin-top:12px">
-          <button class="btn ghost sm" id="jdel" style="color:var(--rojo);border-color:var(--rojo)">Borrar este trabajo</button></div>`:''}`:''}
+        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>`:''}
       </div>
 
       ${CT.length?`<div class="eyebrow">Contactos de la propiedad · ${CT.length}</div>
@@ -10558,7 +10519,6 @@ async function abrirJob(id){
   // cerradas, así que si corre antes, los botones de esas secciones se quedan
   // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
-  const jdl=$('#jdel'); if(jdl) jdl.onclick=()=>borrarJobCompleto(id);
 
   // Cambiar el estatus de un toque, sin entrar a editar datos
   document.querySelectorAll('[data-jest]').forEach(b=>b.onclick=async()=>{
