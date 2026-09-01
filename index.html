@@ -1350,6 +1350,9 @@ const SERV_CLEAN = ['Carpet cleaning','Carpet spot treatment','Carpet deodorizin
   'Grout sealing','Hardwood floor cleaning','Vinyl / laminate cleaning','Area rug cleaning',
   'Pet odor treatment','Stain removal','Move out deep clean','Post construction clean',
   'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning'];
+// Carpet Department dado de baja. Poner en true lo revive completo.
+const CARPET_ON = false;
+
 const ORIGENES = ['management','aseguranza','particular'];
 /* ============ CARPET DEPARTMENT · catálogos del cuestionario ============ */
 const CARPET_METODOS = ['Hot water extraction','Steam cleaning','Encapsulation',
@@ -3898,7 +3901,7 @@ function portada(){
             <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
 
         <div class="grupo-et">${PT('Field crews','Personal de campo')}</div>
-        ${['restoration','carpet','contratista'].map(k=>{const v=PUERTAS[k];return `
+        ${['restoration','carpet','contratista'].filter(k=>CARPET_ON||k!=='carpet').map(k=>{const v=PUERTAS[k];return `
           <button class="puerta" data-p="${k}" style="border-left-color:${v.c}">
             <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
       </div>
@@ -4024,7 +4027,7 @@ async function entrar(){
   if(!u||!p) return errLogin('Escribe usuario y contraseña.');
   errLogin('Verificando…');
   // Restoration y Carpet admiten gerente y técnico de esa área
-  const AREA_PUERTA = {restoration:'restoration', carpet:'cleaning'};
+  const AREA_PUERTA = CARPET_ON ? {restoration:'restoration', carpet:'cleaning'} : {restoration:'restoration'};
   if(PUERTA==='contratista'){
     const {data:c,error:ec} = await sb.from('contratistas').select('*').eq('username',u)
       .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
@@ -4206,8 +4209,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['precios',BI('Precios','Price list')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['precios','Precios'],['rastro','Rastro']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
@@ -4284,7 +4287,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v140 · ficha de ubicación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v141 · sin Carpet</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4325,8 +4328,8 @@ function shell(html){
     if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
     fab.textContent='×'; 
     m.innerHTML=`<div class="fabm">
-      ${(DEP==='cleaning'&&FACTURA())?'<button data-q="fac">+ Nueva factura</button>':''}
-      ${DEP==='cleaning'?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
+      ${(CARPET_ON&&DEP==='cleaning'&&FACTURA())?'<button data-q="fac">+ Nueva factura</button>':''}
+      ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="est">+ Nuevo estimado</button>
       <button data-q="asig">+ Asignar trabajo</button>
@@ -4353,6 +4356,7 @@ function shell(html){
 }
 
 async function render(){
+  if(!CARPET_ON) DEP='restoration';
   const fd=CANDADO()||FIJO_DEP(); if(fd) DEP=fd;
   if(!U) return login();
   if(RELOJ){ clearInterval(RELOJ); RELOJ=null; }
@@ -4383,7 +4387,7 @@ async function render(){
     if(V==='notif')     return shell(await vNotificaciones());
     if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
-    if(V==='resumen' && DEPV()==='cleaning'){
+    if(CARPET_ON && V==='resumen' && DEPV()==='cleaning'){
       shell(await vHoyCarpet()); return engancharHoyCarpet();
     }
     if(V==='resumen' && EDIT()){ shell(await vHome()); return engancharHome(); }
@@ -4399,7 +4403,7 @@ async function render(){
     if(V==='estimados') return shell(await vEstimados());
     if(V==='cobranza'){
       if(U.rol==='tecnico') return shell('<div class="empty"><div class="disp">Sin acceso</div><p>La facturación es de administración y gerencia.</p></div>');
-      if(DEPV()==='cleaning'){ shell(await vInvoicesCarpet()); return engancharInvoicesCarpet(); }
+      if(CARPET_ON && DEPV()==='cleaning'){ shell(await vInvoicesCarpet()); return engancharInvoicesCarpet(); }
       shell(await vCobranza()); return engancharCobranza();
     }
     if(V==='historial'){ shell(await vHistorial()); return engancharHistorial(); }
@@ -4422,6 +4426,7 @@ async function render(){
 
 /* ==================== SELECTOR DE DEPARTAMENTO ==================== */
 function selectorDep(){
+  if(!CARPET_ON) return '';
   if(FIJO_DEP()) return '';
   if(U.departamento!=='ambos') return '';
   return `<div class="areatabs no-print">
@@ -6288,7 +6293,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='140';
+const VERSION='141';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -6866,7 +6871,7 @@ async function vResumen(){
        <div class="sub">Administración te vacía la agenda aquí. También puedes crear un trabajo especial con el botón de abajo.</div></div>`}
     ${EDIT()?`<button class="btn wide no-print" id="nuevoesp" style="margin:12px 0 18px">+ Trabajo especial · tú pones el precio</button>`:''}
 
-    ${(()=>{
+    ${(!CARPET_ON)?'':(()=>{
       // Facturación de Carpet, a la vista. Lo que Carlos tiene que facturar
       // y lo que ya facturó pero no le han pagado.
       const porFac = J.filter(x=>x.estatus==='terminado' && !x.invoice_num);
@@ -8016,7 +8021,7 @@ async function formJob(id, pre){
 
       <div class="eyebrow">Datos del trabajo</div>
       <label>Departamento</label>
-      <select id="f_departamento" ${CANDADO()?'disabled':''}>${(CANDADO()?[CANDADO()]:['restoration','cleaning']).map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <select id="f_departamento" ${(CANDADO()||!CARPET_ON)?'disabled':''}>${(CANDADO()?[CANDADO()]:(CARPET_ON?['restoration','cleaning']:['restoration'])).map(d=>`<option value="${d}" ${j.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       <label>Tipo de servicio inicial</label>
       <select id="f_tipo">${TIPOS[j.departamento].map(t=>`<option ${j.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
       ${c('folio','Folio')}
@@ -12072,7 +12077,7 @@ async function formEstimado(id, jobPre){
 
       <div class="eyebrow">Datos del estimado</div>
       <label>Departamento</label>
-      <select id="e_departamento" ${CANDADO()?'disabled':''}>${(CANDADO()?[CANDADO()]:['restoration','cleaning']).map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
+      <select id="e_departamento" ${(CANDADO()||!CARPET_ON)?'disabled':''}>${(CANDADO()?[CANDADO()]:(CARPET_ON?['restoration','cleaning']:['restoration'])).map(d=>`<option ${e.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       ${c('folio','Folio')}${c('cliente','Cliente')}${c('telefono','Teléfono','tel')}${c('direccion','Dirección')}
       <label>De qué es el estimado</label>
       <textarea id="e_descripcion" placeholder="Drywall, piso y pintura de cocina y pasillo">${esc(e.descripcion||'')}</textarea>
