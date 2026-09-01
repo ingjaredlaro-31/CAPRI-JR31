@@ -238,6 +238,38 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.fo-paso{background:var(--azul-l);border-left:3px solid var(--azul);border-radius:8px;
+  padding:9px 12px;margin:10px 0 8px;font-size:13px;line-height:1.5}
+.fo-paso b{font-family:var(--disp);font-size:15px;color:var(--azul);margin-right:2px}
+.fo-c.sel{border-color:var(--azul);box-shadow:0 0 0 3px var(--azul-l)}
+.fo-c.sel::after{content:'✓';position:absolute;top:4px;right:5px;width:19px;height:19px;
+  background:var(--azul);color:#fff;border-radius:50%;font-size:12px;
+  display:flex;align-items:center;justify-content:center;font-weight:700}
+.fo-num{position:absolute;top:4px;left:5px;background:rgba(6,10,18,.75);color:#fff;
+  font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:4px}
+.fo-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0 2px}
+.fo-barra span{font-size:13px;color:var(--gris);flex:1}
+
+/* Fotos por area */
+.fo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;margin-top:8px}
+.fo-c{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;
+  border:2px solid var(--linea);transition:border-color .13s,transform .1s}
+.fo-c:hover{transform:scale(.97)}
+.fo-c.ok{border-color:var(--verde)}
+.fo-c img{width:100%;height:100%;object-fit:cover;display:block}
+.fo-a{position:absolute;left:0;right:0;bottom:0;background:rgba(6,10,18,.82);color:#fff;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.04em;padding:3px 5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fo-c.ok .fo-a{background:rgba(30,122,80,.9)}
+.chips button em{font-style:normal;opacity:.6;margin-left:4px;font-size:11px}
+/* Esquema de danos */
+.esq{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:9px;margin-top:6px}
+.esq-a{border:2px solid var(--linea);border-radius:10px;overflow:hidden;background:var(--sup2)}
+.esq-t{font-family:var(--disp);font-size:17px;padding:9px 11px 6px;text-transform:uppercase;line-height:1.1}
+.esq-b{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:#fff;padding:3px 11px;text-align:center}
+.esq-d{padding:8px 11px;display:flex;flex-direction:column;gap:3px}
+.esq-d span{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* Ficha de ubicacion */
 .ub-cab{display:flex;align-items:flex-start;gap:14px;padding-bottom:13px;
   border-bottom:1px solid var(--linea);margin-bottom:12px}
@@ -4287,7 +4319,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v141 · sin Carpet</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v143 · fotos por bloques</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6293,7 +6325,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='141';
+const VERSION='143';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10379,6 +10411,237 @@ function extraeReparaciones(scope){
 }
 
 
+/* ============ FOTOS POR ÁREA + ESQUEMA DE DAÑOS ============
+   Subes las fotos que te mandaron por WhatsApp y las acomodas por área.
+   Las áreas salen del scope of work, del job y de los reportes.
+
+   NOTA HONESTA: el app no puede ver la foto y adivinar que es el baño.
+   Eso necesita un modelo de visión corriendo en un servidor. Lo que sí
+   hace es dejarte asignarlas en dos toques, y adivinar por el nombre
+   del archivo cuando trae pistas. */
+
+let FOTOS_LOTE = [];
+let AREA_ACTIVA = null;
+
+// Saca las áreas de donde haya: scope, job y reportes
+function areasDelJob(j, R){
+  const A = new Set();
+  (j.areas||[]).forEach(a=>A.add(a));
+  (R||[]).forEach(r=>(r.areas||[]).forEach(a=>A.add(a)));
+  // Del scope: las que menciona en los renglones de reparación
+  try{
+    const EX = extraeReparaciones(j.scope||'');
+    EX.reps.forEach(r=>{ if(r.detalle) r.detalle.split(/,\s*/).forEach(x=>{
+      const t=x.trim(); if(t && t.length>2) A.add(t.replace(/\b\w/g,c=>c.toUpperCase()));
+    });});
+  }catch(e){}
+  return [...A].filter(Boolean);
+}
+
+// Adivina el área por el nombre del archivo, cuando se puede
+function adivinaArea(nombre, areas){
+  const n=(nombre||'').toLowerCase().replace(/[_\-]/g,' ');
+  for(const a of areas){
+    const pal=a.toLowerCase().split(/\s+/).filter(x=>x.length>3);
+    if(pal.length && pal.every(p=>n.includes(p))) return a;
+  }
+  const alias={'bath':'bathroom','bano':'bathroom','baño':'bathroom','kitchen':'kitchen',
+    'cocina':'kitchen','bed':'bedroom','recamara':'bedroom','closet':'closet',
+    'hall':'hallway','pasillo':'hallway','sala':'living','living':'living',
+    'garage':'garage','laundry':'laundry','furnace':'furnace'};
+  for(const [k,v] of Object.entries(alias)){
+    if(n.includes(k)){
+      const m=areas.find(a=>a.toLowerCase().includes(v));
+      if(m) return m;
+    }
+  }
+  return null;
+}
+
+async function organizarFotos(jobId){
+  if(!EDIT()) return toast('Solo administración sube fotos así.');
+  const [{data:j},{data:R}] = await Promise.all([
+    sb.from('jobs').select('*, propiedades(nombre)').eq('id',jobId).single(),
+    sb.from('reportes').select('fecha,areas,fotos').eq('job_id',jobId).order('fecha')
+  ]);
+  if(!j) return toast('No se encontró el trabajo.');
+  let AREAS = areasDelJob(j, R||[]);
+  FOTOS_LOTE = [];
+  let SEL = new Set();      // fotos marcadas
+  let ANCLA = null;         // para escoger un rango
+
+  const pinta=()=>{
+    const sinArea=FOTOS_LOTE.filter(f=>!f.area).length;
+    const nsel=SEL.size;
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">${esc(j.folio||'')}</div>
+      <div class="disp" style="font-size:21px;line-height:1">Fotos por área</div>
+      <div style="font-size:13px;color:#C3D6F7">${esc(j.propiedades?.nombre||j.cliente||'')}${j.unidad?' · Unit '+esc(j.unidad):''}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+
+        <input type="file" id="fo_in" accept="image/*" multiple
+          style="padding:14px;width:100%;border:1px dashed var(--linea);border-radius:10px;background:transparent;color:inherit">
+        <div class="sub" style="margin-top:6px">Escoge todas las de WhatsApp de un jalón. Se acomodan en el orden que las mandó el técnico, que casi siempre es cuarto por cuarto.</div>
+
+        ${FOTOS_LOTE.length?`
+        <div class="fo-paso">
+          <b>1.</b> Toca la primera foto de un cuarto y luego la última: se marcan todas las de en medio.
+          <b>2.</b> Toca el área abajo y se les asigna a todas.
+        </div>
+
+        <div class="fo-grid">
+          ${FOTOS_LOTE.map((f,i)=>`<div class="fo-c ${f.area?'ok':''} ${SEL.has(i)?'sel':''}" data-fi="${i}">
+            <img src="${f.prev}" alt="" loading="lazy">
+            <span class="fo-num">${i+1}</span>
+            <span class="fo-a">${f.area?esc(f.area):'—'}</span>
+          </div>`).join('')}
+        </div>
+
+        <div class="fo-barra">
+          <span>${nsel? nsel+' '+(nsel===1?'marcada':'marcadas') : 'ninguna marcada'}</span>
+          ${nsel?`<button class="btn mini" id="fo_nada">Quitar marca</button>`:''}
+          <button class="btn mini" id="fo_todas">Marcar todas las que faltan</button>
+        </div>
+
+        <div class="eyebrow">Asignar ${nsel?'las '+nsel+' marcadas':'a'} · toca el área</div>
+        <div class="chips" id="fo_ar">
+          ${AREAS.map(a=>`<button type="button" data-fa="${esc(a)}">${esc(a)}
+            <em>${FOTOS_LOTE.filter(f=>f.area===a).length}</em></button>`).join('')}
+          <button type="button" id="fo_nueva" class="mas">+ otra área</button>
+        </div>
+
+        <div class="eyebrow">${FOTOS_LOTE.length} fotos${sinArea?' · faltan '+sinArea:' · todas acomodadas'}</div>
+        <button class="btn wide" id="fo_ok">Subir ${FOTOS_LOTE.length} fotos</button>
+        ${sinArea?`<div class="sub" style="margin-top:6px">Las ${sinArea} sin área se guardan como "Sin clasificar".</div>`:''}
+        `:''}
+
+        <div style="height:10px"></div>
+        <button class="btn ghost wide" id="c2">Cerrar</button>
+      </div></div>`;
+
+    $('#c1').onclick=$('#c2').onclick=cerrar;
+
+    $('#fo_in').onchange=e=>{
+      const fs=[...e.target.files].sort((a,b)=>
+        a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
+      fs.forEach(f=>FOTOS_LOTE.push({file:f, prev:URL.createObjectURL(f),
+        area:adivinaArea(f.name, AREAS)}));
+      pinta();
+    };
+
+    // Escoger: un toque marca; el segundo toque marca todo el rango
+    document.querySelectorAll('[data-fi]').forEach(b=>b.onclick=()=>{
+      const i=+b.dataset.fi;
+      if(ANCLA!==null && ANCLA!==i){
+        const a=Math.min(ANCLA,i), z=Math.max(ANCLA,i);
+        for(let k=a;k<=z;k++) SEL.add(k);
+        ANCLA=null;
+      } else if(SEL.has(i)){
+        SEL.delete(i); ANCLA=null;
+      } else {
+        SEL.add(i); ANCLA=i;
+      }
+      pinta();
+    });
+
+    const bt=$('#fo_todas');
+    if(bt) bt.onclick=()=>{ FOTOS_LOTE.forEach((f,i)=>{ if(!f.area) SEL.add(i); }); ANCLA=null; pinta(); };
+    const bn=$('#fo_nada');
+    if(bn) bn.onclick=()=>{ SEL.clear(); ANCLA=null; pinta(); };
+
+    document.querySelectorAll('[data-fa]').forEach(b=>b.onclick=()=>{
+      const a=b.dataset.fa;
+      if(!SEL.size) return toast('Primero marca las fotos de ese cuarto.');
+      SEL.forEach(i=>FOTOS_LOTE[i].area=a);
+      const n=SEL.size; SEL.clear(); ANCLA=null; pinta();
+      toast(n+' '+(n===1?'foto':'fotos')+' en '+a);
+    });
+
+    const nu=$('#fo_nueva');
+    if(nu) nu.onclick=()=>{
+      const v=prompt('¿Qué área?','');
+      if(v && v.trim()){ AREAS.push(v.trim()); pinta(); }
+    };
+
+    const ok=$('#fo_ok');
+    if(ok) ok.onclick=async()=>{
+      ok.disabled=true;
+      const guardadas=[];
+      for(let i=0;i<FOTOS_LOTE.length;i++){
+        const f=FOTOS_LOTE[i];
+        ok.textContent='Subiendo '+(i+1)+' de '+FOTOS_LOTE.length+'…';
+        const nm='job-'+jobId+'/'+Date.now()+'-'+i+'.jpg';
+        const {error}=await sb.storage.from('capri').upload(nm,f.file,{contentType:f.file.type||'image/jpeg'});
+        if(error){ toast('Falló una: '+error.message); continue; }
+        guardadas.push({u:sb.storage.from('capri').getPublicUrl(nm).data.publicUrl,
+                        a:f.area||'Sin clasificar'});
+      }
+      if(!guardadas.length){ ok.disabled=false; ok.textContent='Reintentar'; return; }
+      const prev=Array.isArray(j.fotos_areas)?j.fotos_areas:[];
+      const {error}=await sb.from('jobs').update({fotos_areas:prev.concat(guardadas)}).eq('id',jobId);
+      if(error){ ok.disabled=false; return toast('No se guardó: '+error.message); }
+      FOTOS_LOTE=[]; cerrar(); toast(guardadas.length+' fotos acomodadas'); abrirJob(jobId);
+    };
+  };
+  pinta();
+}
+
+/* ============ ESQUEMA DE ÁREAS DAÑADAS ============
+   No es un plano arquitectónico: es un diagrama de bloques.
+   El app no sabe la forma real de la unidad, solo qué áreas
+   se tocaron y qué se hizo en cada una. */
+function esquemaDanos(j, R, fotos){
+  const areas={};
+  const add=(a)=>{ if(!a) return; const k=a.trim(); if(!k) return;
+    areas[k] = areas[k] || {n:k, fotos:0, servicios:new Set(), lect:[], removido:new Set()}; };
+  (j.areas||[]).forEach(add);
+  (R||[]).forEach(r=>{
+    (r.areas||[]).forEach(a=>{ add(a);
+      (r.servicios||[]).forEach(s=>areas[a.trim()]?.servicios.add(s)); });
+    (r.lecturas||[]).forEach(l=>{ if(l.area){ add(l.area);
+      areas[l.area.trim()]?.lect.push(Number(l.mc)||0); } });
+  });
+  try{
+    extraeReparaciones(j.scope||'').reps.forEach(r=>{
+      if(r.detalle){ add(r.detalle); areas[r.detalle.trim()]?.removido.add(r.nombre); }
+    });
+  }catch(e){}
+  (fotos||[]).forEach(f=>{ if(f.a && areas[f.a]) areas[f.a].fotos++; });
+
+  const L=Object.values(areas);
+  if(!L.length) return '';
+
+  // Severidad: por humedad máxima y por cuánto se removió
+  const sev=a=>{
+    const mc=a.lect.length?Math.max(...a.lect):0;
+    if(mc>=25 || a.removido.size>=2) return 3;
+    if(mc>=16 || a.removido.size===1) return 2;
+    return 1;
+  };
+  const COL={1:'var(--azul)',2:'var(--oro)',3:'var(--rojo)'};
+  const TXT={1:'Leve',2:'Moderado',3:'Fuerte'};
+
+  return `
+    <div class="eyebrow">🏠 Esquema de áreas dañadas · ${L.length}</div>
+    <div class="sub" style="margin-bottom:9px">Diagrama de bloques, no plano a escala. El tamaño no representa medidas reales.</div>
+    <div class="esq">
+      ${L.map(a=>{
+        const s=sev(a), mc=a.lect.length?Math.max(...a.lect):null;
+        return `<div class="esq-a" style="border-color:${COL[s]}">
+          <div class="esq-t">${esc(a.n)}</div>
+          <div class="esq-b" style="background:${COL[s]}">${TXT[s]}</div>
+          <div class="esq-d">
+            ${mc?`<span>💧 ${mc}%</span>`:''}
+            ${a.removido.size?`<span>🔨 ${[...a.removido].join(', ')}</span>`:''}
+            ${a.servicios.size?`<span>🧰 ${[...a.servicios].slice(0,2).join(', ')}</span>`:''}
+            ${a.fotos?`<span>📷 ${a.fotos}</span>`:''}
+          </div>
+        </div>`;}).join('')}
+    </div>`;
+}
+
 // Un dato de la ficha de ubicacion. Lo que falta se marca, no se esconde.
 function dato(etiqueta, valor, clase){
   const hay = valor!=null && String(valor).trim()!=='' && String(valor)!=='—';
@@ -10511,7 +10774,10 @@ async function abrirJob(id){
             [eq.d?eq.d+' deshumidificador'+(eq.d>1?'es':''):'',
              eq.a?eq.a+' air mover'+(eq.a>1?'s':''):'',
              eq.s?eq.s+' air scrubber'+(eq.s>1?'s':''):''].filter(Boolean).join(' · ')}</div>`:''}
-          ${areas.length?`<div class="sub" style="margin-top:5px"><b>Áreas:</b> ${areas.map(esc).join(' · ')}</div>`:''}`;
+          ${areas.length?`<div class="sub" style="margin-top:5px"><b>Áreas:</b> ${areas.map(esc).join(' · ')}</div>`:''}
+          ${esquemaDanos(j, R, j.fotos_areas||[])}
+          ${EDIT()?`<div class="row no-print" style="margin-top:11px">
+            <button class="btn ghost sm" id="fo_org">Subir fotos por área</button></div>`:''}`;
         })()}
         ${EDIT()?`<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
         <div class="eyebrow">Estatus del trabajo</div>
@@ -10979,6 +11245,7 @@ async function abrirJob(id){
   // cerradas, así que si corre antes, los botones de esas secciones se quedan
   // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
+  const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
   const bun=$('#ub_un'); if(bun) bun.onclick=async()=>{
     const v=prompt('¿Qué unidad es?','');
     if(v===null) return;
