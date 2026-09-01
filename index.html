@@ -238,6 +238,33 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Ficha de ubicacion */
+.ub-cab{display:flex;align-items:flex-start;gap:14px;padding-bottom:13px;
+  border-bottom:1px solid var(--linea);margin-bottom:12px}
+.ub-prop{flex:1;min-width:0}
+.ub-prop b{display:block;font-family:var(--disp);font-size:23px;line-height:1.08;
+  text-transform:uppercase;letter-spacing:.01em}
+.ub-prop span{display:block;font-size:14px;color:var(--gris);margin-top:3px}
+.ub-un{flex-shrink:0;text-align:center;min-width:84px;
+  border:1.5px solid var(--azul);border-radius:10px;padding:7px 13px}
+.ub-un span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--gris)}
+.ub-un b{display:block;font-family:var(--disp);font-size:27px;line-height:1.05;color:var(--azul)}
+.ub-un.falta{border-color:var(--rojo);border-style:dashed}
+.ub-un.falta b{color:var(--rojo);font-size:17px}
+.ub-avi{display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  background:var(--rojo-l);border-left:3px solid var(--rojo);border-radius:8px;
+  padding:10px 13px;margin-bottom:12px;font-size:13.5px}
+.ub-avi span{flex:1;min-width:180px}
+.ub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:2px 16px}
+.ub-d{padding:7px 0;border-bottom:1px solid var(--linea)}
+.ub-d span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;
+  color:var(--gris);margin-bottom:2px}
+.ub-d b{font-size:15.5px;font-weight:600}
+.ub-d b.mono{font-family:var(--mono);font-size:14px}
+.ub-d.vacio b{color:var(--gris);font-weight:400;font-style:italic;font-size:14px}
+.ub-map{font-size:15px;color:var(--azul);text-decoration:none;font-weight:600}
+.ub-map:hover{text-decoration:underline}
+
 /* ── Barra de búsqueda en la barra superior ── */
 .buscabar{display:flex;align-items:center;gap:8px;flex:0 1 330px;min-width:150px;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
@@ -4257,7 +4284,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v139 · barra de búsqueda</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v140 · ficha de ubicación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6261,7 +6288,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='139';
+const VERSION='140';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10347,6 +10374,13 @@ function extraeReparaciones(scope){
 }
 
 
+// Un dato de la ficha de ubicacion. Lo que falta se marca, no se esconde.
+function dato(etiqueta, valor, clase){
+  const hay = valor!=null && String(valor).trim()!=='' && String(valor)!=='—';
+  return `<div class="ub-d${hay?'':' vacio'}"><span>${esc(etiqueta)}</span>
+    <b class="${clase||''}">${hay?esc(valor):'sin capturar'}</b></div>`;
+}
+
 async function abrirJob(id){
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas), usuarios(nombre,telefono)').eq('id',id).single(),
@@ -10395,22 +10429,39 @@ async function abrirJob(id){
         <button class="btn ghost" style="flex:1" id="btn_repcomp">Reporte completo</button>
       </div>
 
-      <div class="eyebrow">Ubicación${j.origen==='management'?' y management':''}</div>
-      <div class="card" style="border-left-color:var(--linea)">
-        <div class="g2" style="gap:9px 14px">
-          <div><div class="meta" style="font-size:10px">DIRECCIÓN</div><div class="sub" style="color:var(--tinta)">${esc(j.direccion)}${j.ciudad?', '+esc(j.ciudad):''}</div></div>
-          <div><div class="meta" style="font-size:10px">UNIDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.unidad||'—')}</div></div>
-          ${j.origen==='management'?`
-          <div><div class="meta" style="font-size:10px">MANAGEMENT</div><div class="sub" style="color:var(--tinta)">${esc(j.managements?.nombre||'—')}</div></div>
-          <div><div class="meta" style="font-size:10px">PROPIEDAD</div><div class="sub" style="color:var(--tinta)">${esc(j.propiedades?.nombre||'—')}</div></div>
-          ${j.po_number?`<div><div class="meta" style="font-size:10px">PO NUMBER</div><div class="sub" style="color:var(--tinta)">${esc(j.po_number)}</div></div>`:''}`:''}
-          ${j.origen==='aseguranza'?`
-          <div><div class="meta" style="font-size:10px">ASEGURANZA</div><div class="sub" style="color:var(--tinta)">${esc(j.aseguranza||'—')}</div></div>
-          <div><div class="meta" style="font-size:10px">CLAIM</div><div class="sub" style="color:var(--tinta)">${esc(j.claim_number||'—')}</div></div>
-          <div><div class="meta" style="font-size:10px">ADJUSTER</div><div class="sub" style="color:var(--tinta)">${esc(j.adjuster||'—')} ${esc(j.adjuster_tel||'')}</div></div>`:''}
-          <div><div class="meta" style="font-size:10px">ORIGEN</div><div class="sub" style="color:var(--tinta)">${esc(j.origen||'—')}</div></div>
-          <div><div class="meta" style="font-size:10px">TÉCNICO ENCARGADO</div><div class="sub" style="color:var(--tinta)">${esc(j.usuarios?.nombre||'sin asignar')}</div></div>
+      <div class="eyebrow">📍 Ubicación${j.origen==='management'?' y management':''}</div>
+      <div class="card" style="border-left-color:var(--azul)">
+
+        <div class="ub-cab">
+          <div class="ub-prop">
+            <b>${esc(j.propiedades?.nombre||j.cliente||'Sin nombre')}</b>
+            <span>${esc(j.direccion||'sin dirección')}${j.ciudad?', '+esc(j.ciudad):''}${j.zip?' '+esc(j.zip):''}</span>
+          </div>
+          <div class="ub-un ${j.unidad?'':'falta'}">
+            <span>UNIDAD</span>
+            <b>${j.unidad?esc(j.unidad):'FALTA'}</b>
+          </div>
         </div>
+
+        ${(!j.unidad&&EDIT())?`<div class="ub-avi">
+          <span>Este trabajo no tiene unidad. Pónsela para que salga bien en reportes y facturas.</span>
+          <button class="btn mini" id="ub_un">PONER UNIDAD</button></div>`:''}
+
+        <div class="ub-grid">
+          ${j.origen==='management'?`
+            ${dato('Management', j.managements?.nombre)}
+            ${dato('PO number', j.po_number, 'mono')}`:''}
+          ${j.origen==='aseguranza'?`
+            ${dato('Aseguranza', j.aseguranza)}
+            ${dato('Claim', j.claim_number, 'mono')}
+            ${dato('Adjuster', [j.adjuster, j.adjuster_tel].filter(Boolean).join(' · '))}`:''}
+          ${dato('Origen', j.origen)}
+          ${dato('Técnico encargado', j.usuarios?.nombre)}
+          ${dato('Tipo de propiedad', j.tipo_propiedad)}
+          ${j.direccion?`<div class="ub-d"><span>Cómo llegar</span>
+            <a class="ub-map" target="_blank" rel="noopener" href="https://maps.google.com/?q=${encodeURIComponent([j.direccion,j.ciudad,'CA',j.zip].filter(Boolean).join(', '))}">Abrir en Maps ›</a></div>`:''}
+        </div>
+
         ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
         ${(()=>{
           // FICHA TÉCNICA · lo que define el trabajo de un vistazo,
@@ -10923,6 +10974,14 @@ async function abrirJob(id){
   // cerradas, así que si corre antes, los botones de esas secciones se quedan
   // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
+  const bun=$('#ub_un'); if(bun) bun.onclick=async()=>{
+    const v=prompt('¿Qué unidad es?','');
+    if(v===null) return;
+    const u=v.trim(); if(!u) return toast('No pusiste nada.');
+    const {error}=await sb.from('jobs').update({unidad:u}).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    toast('Unidad '+u); abrirJob(id);
+  };
 
   // Cambiar el estatus de un toque, sin entrar a editar datos
   document.querySelectorAll('[data-jest]').forEach(b=>b.onclick=async()=>{
