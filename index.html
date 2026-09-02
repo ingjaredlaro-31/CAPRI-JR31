@@ -238,6 +238,14 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.acc-l{display:flex;flex-wrap:wrap;gap:7px}
+.acc-i{display:inline-flex;align-items:center;gap:6px;background:var(--sup2);
+  border:1px solid var(--linea);border-radius:7px;padding:5px 10px;font-size:14px}
+.acc-i em{font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gris)}
+.acc-i a{color:var(--azul);text-decoration:none;font-weight:600}
+.acc-i a:hover{text-decoration:underline}
+
 /* Galeria de fotos */
 .gal-a{margin-bottom:13px}
 .gal-t{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
@@ -1301,10 +1309,24 @@ main > *{position:relative;z-index:1}
 .sheet{position:fixed;inset:0;z-index:60;background:var(--fondo);overflow-y:auto}
 .sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;
   align-items:flex-start;padding:16px 18px 18px;padding-top:calc(16px + env(safe-area-inset-top));z-index:3}
-.sheet-head .mono{font-size:13.5px!important;letter-spacing:.14em!important;opacity:.9}
-.sheet-head .disp{font-size:34px!important;line-height:1!important;letter-spacing:.005em}
-.sheet-head b{font-family:var(--mono);font-size:17px;font-weight:600}
-.sheet-head > div:first-child > div:nth-child(3){font-size:15.5px!important;margin-top:4px}
+.sheet-head{box-shadow:0 3px 16px rgba(0,0,0,.22)}
+/* El encabezado azul se leía muy flojo: más tamaño y más contraste. */
+.sheet-head .mono{font-size:14px!important;letter-spacing:.15em!important;
+  opacity:1;color:#DCE8FF!important;font-weight:600}
+.sheet-head .disp{font-size:38px!important;line-height:1.02!important;letter-spacing:.005em;
+  color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.22)}
+.sheet-head b{font-family:var(--mono);font-size:19px;font-weight:700;color:#fff}
+.sheet-head > div:first-child > div{color:#fff}
+.sheet-head > div:first-child > div:nth-child(3){font-size:17.5px!important;margin-top:6px;
+  color:#EAF1FF!important;font-weight:500}
+.sheet-head > div:first-child > div:nth-child(4){font-size:16px!important;margin-top:3px;
+  color:#C9DCFF!important}
+/* Los datos secundarios del encabezado, legibles */
+.sheet-head [style*="C3D6F7"]{color:#DCE8FF!important;font-size:16px!important}
+.sheet-head .x{background:rgba(255,255,255,.18);border:0;color:#fff;width:40px;height:40px;
+  border-radius:50%;font-size:19px;cursor:pointer;flex-shrink:0}
+.sheet-head .x:hover{background:rgba(255,255,255,.3)}
+@media(max-width:520px){ .sheet-head .disp{font-size:30px!important} }
 .sheetnav{position:sticky;top:0;z-index:2;display:flex;gap:8px;padding:10px 18px;
   background:var(--sup2);border-bottom:1px solid var(--linea)}
 .sheetnav button{flex:1;background:var(--sup);border:1px solid var(--linea);color:var(--tinta);
@@ -3393,7 +3415,7 @@ async function verJobTecnico(id){
           <span class="chip ${j.ocupada==='ocupada'?'rojo':'azul'}">UNIDAD ${esc((j.ocupada||'vacia').toUpperCase())}</span>
           ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
         </div>
-        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
+        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)">${notaAcceso(j.propiedades.notas)}</div>`:''}
       </div>
       ${j.scope?`<div class="eyebrow">Scope of work</div>
       <div class="card" style="border-left-color:var(--azul)">
@@ -4344,7 +4366,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v144 · galería y fotos en PDF</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v145 · encabezado legible</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6350,7 +6372,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='144';
+const VERSION='145';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10686,6 +10708,30 @@ function esquemaDanos(j, R, fotos){
     </div>`;
 }
 
+// Las notas de propiedad a veces vienen pegadas de otro sistema, con los
+// nombres internos de los campos: "mobilePhone 858... emailAddress ...".
+// Esto las acomoda con etiquetas y las vuelve tocables.
+function notaAcceso(txt){
+  if(!txt) return '';
+  let t=' '+String(txt).trim()+' ';
+  const campos=[];
+  const saca=(rx, eti, tipo)=>{
+    t=t.replace(rx,(m,v)=>{ campos.push({eti, v:v.trim(), tipo}); return ' '; });
+  };
+  saca(/\b(?:mobile ?Phone|mobilePhone|cell ?Phone|phone ?Number|telephone)\s*:?\s*([+()\d][\d\s().-]{6,})/ig,'Teléfono','tel');
+  saca(/\b(?:email ?Address|emailAddress|e-?mail)\s*:?\s*([\w.+-]+@[\w.-]+\.\w+)/ig,'Correo','mail');
+  saca(/\b(?:web ?site|website|url)\s*:?\s*((?:https?:\/\/)?[\w.-]+\.[a-z]{2,}[^\s]*)/ig,'Sitio','web');
+  saca(/\b(?:office ?Phone|officePhone)\s*:?\s*([+()\d][\d\s().-]{6,})/ig,'Oficina','tel');
+  const resto=t.replace(/\s+/g,' ').trim();
+  if(!campos.length) return `<b>Acceso:</b> ${esc(resto)}`;
+  const link=c=> c.tipo==='tel' ? `<a href="tel:${esc(c.v.replace(/[^0-9+]/g,''))}">${esc(c.v)}</a>`
+              : c.tipo==='mail'? `<a href="mailto:${esc(c.v)}">${esc(c.v)}</a>`
+              : `<a target="_blank" rel="noopener" href="${esc(/^https?:/i.test(c.v)?c.v:'https://'+c.v)}">${esc(c.v)}</a>`;
+  return `<div class="acc-l">${campos.map(c=>
+      `<span class="acc-i"><em>${c.eti}</em>${link(c)}</span>`).join('')}</div>
+    ${resto?`<div style="margin-top:5px"><b>Acceso:</b> ${esc(resto)}</div>`:''}`;
+}
+
 // Visor de fotos: se abre en grande y se pasa con flechas o deslizando.
 let VISOR=[], VISOR_I=0;
 function abrirVisor(lista, i){
@@ -10808,7 +10854,7 @@ async function abrirJob(id){
             <a class="ub-map" target="_blank" rel="noopener" href="https://maps.google.com/?q=${encodeURIComponent([j.direccion,j.ciudad,'CA',j.zip].filter(Boolean).join(', '))}">Abrir en Maps ›</a></div>`:''}
         </div>
 
-        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)"><b>Acceso:</b> ${esc(j.propiedades.notas)}</div>`:''}
+        ${j.propiedades?.notas?`<div class="sub" style="margin-top:9px;color:var(--tinta)">${notaAcceso(j.propiedades.notas)}</div>`:''}
         ${(()=>{
           // FICHA TÉCNICA · lo que define el trabajo de un vistazo,
           // sacado de los reportes que ya subió el técnico.
