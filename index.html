@@ -238,6 +238,26 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Distintivos del encabezado */
+.hd-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hd-x{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+  padding:5px 11px;border-radius:6px;background:rgba(255,255,255,.2);color:#fff;
+  border:1px solid rgba(255,255,255,.35)}
+.hd-x.fl{background:#0E7BD4;border-color:#57B0F5}
+.hd-x.rm{background:#B8231F;border-color:#F08A87}
+.hd-x.in{background:#5A6880;border-color:#A6B4C8}
+.hd-x.pc{background:#0E7A52;border-color:#5FD6A4}
+.hd-x.zp{background:#B07A0B;border-color:#F0C860}
+/* Escoger tipo de trabajo en el reporte */
+.tipo-sw{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:5px 0 4px}
+.tipo-sw button{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
+  padding:13px 8px;cursor:pointer;text-align:center;transition:all .13s}
+.tipo-sw button b{display:block;font-family:var(--disp);font-size:16px;color:var(--tinta)}
+.tipo-sw button span{font-size:11px;color:var(--gris)}
+.tipo-sw button.on{border-color:var(--azul);background:var(--azul-l)}
+.tipo-sw button.on b{color:var(--azul)}
+@media(max-width:520px){ .tipo-sw{grid-template-columns:1fr} }
+
 .acc-l{display:flex;flex-wrap:wrap;gap:7px}
 .acc-i{display:inline-flex;align-items:center;gap:6px;background:var(--sup2);
   border:1px solid var(--linea);border-radius:7px;padding:5px 10px;font-size:14px}
@@ -1532,6 +1552,7 @@ async function enviarLevantamiento(){
     packs_equipo:d.packs_equipo, equipo_desc:d.equipo_desc||null,
     deshu_inst:d.deshu_inst, air_inst:d.air_inst, scrub_inst:d.scrub_inst,
     lecturas:d.lecturas, fotos:d.fotos, medidas:d.medidas,
+    tipo_trabajo:d.tipo_trabajo||null, plastic_cont:!!d.plastic_cont,
     carpet: G.dep==='cleaning' ? {...(d.cp||{}),
       manchas:!!d.c_manchas, olor:!!d.c_olor, mascota:!!d.c_mascota,
       muebles_movidos:!!d.c_muebles, dano_previo:!!d.c_dano_previo,
@@ -4366,7 +4387,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v145 · encabezado legible</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v146 · distintivos del trabajo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5246,9 +5267,23 @@ function pintaGuiado(){
   }
 
   else if(p.tipo==='contain2') cuerpo=`
+    <label>${L('¿Qué tipo de trabajo es?','What type of job is this?')}</label>
+    <div class="tipo-sw" id="gts">
+      ${[['flood',L('Flood','Flood'),L('Hubo agua','Water loss')],
+         ['remediation',L('Remediation','Remediation'),L('Moho o contaminación','Mold or contamination')],
+         ['inspection',L('Inspection','Inspection'),L('Solo revisión','Assessment only')]
+        ].map(([k,t,sb2])=>`<button type="button" data-gts="${k}" class="${d.tipo_trabajo===k?'on':''}">
+          <b>${t}</b><span>${sb2}</span></button>`).join('')}
+    </div>
+
+    <label>${L('¿Se puso plastic containment?','Plastic containment installed?')}</label>
+    <div class="si-no" id="gpc">
+      <button data-pc="1" class="${d.plastic_cont?'on':''}">${L('Sí','Yes')}</button>
+      <button data-pc="0" class="${d.plastic_cont?'':'on'}">No</button>
+    </div>
     <div class="g2">
       <div><label>${L('Sqft de plástico','Plastic sqft')}</label><input class="num" id="g1" type="number" value="${d.sqft_plastico}"></div>
-      <div><label>Zipper</label><select id="g2">${ZIPPERS.map(z=>`<option ${d.zipper===z?'selected':''}>${z}</option>`).join('')}</select></div>
+      <div><label>${L('¿Lleva zipper?','Zipper?')}</label><select id="g2">${ZIPPERS.map(z=>`<option ${d.zipper===z?'selected':''}>${z}</option>`).join('')}</select></div>
     </div>
     <div class="eyebrow">${L('Equipo instalado','Equipment installed')}</div>
     <div class="g3">
@@ -5515,6 +5550,19 @@ function pintaGuiado(){
       c.productos=c.productos.filter(x=>x!=='Ninguno');
       c.productos.includes(v) ? c.productos=c.productos.filter(x=>x!==v) : c.productos.push(v);
       b.classList.toggle('on');
+    });
+  }
+
+  if(p.tipo==='contain2'){
+    document.querySelectorAll('[data-gts]').forEach(b=>b.onclick=()=>{
+      G.d.tipo_trabajo=b.dataset.gts;
+      document.querySelectorAll('[data-gts]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+    document.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{
+      G.d.plastic_cont=b.dataset.pc==='1';
+      document.querySelectorAll('[data-pc]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
     });
   }
 
@@ -6372,7 +6420,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='145';
+const VERSION='146';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10811,7 +10859,26 @@ async function abrirJob(id){
     <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${esc(j.folio)} · ${esc((j.estatus||'').toUpperCase())}</div>
     <div class="disp">${esc(j.propiedades?.nombre||j.cliente)}</div>
     <div style="color:#C3D6F7">${j.unidad?'<b>UNIT '+esc(j.unidad)+'</b> · ':''}${esc(j.tipo)}
-      ${j.managements?.nombre?'<br>'+esc(j.managements.nombre):''}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div></div>
+      ${j.managements?.nombre?'<br>'+esc(j.managements.nombre):''}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
+    ${(()=>{
+      // Distintivos: de un vistazo qué clase de trabajo es
+      const ini=(R||[]).find(x=>x.tipo_reporte==='inicial')||(R||[])[0]||{};
+      const tt=ini.tipo_trabajo || (/remediation|mold/i.test(j.tipo||'')?'remediation'
+              : /inspection/i.test(j.tipo||'')?'inspection'
+              : (/flood|water/i.test(j.tipo||'')||j.extraccion)?'flood':null);
+      const zip=(R||[]).map(r=>r.zipper).find(z=>z&&z!=='no zipper');
+      const pc=(R||[]).some(r=>r.plastic_cont) || (R||[]).some(r=>Number(r.sqft_plastico)>0);
+      const sq=Math.max(0,...(R||[]).map(r=>Number(r.sqft_plastico)||0));
+      const B=[];
+      if(tt==='flood')       B.push(['FLOOD','fl']);
+      if(tt==='remediation') B.push(['REMEDIATION','rm']);
+      if(tt==='inspection')  B.push(['INSPECTION','in']);
+      if(pc) B.push(['PLASTIC CONTAINMENT'+(sq?' '+sq+' SQFT':''),'pc']);
+      if(zip) B.push([String(zip).toUpperCase(),'zp']);
+      if(!B.length) return '';
+      return `<div class="hd-b">${B.map(([t,c])=>`<span class="hd-x ${c}">${esc(t)}</span>`).join('')}</div>`;
+    })()}
+    </div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
