@@ -239,10 +239,10 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
 /* Distintivos del encabezado */
-.hd-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hd-b{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
 .hd-x{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
-  padding:5px 11px;border-radius:6px;background:rgba(255,255,255,.2);color:#fff;
-  border:1px solid rgba(255,255,255,.35)}
+  padding:6px 12px;border-radius:6px;color:#fff;border:1px solid transparent;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 2px 5px rgba(0,0,0,.18)}
 .hd-x.fl{background:#0E7BD4;border-color:#57B0F5}
 .hd-x.rm{background:#B8231F;border-color:#F08A87}
 .hd-x.in{background:#5A6880;border-color:#A6B4C8}
@@ -1327,22 +1327,27 @@ main > *{position:relative;z-index:1}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cal div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;border-radius:4px}
 .sheet{position:fixed;inset:0;z-index:60;background:var(--fondo);overflow-y:auto}
-.sheet-head{position:sticky;top:0;background:var(--azul);color:#fff;display:flex;justify-content:space-between;
-  align-items:flex-start;padding:16px 18px 18px;padding-top:calc(16px + env(safe-area-inset-top));z-index:3}
+.sheet-head{position:sticky;top:0;color:#fff;display:flex;justify-content:space-between;
+  align-items:flex-start;padding:18px 20px 20px;padding-top:calc(18px + env(safe-area-inset-top));z-index:3;
+  background:linear-gradient(160deg,#1D2942 0%,#141D30 46%,#0D1421 100%);
+  border-bottom:1px solid rgba(255,255,255,.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 6px 22px rgba(0,0,0,.4);position:relative}
+.sheet-head::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;
+  background:linear-gradient(90deg,var(--azul) 0%,var(--azul) 42%,var(--oro) 58%,var(--rojo) 100%)}
 .sheet-head{box-shadow:0 3px 16px rgba(0,0,0,.22)}
 /* El encabezado azul se leía muy flojo: más tamaño y más contraste. */
 .sheet-head .mono{font-size:14px!important;letter-spacing:.15em!important;
-  opacity:1;color:#DCE8FF!important;font-weight:600}
-.sheet-head .disp{font-size:38px!important;line-height:1.02!important;letter-spacing:.005em;
-  color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.22)}
+  opacity:1;color:var(--oro)!important;font-weight:700}
+.sheet-head .disp{font-size:39px!important;line-height:1.02!important;letter-spacing:.005em;
+  color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.45)}
 .sheet-head b{font-family:var(--mono);font-size:19px;font-weight:700;color:#fff}
 .sheet-head > div:first-child > div{color:#fff}
-.sheet-head > div:first-child > div:nth-child(3){font-size:17.5px!important;margin-top:6px;
-  color:#EAF1FF!important;font-weight:500}
+.sheet-head > div:first-child > div:nth-child(3){font-size:18px!important;margin-top:7px;
+  color:#F0F5FF!important;font-weight:500}
 .sheet-head > div:first-child > div:nth-child(4){font-size:16px!important;margin-top:3px;
   color:#C9DCFF!important}
 /* Los datos secundarios del encabezado, legibles */
-.sheet-head [style*="C3D6F7"]{color:#DCE8FF!important;font-size:16px!important}
+.sheet-head [style*="C3D6F7"]{color:#B9CBE6!important;font-size:16.5px!important}
 .sheet-head .x{background:rgba(255,255,255,.18);border:0;color:#fff;width:40px;height:40px;
   border-radius:50%;font-size:19px;cursor:pointer;flex-shrink:0}
 .sheet-head .x:hover{background:rgba(255,255,255,.3)}
@@ -4387,7 +4392,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v146 · distintivos del trabajo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v147 · encabezado con relieve</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6420,7 +6425,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='146';
+const VERSION='147';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10860,24 +10865,6 @@ async function abrirJob(id){
     <div class="disp">${esc(j.propiedades?.nombre||j.cliente)}</div>
     <div style="color:#C3D6F7">${j.unidad?'<b>UNIT '+esc(j.unidad)+'</b> · ':''}${esc(j.tipo)}
       ${j.managements?.nombre?'<br>'+esc(j.managements.nombre):''}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
-    ${(()=>{
-      // Distintivos: de un vistazo qué clase de trabajo es
-      const ini=(R||[]).find(x=>x.tipo_reporte==='inicial')||(R||[])[0]||{};
-      const tt=ini.tipo_trabajo || (/remediation|mold/i.test(j.tipo||'')?'remediation'
-              : /inspection/i.test(j.tipo||'')?'inspection'
-              : (/flood|water/i.test(j.tipo||'')||j.extraccion)?'flood':null);
-      const zip=(R||[]).map(r=>r.zipper).find(z=>z&&z!=='no zipper');
-      const pc=(R||[]).some(r=>r.plastic_cont) || (R||[]).some(r=>Number(r.sqft_plastico)>0);
-      const sq=Math.max(0,...(R||[]).map(r=>Number(r.sqft_plastico)||0));
-      const B=[];
-      if(tt==='flood')       B.push(['FLOOD','fl']);
-      if(tt==='remediation') B.push(['REMEDIATION','rm']);
-      if(tt==='inspection')  B.push(['INSPECTION','in']);
-      if(pc) B.push(['PLASTIC CONTAINMENT'+(sq?' '+sq+' SQFT':''),'pc']);
-      if(zip) B.push([String(zip).toUpperCase(),'zp']);
-      if(!B.length) return '';
-      return `<div class="hd-b">${B.map(([t,c])=>`<span class="hd-x ${c}">${esc(t)}</span>`).join('')}</div>`;
-    })()}
     </div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
@@ -10952,15 +10939,26 @@ async function abrirJob(id){
             ${eq.s?t('HEPA / SCRUBBER', eq.s+(eq.s===1?' equipo':' equipos'),'az'):''}
             ${t('VISITAS', visitas.length+(ini.fecha?' desde '+fmt(ini.fecha):''))}
           </div>
-          <div class="row" style="margin-top:9px;flex-wrap:wrap;gap:6px">
-            ${esFlood?'<span class="chip azul">FLOOD</span>':''}
-            ${esRem?'<span class="chip rojo">REMEDIATION</span>':''}
-            ${j.extraccion?'<span class="chip azul">WATER EXTRACTION</span>':''}
-            ${cont?'<span class="chip ambar">CONTAINMENT</span>':''}
-            ${eq.s?'<span class="chip azul">HEPA</span>':''}
-            ${(j.removido||[]).length?'<span class="chip ambar">DEMO · '+(j.removido||[]).length+' materiales</span>':''}
-            ${ah?'<span class="chip ambar">AFTER HOURS</span>':''}
-          </div>
+          ${(()=>{
+            // Qué clase de trabajo es, tal como lo marcó el técnico en su reporte
+            const tt=ini.tipo_trabajo || (esRem?'remediation':(/inspection/i.test(j.tipo||'')?'inspection':(esFlood?'flood':null)));
+            const zip=(R||[]).map(r=>r.zipper).find(z=>z&&z!=='no zipper');
+            const pc=(R||[]).some(r=>r.plastic_cont)||(R||[]).some(r=>Number(r.sqft_plastico)>0);
+            const sq=Math.max(0,...(R||[]).map(r=>Number(r.sqft_plastico)||0));
+            const B=[];
+            if(tt==='flood')       B.push(['FLOOD','fl']);
+            if(tt==='remediation') B.push(['REMEDIATION','rm']);
+            if(tt==='inspection')  B.push(['INSPECTION','in']);
+            if(j.extraccion)       B.push(['WATER EXTRACTION','fl']);
+            if(pc) B.push(['PLASTIC CONTAINMENT'+(sq?' · '+sq+' SQFT':''),'pc']);
+            if(zip) B.push([String(zip).toUpperCase(),'zp']);
+            if(cont && !pc) B.push(['CONTAINMENT','pc']);
+            if(eq.s) B.push(['HEPA','fl']);
+            if((j.removido||[]).length) B.push(['DEMO · '+(j.removido||[]).length+' MATERIALES','zp']);
+            if(ah) B.push(['AFTER HOURS','zp']);
+            if(!B.length) return '';
+            return `<div class="hd-b">${B.map(([t,c])=>`<span class="hd-x ${c}">${esc(t)}</span>`).join('')}</div>`;
+          })()}
           ${(eq.d||eq.a||eq.s)?`<div class="sub" style="margin-top:7px">Equipo máximo en sitio: ${
             [eq.d?eq.d+' deshumidificador'+(eq.d>1?'es':''):'',
              eq.a?eq.a+' air mover'+(eq.a>1?'s':''):'',
