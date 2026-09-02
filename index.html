@@ -238,6 +238,31 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Galeria de fotos */
+.gal-a{margin-bottom:13px}
+.gal-t{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--gris);margin-bottom:6px}
+.gal-t span{color:var(--azul)}
+.gal-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.gal-f{aspect-ratio:1;border:1px solid var(--linea);border-radius:8px;overflow:hidden;
+  padding:0;background:var(--sup2);cursor:pointer;transition:transform .1s,border-color .13s}
+.gal-f:hover{transform:scale(.97);border-color:var(--azul)}
+.gal-f img{width:100%;height:100%;object-fit:cover;display:block}
+/* Visor */
+#visor{position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center}
+.vi-bg{position:absolute;inset:0;background:rgba(4,7,12,.93)}
+.vi-img{position:relative;max-width:94vw;max-height:82vh;object-fit:contain;border-radius:8px}
+.vi-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;
+  padding:14px 18px;color:#E8EDF5;font-size:14px;z-index:2}
+.vi-top span{flex:1}
+.vi-dl{color:var(--azul);font-size:13px;text-decoration:none}
+.vi-x{background:rgba(255,255,255,.12);border:0;color:#fff;width:36px;height:36px;
+  border-radius:50%;font-size:17px;cursor:pointer}
+.vi-n{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);
+  border:0;color:#fff;width:48px;height:48px;border-radius:50%;font-size:28px;cursor:pointer;z-index:2}
+.vi-izq{left:14px} .vi-der{right:14px}
+.vi-n:hover{background:rgba(255,255,255,.24)}
+
 .fo-paso{background:var(--azul-l);border-left:3px solid var(--azul);border-radius:8px;
   padding:9px 12px;margin:10px 0 8px;font-size:13px;line-height:1.5}
 .fo-paso b{font-family:var(--disp);font-size:15px;color:var(--azul);margin-right:2px}
@@ -4319,7 +4344,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v143 · fotos por bloques</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v144 · galería y fotos en PDF</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6325,7 +6350,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='143';
+const VERSION='144';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10028,6 +10053,16 @@ async function reporteCompleto(id){
     return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); };
   const E = s=>esc(s==null?'':String(s));
 
+  // Fotos: las que subió administración por área más las de cada reporte.
+  // Va aquí porque necesita Fc(), que se define arriba.
+  const FOTOS_PDF=[];
+  (j.fotos_areas||[]).forEach(f=>{ if(f.u) FOTOS_PDF.push({u:f.u, a:f.a||'Sin clasificar'}); });
+  (reps||[]).forEach(r=>(r.fotos||[]).forEach(u=>{
+    const url=(typeof u==='string')?u:u.u;
+    if(url) FOTOS_PDF.push({u:url, a:(typeof u==='object'&&u.a)?u.a:('Visita del '+Fc(r.fecha))});
+  }));
+  const FOTOS_G={}; FOTOS_PDF.forEach(f=>(FOTOS_G[f.a] ||= []).push(f));
+
   // ── Lecturas juntas, para ver cómo fue secando ──
   const todasLect=[];
   R.forEach(r=>(r.lecturas||[]).forEach(l=>todasLect.push({fecha:r.fecha,...l})));
@@ -10167,6 +10202,8 @@ async function reporteCompleto(id){
   .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
     font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
   .salto{page-break-before:always}
+  .fot{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:5px 0 14px;page-break-inside:avoid}
+  .fot img{width:100%;height:118px;object-fit:cover;border:1px solid #D3D9E2;border-radius:4px}
   .nada{color:#78828F;font-style:italic}
   @media print{ .noimp{display:none} }
   .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
@@ -10247,6 +10284,13 @@ ${todasLect.length?`<h2>Control de humedad</h2>
   <td class="n">${E(l.mc)}${l.mc?'%':''}</td><td class="n">${E(l.temp)}</td></tr>`).join('')}</tbody></table>`:''}
 
 <div class="salto"></div>
+${FOTOS_PDF.length?`<div class="salto"></div>
+<h2>Evidencia fotográfica · ${FOTOS_PDF.length} ${FOTOS_PDF.length===1?'imagen':'imágenes'}</h2>
+${Object.keys(FOTOS_G).sort().map(a=>`
+  <h3>${E(a)} · ${FOTOS_G[a].length}</h3>
+  <div class="fot">${FOTOS_G[a].map(f=>`<img src="${E(f.u)}" alt="">`).join('')}</div>
+`).join('')}`:''}
+
 <h2>Bitácora · día por día</h2>
 ${R.length?bitacora:'<p class="nada">No hay reportes de visita registrados para este trabajo.</p>'}
 
@@ -10640,6 +10684,40 @@ function esquemaDanos(j, R, fotos){
           </div>
         </div>`;}).join('')}
     </div>`;
+}
+
+// Visor de fotos: se abre en grande y se pasa con flechas o deslizando.
+let VISOR=[], VISOR_I=0;
+function abrirVisor(lista, i){
+  VISOR=lista; VISOR_I=i;
+  let c=document.getElementById('visor');
+  if(!c){ c=document.createElement('div'); c.id='visor'; document.body.appendChild(c); }
+  const pinta=()=>{
+    const f=VISOR[VISOR_I];
+    c.innerHTML=`<div class="vi-bg"></div>
+      <div class="vi-top"><span>${VISOR_I+1} de ${VISOR.length} · ${esc(f.a||'')}</span>
+        <a href="${esc(f.u)}" target="_blank" rel="noopener" class="vi-dl">abrir original</a>
+        <button class="vi-x">✕</button></div>
+      <img class="vi-img" src="${esc(f.u)}" alt="">
+      ${VISOR.length>1?`<button class="vi-n vi-izq">‹</button><button class="vi-n vi-der">›</button>`:''}`;
+    c.querySelector('.vi-bg').onclick=cerrarVisor;
+    c.querySelector('.vi-x').onclick=cerrarVisor;
+    const iz=c.querySelector('.vi-izq'), de=c.querySelector('.vi-der');
+    if(iz) iz.onclick=()=>{ VISOR_I=(VISOR_I-1+VISOR.length)%VISOR.length; pinta(); };
+    if(de) de.onclick=()=>{ VISOR_I=(VISOR_I+1)%VISOR.length; pinta(); };
+  };
+  pinta();
+  document.addEventListener('keydown', visorTecla);
+}
+function visorTecla(e){
+  if(!document.getElementById('visor')) return;
+  if(e.key==='Escape') return cerrarVisor();
+  if(e.key==='ArrowLeft'){ VISOR_I=(VISOR_I-1+VISOR.length)%VISOR.length; abrirVisor(VISOR,VISOR_I); }
+  if(e.key==='ArrowRight'){ VISOR_I=(VISOR_I+1)%VISOR.length; abrirVisor(VISOR,VISOR_I); }
+}
+function cerrarVisor(){
+  const c=document.getElementById('visor'); if(c) c.remove();
+  document.removeEventListener('keydown', visorTecla);
 }
 
 // Un dato de la ficha de ubicacion. Lo que falta se marca, no se esconde.
@@ -11149,6 +11227,28 @@ async function abrirJob(id){
         </div>`;}).join('')||'<div class="sub">Sin recordatorios.</div>'}</div>
       ${EDIT()?'<div class="row no-print"><input id="rt" placeholder="Nuevo recordatorio…" style="flex:2"><input id="rf" type="date" style="flex:1"><button class="btn sm" id="ar2">Agregar</button></div>':''}
 
+      <i data-sx="Fotos|reporte"></i>
+      ${(()=>{
+        // Junta las fotos subidas por área con las que traen los reportes
+        const FA=(j.fotos_areas||[]).map(f=>({u:f.u, a:f.a||'Sin clasificar', de:'admin'}));
+        const FR=[];
+        (R||[]).forEach(r=>(r.fotos||[]).forEach(u=>FR.push({
+          u:(typeof u==='string'?u:u.u), a:(typeof u==='object'&&u.a)?u.a:'Del reporte '+fmt(r.fecha), de:'tecnico'})));
+        const T=FA.concat(FR).filter(x=>x.u);
+        if(!T.length) return `<div class="eyebrow">Fotos</div>
+          <div class="sub">Todavía no hay fotos de este trabajo.</div>`;
+        const G={}; T.forEach(f=>(G[f.a] ||= []).push(f));
+        const areas=Object.keys(G).sort();
+        return `<div class="eyebrow">Fotos · ${T.length} en ${areas.length} ${areas.length===1?'área':'áreas'}</div>
+        ${areas.map(a=>`
+          <div class="gal-a">
+            <div class="gal-t">${esc(a)} <span>${G[a].length}</span></div>
+            <div class="gal-g">${G[a].map(f=>
+              `<button class="gal-f" data-verf="${esc(f.u)}" data-vera="${esc(a)}">
+                 <img src="${esc(f.u)}" loading="lazy" alt=""></button>`).join('')}</div>
+          </div>`).join('')}`;
+      })()}
+
       <i data-sx="Reportes recibidos|reporte|abierta"></i>
       <div class="eyebrow" id="sec_reportes" style="margin-top:6px">Reportes recibidos · ${R.length}</div>
       ${EDIT()?'<button class="btn ghost wide no-print" id="addrep" style="margin-bottom:12px">+ Capturar reporte por un técnico</button>':''}
@@ -11246,6 +11346,8 @@ async function abrirJob(id){
   // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
+  const GAL=[...document.querySelectorAll('[data-verf]')].map(x=>({u:x.dataset.verf, a:x.dataset.vera}));
+  document.querySelectorAll('[data-verf]').forEach((x,i)=>x.onclick=()=>abrirVisor(GAL,i));
   const bun=$('#ub_un'); if(bun) bun.onclick=async()=>{
     const v=prompt('¿Qué unidad es?','');
     if(v===null) return;
