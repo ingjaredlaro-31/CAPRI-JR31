@@ -1478,6 +1478,15 @@ body.w-full   main{max-width:none;padding-left:24px;padding-right:24px}
 const SUPABASE_URL = 'https://qcxrxanvyadewglwszxs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_C5X_h9SYo8kVsYoAxtpxxw_xlc2LMAt';
 const EMPRESA = 'Capri Restoration Services Inc';
+// Datos de la empresa para los documentos formales.
+const CAPRI = {
+  nombre:'CAPRI RESTORATION SERVICES INC',
+  lema:'Water damage · Mold remediation · Reconstruction · Cleaning',
+  tel:'619-273-4693', tel2:'619-430-6730', tel3:'619-791-9576',
+  mail:'capri1restoration@gmail.com',
+  zona:'San Diego County, California',
+  pie:'Thanks for trusting us · We have your needs as the #1 priority'
+};
 const HORA_CORTE = 19;   // después de esta hora el pendiente pasa a ATRASADO
 const HORA_AVISO = 14;   // antes de esta hora, el reporte de hoy todavía no se reclama
 
@@ -4452,7 +4461,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v149 · nota de estatus y reloj</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v150 · reporte con membrete</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6511,7 +6520,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='149';
+const VERSION='150';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9688,6 +9697,12 @@ function facturaPDF(j, inv){
   @page{size:letter;margin:16mm 15mm}
   body{font-family:Georgia,'Times New Roman',serif;color:#14181F;font-size:11pt;line-height:1.5;margin:0}
   h1,.m,th,.emp,.tot{font-family:'Helvetica Neue',Arial,sans-serif}
+  .memb{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+    border-bottom:2px solid #14181F;padding-bottom:9px;margin-bottom:16px}
+  .memb-n{font-family:Arial,sans-serif;font-size:14pt;font-weight:800;letter-spacing:.04em;color:#14181F}
+  .memb-s{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.09em;
+    text-transform:uppercase;color:#4A5462;margin-top:2px}
+  .memb-r{font-family:Arial,sans-serif;font-size:8pt;text-align:right;color:#4A5462;line-height:1.55}
   .top{border-bottom:3px solid #1B56D3;padding-bottom:15px;margin-bottom:22px;overflow:hidden}
   .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700}
   h1{font-size:26pt;margin:5px 0 0;letter-spacing:-.01em}
@@ -9717,6 +9732,17 @@ function facturaPDF(j, inv){
     font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 </style></head><body>
 <button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="memb">
+  <div class="memb-l">
+    <div class="memb-n">${E(CAPRI.nombre)}</div>
+    <div class="memb-s">${E(CAPRI.lema)}</div>
+  </div>
+  <div class="memb-r">
+    ${E(CAPRI.tel)} &nbsp;·&nbsp; ${E(CAPRI.tel2)}<br>
+    ${E(CAPRI.mail)}<br>${E(CAPRI.zona)}
+  </div>
+</div>
 
 <div class="top">
   <div class="inv"><div class="n">INVOICE ${E(inv.num)}</div>
@@ -10102,6 +10128,12 @@ async function estadoDeCuenta(mgId, anio, mes){
   *{box-sizing:border-box}
   body{font-family:Georgia,'Times New Roman',serif;color:#14181F;font-size:10.5pt;line-height:1.55;margin:0}
   h1,h2,.m,.n,th,.po,.emp{font-family:'Helvetica Neue',Arial,sans-serif}
+  .memb{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+    border-bottom:2px solid #14181F;padding-bottom:9px;margin-bottom:16px}
+  .memb-n{font-family:Arial,sans-serif;font-size:14pt;font-weight:800;letter-spacing:.04em;color:#14181F}
+  .memb-s{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.09em;
+    text-transform:uppercase;color:#4A5462;margin-top:2px}
+  .memb-r{font-family:Arial,sans-serif;font-size:8pt;text-align:right;color:#4A5462;line-height:1.55}
   .port{border-bottom:3px solid #1B56D3;padding-bottom:14px;margin-bottom:20px;overflow:hidden}
   .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700}
   h1{font-size:22pt;margin:6px 0 2px}
@@ -10132,8 +10164,10 @@ async function estadoDeCuenta(mgId, anio, mes){
     color:#8A6512;margin-bottom:3px}
   .nota-e b{font-size:12.5pt;font-weight:600}
   .nota{background:#F7F9FC;border-left:2.5px solid #C6CDD6;padding:9px 13px;font-size:9.5pt;margin:10px 0}
-  .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
-    font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
+  .pie{margin-top:30px;border-top:2px solid #14181F;padding-top:11px;
+    font-size:8.5pt;color:#4A5462;text-align:center;font-family:Arial,sans-serif;line-height:1.6}
+  .pie b{font-size:10pt;letter-spacing:.05em;color:#14181F}
+  .pie-l{display:block;margin-top:5px;font-size:7.5pt;color:#909AA8;font-style:italic}
   .nada{color:#78828F;font-style:italic}
   @media print{.noimp{display:none}}
   .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
@@ -10141,6 +10175,17 @@ async function estadoDeCuenta(mgId, anio, mes){
     font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 </style></head><body>
 <button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="memb">
+  <div class="memb-l">
+    <div class="memb-n">${E(CAPRI.nombre)}</div>
+    <div class="memb-s">${E(CAPRI.lema)}</div>
+  </div>
+  <div class="memb-r">
+    ${E(CAPRI.tel)} &nbsp;·&nbsp; ${E(CAPRI.tel2)}<br>
+    ${E(CAPRI.mail)}<br>${E(CAPRI.zona)}
+  </div>
+</div>
 
 <div class="port">
   <div class="per"><div class="p">${E(periodo)}</div>
@@ -10173,8 +10218,10 @@ ${tabla(T,true).replace('</tbody>',
    <td class="n">${cf(T.reduce((a,x)=>a+M(x),0))}</td></tr></tfoot>`)}
 
 <div class="pie">
-  Capri Restoration Services Inc · Estado de cuenta de ${E(mg.nombre)} · ${E(periodo)}<br>
-  Cualquier aclaración sobre este documento, favor de comunicarse con nosotros.
+  <b>${E(CAPRI.nombre)}</b><br>
+  ${E(CAPRI.tel)} · ${E(CAPRI.tel2)} · ${E(CAPRI.tel3)} &nbsp;|&nbsp; ${E(CAPRI.mail)}<br>
+  ${E(CAPRI.zona)}<br>
+  <span class="pie-l">Folio ${E(j.folio)} · generado el ${Fc(hoy())} · ${E(CAPRI.pie)}</span>
 </div>
 </body></html>`;
 
@@ -10318,6 +10365,12 @@ async function reporteCompleto(id){
   h1,h2,h3,.mono{font-family:'Helvetica Neue',Arial,sans-serif}
   .mono{font-family:'SFMono-Regular',Consolas,monospace}
 
+  .memb{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+    border-bottom:2px solid #14181F;padding-bottom:9px;margin-bottom:16px}
+  .memb-n{font-family:Arial,sans-serif;font-size:14pt;font-weight:800;letter-spacing:.04em;color:#14181F}
+  .memb-s{font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.09em;
+    text-transform:uppercase;color:#4A5462;margin-top:2px}
+  .memb-r{font-family:Arial,sans-serif;font-size:8pt;text-align:right;color:#4A5462;line-height:1.55}
   .port{border-bottom:3px solid #1B56D3;padding-bottom:14px;margin-bottom:20px}
   .port .emp{font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:#1B56D3;font-weight:700;font-family:Arial,sans-serif}
   .port h1{font-size:23pt;margin:6px 0 2px;letter-spacing:-.01em}
@@ -10366,11 +10419,18 @@ async function reporteCompleto(id){
     white-space:pre-wrap;font-size:9.5pt;line-height:1.5}
   .firma{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:34px;page-break-inside:avoid}
   .firma div{border-top:1px solid #14181F;padding-top:5px;font-size:8.5pt;color:#4A5462}
-  .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
-    font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
+  .pie{margin-top:30px;border-top:2px solid #14181F;padding-top:11px;
+    font-size:8.5pt;color:#4A5462;text-align:center;font-family:Arial,sans-serif;line-height:1.6}
+  .pie b{font-size:10pt;letter-spacing:.05em;color:#14181F}
+  .pie-l{display:block;margin-top:5px;font-size:7.5pt;color:#909AA8;font-style:italic}
   .salto{page-break-before:always}
-  .fot{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:5px 0 14px;page-break-inside:avoid}
-  .fot img{width:100%;height:118px;object-fit:cover;border:1px solid #D3D9E2;border-radius:4px}
+  .fot{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:6px 0 16px}
+  .fot figure{margin:0;page-break-inside:avoid;break-inside:avoid}
+  .fot img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;
+    border:1px solid #C6CDD6;border-radius:5px;background:#EDF0F4}
+  .fot figcaption{font-family:Arial,sans-serif;font-size:7.5pt;color:#78828F;
+    margin-top:3px;letter-spacing:.04em}
+  h3{page-break-after:avoid}
   .nada{color:#78828F;font-style:italic}
   @media print{ .noimp{display:none} }
   .noimp{position:fixed;top:12px;right:12px;background:#1B56D3;color:#fff;border:0;
@@ -10379,6 +10439,17 @@ async function reporteCompleto(id){
 </style></head><body>
 
 <button class="noimp" onclick="window.print()">Guardar como PDF</button>
+
+<div class="memb">
+  <div class="memb-l">
+    <div class="memb-n">${E(CAPRI.nombre)}</div>
+    <div class="memb-s">${E(CAPRI.lema)}</div>
+  </div>
+  <div class="memb-r">
+    ${E(CAPRI.tel)} &nbsp;·&nbsp; ${E(CAPRI.tel2)}<br>
+    ${E(CAPRI.mail)}<br>${E(CAPRI.zona)}
+  </div>
+</div>
 
 <div class="port">
   <div class="fol"><div class="f">${E(j.folio)}</div>
@@ -10458,7 +10529,9 @@ ${FOTOS_PDF.length?`<div class="salto"></div>
 <h2>Evidencia fotográfica · ${FOTOS_PDF.length} ${FOTOS_PDF.length===1?'imagen':'imágenes'}</h2>
 ${Object.keys(FOTOS_G).sort().map(a=>`
   <h3>${E(a)} · ${FOTOS_G[a].length}</h3>
-  <div class="fot">${FOTOS_G[a].map(f=>`<img src="${E(f.u)}" alt="">`).join('')}</div>
+  <div class="fot">${FOTOS_G[a].map((f,i)=>
+    `<figure><img src="${E(f.u)}" alt="">
+     <figcaption>${E(a)} · foto ${i+1} de ${FOTOS_G[a].length}</figcaption></figure>`).join('')}</div>
 `).join('')}`:''}
 
 <h2>Bitácora · día por día</h2>
@@ -10481,8 +10554,10 @@ ${(dinero&&(EST.length||j.invoice_num))?`<h2>Resumen económico</h2>
 </div>
 
 <div class="pie">
-  Capri Restoration Services Inc · Reporte generado el ${Fc(hoy())} · Folio ${E(j.folio)}<br>
-  Documento generado por Administrador Central JR31
+  <b>${E(CAPRI.nombre)}</b><br>
+  ${E(CAPRI.tel)} · ${E(CAPRI.tel2)} · ${E(CAPRI.tel3)} &nbsp;|&nbsp; ${E(CAPRI.mail)}<br>
+  ${E(CAPRI.zona)}<br>
+  <span class="pie-l">Folio ${E(j.folio)} · generado el ${Fc(hoy())} · ${E(CAPRI.pie)}</span>
 </div>
 
 <script>setTimeout(function(){window.focus();},200);<\/script>
