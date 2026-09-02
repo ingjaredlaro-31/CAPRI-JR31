@@ -238,6 +238,31 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.jc-nota{background:rgba(224,179,78,.13);border-left:3px solid var(--oro);border-radius:7px;
+  padding:8px 12px;margin-top:11px;font-size:14.5px;line-height:1.4}
+
+/* Nota de estatus del trabajo */
+.nest{border-radius:11px;padding:13px 16px;margin-bottom:14px;position:relative}
+.nest.hay{background:linear-gradient(135deg,rgba(224,179,78,.16),rgba(224,179,78,.06));
+  border:1px solid var(--oro);border-left:5px solid var(--oro)}
+.nest.vacia{background:var(--sup2);border:1px dashed var(--linea);border-left:5px solid var(--linea)}
+.nest-l{display:flex;align-items:baseline;gap:10px;margin-bottom:5px;flex-wrap:wrap}
+.nest-t{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--oro)}
+.nest.vacia .nest-t{color:var(--gris)}
+.nest-f{font-family:var(--mono);font-size:10px;color:var(--gris)}
+.nest-x{font-size:18px;line-height:1.4;font-weight:500;padding-right:96px}
+.nest.vacia .nest-x{font-size:14.5px;color:var(--gris);font-style:italic}
+.nest .btn.mini{position:absolute;right:14px;top:13px}
+@media(max-width:520px){ .nest-x{padding-right:0;font-size:16px} .nest .btn.mini{position:static;margin-top:9px} }
+/* Reloj de la barra superior */
+.relojtop{text-align:right;margin-left:14px;flex-shrink:0;line-height:1.15}
+.relojtop b{display:block;font-family:var(--disp);font-size:21px;color:#fff;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.relojtop span{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;color:#9FB2CC;
+  text-transform:uppercase}
+@media(max-width:760px){ .relojtop b{font-size:17px} .relojtop span{display:none} }
+@media(max-width:480px){ .relojtop{display:none} }
+
 /* Distintivos del encabezado */
 .hd-b{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
 .hd-x{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
@@ -4393,6 +4418,7 @@ function shell(html){
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
+        <div class="relojtop" id="relojtop"><b></b><span></span></div>
         <span class="anchobtn" id="anchosw">
           <button data-w="" title="Compacto · como celular">▯</button>
           <button data-w="w-tablet" title="Tablet">▭</button>
@@ -4426,7 +4452,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v148 · mascota y ancho</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v149 · nota de estatus y reloj</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4440,6 +4466,18 @@ function shell(html){
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
+  // Reloj de la barra · corre en toda la app
+  const pintaReloj=()=>{
+    const r=document.getElementById('relojtop'); if(!r) return;
+    const d=new Date();
+    r.querySelector('b').textContent=d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    r.querySelector('span').textContent=d.toLocaleDateString('es-MX',
+      {weekday:'short',day:'numeric',month:'short'});
+  };
+  pintaReloj();
+  if(window.RELOJTOP) clearInterval(window.RELOJTOP);
+  window.RELOJTOP=setInterval(pintaReloj,15000);
+
   // Ancho de trabajo · se recuerda entre sesiones
   const aplicaAncho=w=>{
     document.body.classList.remove('w-tablet','w-full');
@@ -6473,7 +6511,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='148';
+const VERSION='149';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7543,6 +7581,7 @@ async function vJobs(){
           <span class="disp" style="font-size:19px;color:${colBar}">${esc(e.nombre)}</span>
           <span class="mono" style="font-size:16px;color:${colBar}">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
         <div class="barra" style="margin-top:7px;height:11px"><i style="width:${e.pct}%;background:${colBar}"></i></div>
+        ${j.nota_estatus?`<div class="jc-nota">${esc(j.nota_estatus)}</div>`:''}
         <div class="mos-b">
           <span class="jc-chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
           ${e.P.length?`<span class="jc-chip ${e.P.every(x=>x.estatus==='terminada')?'verde':'ambar'}">${e.P.filter(x=>x.estatus==='terminada').length}/${e.P.length} REPARACIONES</span>`:''}
@@ -10087,6 +10126,11 @@ async function estadoDeCuenta(mgId, anio, mes){
   td.m{font-family:monospace;font-size:9pt}
   .po{font-size:7.5pt;color:#78828F}
   tfoot td{border-top:1.5px solid #14181F;border-bottom:0;font-weight:700;padding-top:7px}
+  .nota-e{border:1.5px solid #C8922F;border-left:5px solid #C8922F;background:#FDF7E9;
+    border-radius:5px;padding:11px 15px;margin:14px 0}
+  .nota-e span{display:block;font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.13em;
+    color:#8A6512;margin-bottom:3px}
+  .nota-e b{font-size:12.5pt;font-weight:600}
   .nota{background:#F7F9FC;border-left:2.5px solid #C6CDD6;padding:9px 13px;font-size:9.5pt;margin:10px 0}
   .pie{margin-top:26px;border-top:1px solid #D3D9E2;padding-top:9px;
     font-size:8pt;color:#78828F;text-align:center;font-family:Arial,sans-serif}
@@ -10359,6 +10403,9 @@ async function reporteCompleto(id){
   ${j.po_number?`<div><span class="k">PO number</span><span class="v">${E(j.po_number)}</span></div>`:''}
   ${j.invoice_num?`<div><span class="k">Invoice</span><span class="v">${E(j.invoice_num)}</span></div>`:''}
 </div>
+
+${j.nota_estatus?`<div class="nota-e"><span>ESTADO ACTUAL${j.nota_estatus_fecha?' · '+Fc(j.nota_estatus_fecha):''}</span>
+  <b>${E(j.nota_estatus)}</b></div>`:''}
 
 <h2>Resumen general</h2>
 <div class="res">${resumen.map(p=>`<p>${E(p)}</p>`).join('')}</div>
@@ -10918,6 +10965,16 @@ async function abrirJob(id){
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+
+      ${(j.nota_estatus||EDIT())?`
+      <div class="nest ${j.nota_estatus?'hay':'vacia'} no-print" id="nest_box">
+        <div class="nest-l">
+          <span class="nest-t">Cómo va</span>
+          ${j.nota_estatus_fecha?`<span class="nest-f">${fmt(j.nota_estatus_fecha)}${j.nota_estatus_por?' · '+esc(j.nota_estatus_por):''}</span>`:''}
+        </div>
+        <div class="nest-x">${j.nota_estatus?esc(j.nota_estatus):'Sin nota. Escribe cómo va este trabajo para que todos lo vean.'}</div>
+        ${EDIT()?`<button class="btn mini" id="nest_ed">${j.nota_estatus?'CAMBIAR':'ESCRIBIR'}</button>`:''}
+      </div>`:''}
 
       <div class="row no-print" style="margin-bottom:14px">
         <a class="btn" style="flex:1" href="${wa}" target="_blank" rel="noopener">Notificar WhatsApp</a>
@@ -11505,6 +11562,18 @@ async function abrirJob(id){
   // cerradas, así que si corre antes, los botones de esas secciones se quedan
   // sin handler. Fue lo que rompió 'Registrar invoice'.
   const bed=$('#ed'); if(bed) bed.onclick=()=>formJob(id);
+  const bne=$('#nest_ed');
+  if(bne) bne.onclick=async()=>{
+    const v=prompt('¿Cómo va este trabajo?\n\nEsto lo ve todo el equipo arriba del trabajo.', j.nota_estatus||'');
+    if(v===null) return;
+    const t=v.trim();
+    const {error}=await sb.from('jobs').update({
+      nota_estatus:t||null,
+      nota_estatus_fecha:t?hoy():null,
+      nota_estatus_por:t?U.nombre:null}).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    toast(t?'Nota guardada':'Nota borrada'); abrirJob(id);
+  };
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
   const GAL=[...document.querySelectorAll('[data-verf]')].map(x=>({u:x.dataset.verf, a:x.dataset.vera}));
   document.querySelectorAll('[data-verf]').forEach((x,i)=>x.onclick=()=>abrirVisor(GAL,i));
