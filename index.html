@@ -238,6 +238,12 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.jc-cerrar{background:var(--rojo-l);border-left:3px solid var(--rojo);border-radius:7px;
+  padding:9px 12px;margin-top:11px}
+.jc-cerrar b{display:block;font-family:var(--disp);font-size:16px;color:var(--rojo);
+  text-transform:uppercase;letter-spacing:.01em}
+.jc-cerrar span{font-size:13.5px;color:var(--tinta)}
+
 .jc-nota{background:rgba(224,179,78,.13);border-left:3px solid var(--oro);border-radius:7px;
   padding:8px 12px;margin-top:11px;font-size:14.5px;line-height:1.4}
 
@@ -4461,7 +4467,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v150 · reporte con membrete</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v151 · trabajos sin cerrar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6520,7 +6526,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='150';
+const VERSION='151';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7470,9 +7476,24 @@ async function vJobs(){
   // Un job con invoice YA está facturado, aunque el estatus se haya quedado
   // atrás. Antes se clasificaba solo por estatus y por eso trabajos ya
   // cobrados seguían saliendo en Activos.
+  // CERRADO = ya se facturó. Todo lo demás sigue abierto y tiene que verse,
+  // aunque el técnico ya haya terminado: si no está cerrado, algo le falta.
   const esFact = x => x.estatus==='facturado' || !!x.invoice_num;
   const esTerm = x => !esFact(x) && x.estatus==='terminado';
-  const esAct  = x => !esFact(x) && !esTerm(x);
+  const esAct  = x => !esFact(x);
+
+  // Qué le falta a un trabajo para poder cerrarse
+  const faltaPara = x=>{
+    const f=[];
+    const e=est[x.id]||[], pr=(part[x.id]||[]).filter(y=>(y.clase||'reparacion')==='reparacion');
+    if(!nRep[x.id]) f.push('sin reportes');
+    if(!e.length) f.push('sin estimado');
+    else if(!e.some(y=>y.estatus==='aceptado')) f.push('estimado sin aceptar');
+    const pend=pr.filter(y=>y.estatus!=='terminada').length;
+    if(pend) f.push(pend+(pend===1?' reparación':' reparaciones'));
+    if(!x.invoice_num) f.push('sin invoice');
+    return f;
+  };
 
   const J = JTAB==='activos' ? TODOS.filter(esAct)
           : JTAB==='terminados' ? TODOS.filter(esTerm)
@@ -7490,9 +7511,9 @@ async function vJobs(){
   },0);
 
   const pestanas=`<div class="tabs" id="jtabs" style="margin-top:14px">
-      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Activos<span class="c" style="color:var(--oro)">${TODOS.filter(esAct).length}</span></button>
-      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Terminados<span class="c">${TODOS.filter(esTerm).length}</span></button>
-      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Facturados<span class="c" style="color:var(--verde,var(--azul))">${TODOS.filter(esFact).length}</span></button>
+      <button data-t="activos" class="${JTAB==='activos'?'on':''}">Abiertos<span class="c" style="color:var(--oro)">${TODOS.filter(esAct).length}</span></button>
+      <button data-t="terminados" class="${JTAB==='terminados'?'on':''}">Por cerrar<span class="c" style="color:var(--rojo)">${TODOS.filter(esTerm).length}</span></button>
+      <button data-t="facturados" class="${JTAB==='facturados'?'on':''}">Cerrados<span class="c" style="color:var(--verde,var(--azul))">${TODOS.filter(esFact).length}</span></button>
       <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${TODOS.length}</span></button>
     </div>`;
 
@@ -7590,6 +7611,12 @@ async function vJobs(){
           <span class="disp" style="font-size:19px;color:${colBar}">${esc(e.nombre)}</span>
           <span class="mono" style="font-size:16px;color:${colBar}">${e.hechas}/${ETAPAS.length} · ${e.pct}%</span></div>
         <div class="barra" style="margin-top:7px;height:11px"><i style="width:${e.pct}%;background:${colBar}"></i></div>
+        ${(j.estatus==='terminado' && !j.invoice_num)?(()=>{
+          const f=faltaPara(j);
+          return `<div class="jc-cerrar">
+            <b>Terminado pero sin cerrar</b>
+            <span>${f.length?'Le falta: '+f.join(' · '):'Ya se puede cerrar'}</span>
+          </div>`;})():''}
         ${j.nota_estatus?`<div class="jc-nota">${esc(j.nota_estatus)}</div>`:''}
         <div class="mos-b">
           <span class="jc-chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
