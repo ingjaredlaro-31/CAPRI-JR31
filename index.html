@@ -1361,6 +1361,35 @@ body.dark .sheetnav{background:#0C121E;border-bottom-color:#1C2534}
 body.dark .sheetnav button{background:#171F2D;border-color:#2A3446}
 .x{font-size:30px!important;padding:0 4px}
 .sheet-body{max-width:900px;margin:0 auto;padding:14px 14px 60px}
+/* Ancho de trabajo · el usuario escoge cuánto de la pantalla usar */
+body.w-tablet .sheet-body{max-width:1200px}
+body.w-tablet main{max-width:1200px}
+body.w-full   .sheet-body{max-width:none;padding-left:26px;padding-right:26px}
+body.w-full   main{max-width:none;padding-left:24px;padding-right:24px}
+.anchobtn{display:inline-flex;gap:2px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:3px;margin-left:8px}
+.anchobtn button{background:transparent;border:0;color:#8FA2BC;cursor:pointer;
+  padding:5px 9px;border-radius:6px;font-size:14px;line-height:1;transition:all .13s}
+.anchobtn button:hover{color:#fff}
+.anchobtn button.on{background:var(--azul);color:#fff}
+@media(max-width:900px){ .anchobtn{display:none} }
+/* La mascota del encabezado */
+.hd-masc{width:78px;height:78px;flex-shrink:0;align-self:center;margin-right:2px;
+  background:var(--masc-cara) center/contain no-repeat;
+  animation:mascFlota 3.4s ease-in-out infinite;
+  filter:drop-shadow(0 5px 12px rgba(0,0,0,.45))}
+@keyframes mascFlota{
+  0%,100%{transform:translateY(0) rotate(-1.5deg)}
+  50%    {transform:translateY(-7px) rotate(1.5deg)}
+}
+.hd-masc:hover{animation:mascSalta .55s ease}
+@keyframes mascSalta{
+  0%{transform:translateY(0) scale(1)}
+  35%{transform:translateY(-16px) scale(1.09) rotate(-7deg)}
+  70%{transform:translateY(3px) scale(.97) rotate(4deg)}
+  100%{transform:translateY(0) scale(1)}
+}
+@media(max-width:640px){ .hd-masc{width:54px;height:54px} }
 .x{background:none;border:0;color:#C3D6F7;font-size:24px;cursor:pointer;line-height:1}
 .portada{background:#070B12;padding:34px 22px 28px;border-radius:14px 14px 0 0;border:1px solid #1A2231;border-bottom:0;position:relative;overflow:hidden}
 .portada .rot{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;color:#8494AD;text-transform:uppercase}
@@ -4364,6 +4393,11 @@ function shell(html){
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
+        <span class="anchobtn" id="anchosw">
+          <button data-w="" title="Compacto · como celular">▯</button>
+          <button data-w="w-tablet" title="Tablet">▭</button>
+          <button data-w="w-full" title="Toda la pantalla">▬</button>
+        </span>
         <button class="temabtn solomovil" id="irabtn" title="Buscar" style="margin-left:8px;font-size:16px">⌕</button>
         <button class="temabtn" id="tema" title="${OSCURO?'Cambiar a modo claro':'Cambiar a modo oscuro'}" style="margin-left:8px">${OSCURO?'☀':'☾'}</button>
         <div style="flex:1;min-width:0;${V!==inicio?'margin-left:12px':''}">
@@ -4392,7 +4426,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v147 · encabezado con relieve</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v148 · mascota y ancho</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4406,6 +4440,20 @@ function shell(html){
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
+  // Ancho de trabajo · se recuerda entre sesiones
+  const aplicaAncho=w=>{
+    document.body.classList.remove('w-tablet','w-full');
+    if(w) document.body.classList.add(w);
+    document.querySelectorAll('[data-w]').forEach(b=>
+      b.classList.toggle('on', b.dataset.w===w));
+  };
+  let anchoGuardado='';
+  try{ anchoGuardado=localStorage.getItem('jr31_ancho')||''; }catch(e){}
+  aplicaAncho(anchoGuardado);
+  document.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{
+    try{ localStorage.setItem('jr31_ancho', b.dataset.w); }catch(e){}
+    aplicaAncho(b.dataset.w);
+  });
   const bir=$('#irabtn'); if(bir) bir.onclick=abrirIrA;
   const bb=$('#bb_in');
   if(bb){
@@ -6425,7 +6473,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='147';
+const VERSION='148';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -10861,7 +10909,8 @@ async function abrirJob(id){
   const wa = 'https://wa.me/'+(tel.replace(/\D/g,''))+'?text='+msg;
 
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head" ${j.departamento==='cleaning'?'style="background:var(--rojo)"':''}>
-    <div style="min-width:0"><div class="mono" style="color:#C3D6F7">${esc(j.folio)} · ${esc((j.estatus||'').toUpperCase())}</div>
+    <div class="hd-masc" title="Capri"></div>
+    <div style="min-width:0;flex:1"><div class="mono" style="color:#C3D6F7">${esc(j.folio)} · ${esc((j.estatus||'').toUpperCase())}</div>
     <div class="disp">${esc(j.propiedades?.nombre||j.cliente)}</div>
     <div style="color:#C3D6F7">${j.unidad?'<b>UNIT '+esc(j.unidad)+'</b> · ':''}${esc(j.tipo)}
       ${j.managements?.nombre?'<br>'+esc(j.managements.nombre):''}${j.usuarios?.nombre?' · '+esc(j.usuarios.nombre):''}</div>
