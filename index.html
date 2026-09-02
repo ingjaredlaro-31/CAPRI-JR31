@@ -4467,7 +4467,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v152 · lista por cerrar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v153 · lista por cerrar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6526,7 +6526,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='152';
+const VERSION='153';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7602,7 +7602,7 @@ async function vJobs(){
           <div class="mos-s">${esc(p.dir||'')}${p.ciudad?', '+esc(p.ciudad):''}</div>
           <div class="mos-b">
             <span class="jc-chip">${p.jobs.length} ${p.jobs.length===1?'UNIDAD':'UNIDADES'}</span>
-            ${(()=>{const sc=g.jobs.filter(x=>x.estatus==='terminado'&&!x.invoice_num).length;
+            ${(()=>{const sc=p.jobs.filter(x=>x.estatus==='terminado'&&!x.invoice_num).length;
               return sc?`<span class="jc-chip rojo">${sc} SIN CERRAR</span>`:'';})()}
             ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
             ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
