@@ -4467,7 +4467,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v151 · trabajos sin cerrar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v152 · lista por cerrar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6526,7 +6526,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='151';
+const VERSION='152';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7522,7 +7522,27 @@ async function vJobs(){
   if(!J.length) return cabeza+`<div class="empty"><div class="masc-busto masc-vacio"></div>
     <div class="disp">Nada en esta lista</div><p>Cambia de pestaña para ver otros trabajos.</p></div>`;
 
-  // ---------- NIVEL 1 · MANAGEMENTS ----------
+  // ---------- POR CERRAR · lista plana, sin bajar por management ----------
+  if(JTAB==='terminados'){
+    const L=[...J].sort((a,b)=>faltaPara(b).length-faltaPara(a).length);
+    const listos=L.filter(x=>!faltaPara(x).length).length;
+    return cabeza+`
+      <div class="eyebrow">Terminados sin cerrar \u00b7 ${L.length}${listos?' \u00b7 '+listos+' ya se pueden cerrar':''}</div>
+      <div class="sub" style="margin-bottom:11px">Todo lo que el t\u00e9cnico dio por terminado pero sigue abierto. Primero lo que m\u00e1s le falta.</div>
+      ${L.map(x=>{
+        const f=faltaPara(x), d=dias(x.fecha_cierre||inicioJob(x),hoy());
+        return `<div class="fila ${f.length?'r':'a'}" data-job="${x.id}" style="cursor:pointer">
+          <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' \u00b7 '+esc(x.unidad):''}</b>
+            <span class="sub">${esc(x.folio||'')} \u00b7 ${esc(x.tipo||'')}${x.managements?.nombre?' \u00b7 '+esc(x.managements.nombre):''}</span>
+            <span class="meta" style="color:${f.length?'var(--rojo)':'var(--verde)'}">
+              ${f.length?'Le falta: '+esc(f.join(' \u00b7 ')):'Ya se puede cerrar'}</span></div>
+          <div style="text-align:right">
+            <div class="disp" style="font-size:19px;color:${d>=14?'var(--rojo)':'var(--gris)'}">${d}d</div>
+            <span class="chip ${f.length?'rojo':'verde'}">${f.length?f.length+' PENDIENTES':'LISTO'}</span></div>
+        </div>`;}).join('')}`;
+  }
+
+  // ---------- NIVEL 1 \u00b7 MANAGEMENTS ----------
   if(JNIVEL==='mgmt'){
     const G={};
     J.forEach(j=>{
@@ -7550,6 +7570,8 @@ async function vJobs(){
           <div class="mos-b">
             ${sinFac.length?`<span class="jc-chip rojo">${sinFac.length} SIN FACTURAR${diasFac>=7?' · '+diasFac+'D':''}</span>`:''}
             ${vencidas.length?`<span class="jc-chip rojo">${vencidas.length} VENCIDA${vencidas.length>1?'S':''}</span>`:''}
+            ${(()=>{const sc=g.jobs.filter(x=>x.estatus==='terminado'&&!x.invoice_num).length;
+              return sc?`<span class="jc-chip rojo">${sc} SIN CERRAR</span>`:'';})()}
             ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
             ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
             ${(din&&VE_DINERO())?`<span class="jc-chip verde">${cf(din)} FACTURADO</span>`:''}
@@ -7580,6 +7602,8 @@ async function vJobs(){
           <div class="mos-s">${esc(p.dir||'')}${p.ciudad?', '+esc(p.ciudad):''}</div>
           <div class="mos-b">
             <span class="jc-chip">${p.jobs.length} ${p.jobs.length===1?'UNIDAD':'UNIDADES'}</span>
+            ${(()=>{const sc=g.jobs.filter(x=>x.estatus==='terminado'&&!x.invoice_num).length;
+              return sc?`<span class="jc-chip rojo">${sc} SIN CERRAR</span>`:'';})()}
             ${rev?`<span class="jc-chip rojo">${rev} POR REVISAR</span>`:''}
             ${sinEst?`<span class="jc-chip ambar">${sinEst} SIN ESTIMADO</span>`:''}
           </div></button>`;}).join('')}</div>`;
