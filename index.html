@@ -238,6 +238,13 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.est-sw button{display:flex;flex-direction:column;gap:2px;line-height:1.15}
+.est-sw button b{font-family:var(--disp);font-size:15px}
+.est-sw button span{font-family:var(--body);font-size:10.5px;font-weight:400;
+  text-transform:none;letter-spacing:0;opacity:.75}
+.est-sw button.bloq{opacity:.42;cursor:not-allowed}
+.est-sw button.bloq:hover{border-color:var(--linea);color:var(--gris)}
+
 .rep-sw{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:4px 0}
 .rep-sw button{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
   padding:12px 9px;cursor:pointer;text-align:center;transition:all .13s}
@@ -4499,7 +4506,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v156 · doble factura obligatoria</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v158 · cerrado con dos facturas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6558,7 +6565,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='156';
+const VERSION='158';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11270,10 +11277,30 @@ async function abrirJob(id){
         ${EDIT()?`<div class="row no-print" style="margin-top:10px"><button class="btn ghost sm" id="ed">Editar datos</button></div>
         <div class="eyebrow">Estatus del trabajo</div>
         <div class="est-sw no-print">
-          ${[['activo','Activo'],['pausado','En pausa'],['terminado','Terminado'],['facturado','Facturado']]
-            .map(([k,t])=>`<button data-jest="${k}" class="${j.estatus===k?'on '+k:''}">${t}</button>`).join('')}
+          ${(()=>{
+            const repsE=P.filter(x=>(x.clase||'reparacion')==='reparacion');
+            const repOk=!!j.invoice_rep_num || ['cancelada','no_aplica'].includes(j.rep_resolucion||'');
+            const puedeCerrar = !!j.invoice_num && repOk;
+            return [['activo','Activo','trabajando'],
+                    ['pausado','En pausa','detenido'],
+                    ['terminado','Terminado','falta facturar'],
+                    ['facturado','Cerrado','las dos facturas']]
+              .map(([k,t,sb2])=>{
+                const bloq = k==='facturado' && !puedeCerrar;
+                return `<button data-jest="${k}" class="${j.estatus===k?'on '+k:''} ${bloq?'bloq':''}"
+                  title="${bloq?'Faltan facturas para poder cerrar':''}">
+                  <b>${t}</b><span>${bloq?'faltan facturas':sb2}</span></button>`;
+              }).join('');
+          })()}
         </div>
-        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>
+        <div class="sub">${(()=>{
+          const nom={activo:'activo',pausado:'en pausa',terminado:'terminado',facturado:'cerrado'};
+          const repOk=!!j.invoice_rep_num || ['cancelada','no_aplica'].includes(j.rep_resolucion||'');
+          return 'Ahorita está <b>'+esc(nom[j.estatus]||j.estatus||'')+'</b>. '
+            + (!j.invoice_num ? 'Falta la factura del flood.'
+              : !repOk ? 'El flood ya se facturó. Falta resolver la reparación aquí abajo.'
+              : 'Las dos facturas están resueltas, ya se puede cerrar.');
+        })()}</div>
 
         ${(()=>{
           // Sin resolver la reparación el trabajo no se puede cerrar.
@@ -11284,7 +11311,7 @@ async function abrirJob(id){
             <div class="ok"><div class="t">Facturada · invoice ${esc(j.invoice_rep_num)}</div>
             <div class="sub">${j.invoice_rep_monto&&VE_DINERO()?cf(j.invoice_rep_monto):''}</div></div>`;
           return `<div class="eyebrow">¿Qué pasó con la reparación?</div>
-          <div class="sub" style="margin-bottom:7px">Mientras no lo digas, el trabajo se queda abierto. Son dos facturas siempre.</div>
+          <div class="sub" style="margin-bottom:7px">Son dos facturas siempre. Si marcas <b>Pendiente</b> el trabajo regresa a ACTIVO. Si marcas <b>Se canceló</b> o <b>No llevaba</b> se cierra, pero hay que dejar nota.</div>
           <div class="rep-sw">
             ${[['pendiente','Pendiente','todavía se va a hacer'],
                ['cancelada','Se canceló','el management no aprobó'],
@@ -11816,19 +11843,37 @@ async function abrirJob(id){
   };
   document.querySelectorAll('[data-repres]').forEach(b=>b.onclick=async()=>{
     const v=b.dataset.repres;
-    let nota=j.nota_estatus||'';
-    if(v==='cancelada'){
-      const t=prompt('¿Por qué se canceló la reparación?','');
-      if(t===null) return;
-      if(t.trim()) nota=t.trim();
-    }
     const up={rep_resolucion:v};
-    if(v==='cancelada' && nota!==j.nota_estatus){
-      up.nota_estatus=nota; up.nota_estatus_fecha=hoy(); up.nota_estatus_por=U.nombre;
+
+    if(v==='pendiente'){
+      // Si la reparación sigue en el aire, el trabajo NO está facturado:
+      // regresa a activo para que no se pierda de la lista.
+      up.estatus='activo';
     }
+
+    if(v==='cancelada' || v==='no_aplica'){
+      // Para cerrarlo hay que dejar dicho por qué. La nota es obligatoria.
+      const pide = v==='cancelada'
+        ? '¿Por qué se canceló la reparación?\n\nEsta nota queda en el trabajo y sale en el reporte.'
+        : 'Escribe por qué este trabajo no lleva reparación.\n\nEsta nota queda en el trabajo y sale en el reporte.';
+      const t=prompt(pide, j.nota_estatus||'');
+      if(t===null) return;
+      if(!t.trim()) return toast('Hay que dejar la nota para poder cerrarlo.');
+      up.nota_estatus=t.trim();
+      up.nota_estatus_fecha=hoy();
+      up.nota_estatus_por=U.nombre;
+      // Ya no falta nada de facturación: se cierra.
+      if(j.invoice_num){
+        up.estatus='facturado';
+        if(!j.fecha_cierre) up.fecha_cierre=j.invoice_fecha||hoy();
+      }
+    }
+
     const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
-    toast(v==='pendiente'?'Queda pendiente':v==='cancelada'?'Reparación cancelada':'Sin reparación');
+    toast(v==='pendiente' ? 'Queda pendiente · el trabajo regresa a ACTIVO'
+        : v==='cancelada' ? 'Reparación cancelada · trabajo cerrado'
+        : 'Sin reparación · trabajo cerrado');
     abrirJob(id);
   });
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
@@ -11849,7 +11894,15 @@ async function abrirJob(id){
     if(nuevo===j.estatus) return;
     const up={estatus:nuevo};
     if(nuevo==='facturado'){
-      if(!j.invoice_num && !confirm('Este trabajo no tiene número de invoice.\n\nSe va a marcar como FACTURADO de todas formas, pero va a salir en "Por cobrar" con el chip SIN NÚMERO hasta que se lo captures.\n\n¿Le seguimos?')) return;
+      // No se puede dar por facturado si falta la segunda factura.
+      const repsF=(PT||[]).filter(x=>(x.clase||'reparacion')==='reparacion');
+      const repOk = !!j.invoice_rep_num || ['cancelada','no_aplica'].includes(j.rep_resolucion||'');
+      if(!repOk){
+        return toast(repsF.length
+          ? 'Falta la factura de la reparación. Factúrala, o marca abajo que se canceló.'
+          : 'Primero di abajo qué pasó con la reparación.');
+      }
+      if(!j.invoice_num && !confirm('Este trabajo no tiene número de invoice del flood.\n\nSe va a marcar como FACTURADO de todas formas, pero va a salir en "Por cobrar" con el chip SIN NÚMERO hasta que se lo captures.\n\n¿Le seguimos?')) return;
       if(!j.fecha_cierre) up.fecha_cierre = j.invoice_fecha || hoy();
       let docs=(j.docs||[]).filter(x=>x!=='-invoice');
       if(!docs.includes('invoice')) docs.push('invoice');
