@@ -238,6 +238,18 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.rep-sw{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:4px 0}
+.rep-sw button{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
+  padding:12px 9px;cursor:pointer;text-align:center;transition:all .13s}
+.rep-sw button b{display:block;font-family:var(--disp);font-size:15.5px;color:var(--tinta)}
+.rep-sw button span{font-size:11px;color:var(--gris)}
+.rep-sw button.on.pendiente{border-color:var(--oro);background:rgba(224,179,78,.13)}
+.rep-sw button.on.pendiente b{color:var(--oro)}
+.rep-sw button.on.cancelada{border-color:var(--rojo);background:var(--rojo-l)}
+.rep-sw button.on.cancelada b{color:var(--rojo)}
+.rep-sw button.on.no_aplica{border-color:var(--gris);background:var(--sup2)}
+@media(max-width:520px){ .rep-sw{grid-template-columns:1fr} }
+
 .et-g{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--gris);
   text-transform:uppercase;padding:16px 0 7px;margin-left:-2px;
   border-bottom:1px solid var(--linea);margin-bottom:8px}
@@ -4487,7 +4499,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v155 · proceso completo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v156 · doble factura obligatoria</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6546,7 +6558,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='155';
+const VERSION='156';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7505,16 +7517,24 @@ async function vJobs(){
 
   const factFlood = x => !!x.invoice_num || x.estatus==='facturado';
   const factRep   = x => !!x.invoice_rep_num;
-  const completo  = x => factFlood(x) && (factRep(x) || (!llevaRep(x) && x.estatus==='facturado'));
+  // La reparación se puede resolver de tres formas: se facturó, se canceló,
+  // o el trabajo no llevaba. Sin una de esas, el trabajo NO se cierra.
+  const repResuelta = x => factRep(x) || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
+  const completo  = x => factFlood(x) && repResuelta(x);
 
-  // 1 · Todavía trabajando, sin facturar nada
-  const esAct = x => !factFlood(x);
-  // 2 · Flood facturado pero la reparación sigue en proceso
-  const esFloodFact = x => factFlood(x) && !completo(x) && (repPend(x)>0 || !llevaRep(x)&&x.estatus!=='facturado');
-  // 3 · Reparación terminada, falta cobrarla
+  // ACTIVOS = todo lo que no está completo. Un trabajo con el flood
+  // facturado pero la reparación en el aire sigue siendo trabajo abierto.
+  const esAct = x => !completo(x);
+  const esFloodFact = x => factFlood(x) && !completo(x) && !(llevaRep(x) && repPend(x)===0);
   const esRepSinFac = x => factFlood(x) && !completo(x) && llevaRep(x) && repPend(x)===0;
-  // 4 · Todo facturado y cerrado
   const esComp = x => completo(x);
+
+  // En qué etapa va, en una frase
+  const etapaDe = x =>
+      completo(x)      ? 'Completo'
+    : !factFlood(x)    ? 'En proceso'
+    : esRepSinFac(x)   ? 'Reparación lista, falta cobrarla'
+    :                    'Flood facturado · falta reparación';
 
   // Qué le falta a un trabajo para poder cerrarse
   const faltaPara = x=>{
@@ -7526,7 +7546,7 @@ async function vJobs(){
     const pend=repPend(x);
     if(pend) f.push(pend+(pend===1?' reparaci\u00f3n abierta':' reparaciones abiertas'));
     if(!factFlood(x)) f.push('falta facturar flood');
-    else if(llevaRep(x) && !factRep(x)) f.push('falta facturar reparaci\u00f3n');
+    else if(!repResuelta(x)) f.push(llevaRep(x)?'falta facturar reparaci\u00f3n':'falta decir si lleva reparaci\u00f3n');
     return f;
   };
 
@@ -7672,7 +7692,8 @@ async function vJobs(){
             <div class="mos-s">${esc(j.tipo)} · ${esc(antiguedad(j).txt)}</div>
             <div class="mos-s">${j.usuarios?.nombre?esc(j.usuarios.nombre):'sin técnico asignado'}</div>
           </div>
-          <span class="jc-chip ${j.estatus==='facturado'?'verde':j.estatus==='terminado'?'azul':''}">${esc(j.estatus.toUpperCase())}</span>
+          <span class="jc-chip ${esComp(j)?'verde':esRepSinFac(j)?'ambar':factFlood(j)?'azul':''}">${
+            esc((esComp(j)?'COMPLETO':esRepSinFac(j)?'FALTA COBRAR REP':factFlood(j)?'FLOOD FACTURADO':j.estatus).toUpperCase())}</span>
         </div>
         <div class="row" style="margin-top:12px;justify-content:space-between;align-items:baseline">
           <span class="disp" style="font-size:19px;color:${colBar}">${esc(e.nombre)}</span>
@@ -11252,7 +11273,27 @@ async function abrirJob(id){
           ${[['activo','Activo'],['pausado','En pausa'],['terminado','Terminado'],['facturado','Facturado']]
             .map(([k,t])=>`<button data-jest="${k}" class="${j.estatus===k?'on '+k:''}">${t}</button>`).join('')}
         </div>
-        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>`:''}
+        <div class="sub">Ahorita está <b>${esc(j.estatus||'')}</b>. Tócale a otro para cambiarlo de una vez.</div>
+
+        ${(()=>{
+          // Sin resolver la reparación el trabajo no se puede cerrar.
+          const repsJ2=P.filter(x=>(x.clase||'reparacion')==='reparacion');
+          const res=j.rep_resolucion||'';
+          const listo = !!j.invoice_rep_num || ['cancelada','no_aplica'].includes(res);
+          if(j.invoice_rep_num) return `<div class="eyebrow">Reparación</div>
+            <div class="ok"><div class="t">Facturada · invoice ${esc(j.invoice_rep_num)}</div>
+            <div class="sub">${j.invoice_rep_monto&&VE_DINERO()?cf(j.invoice_rep_monto):''}</div></div>`;
+          return `<div class="eyebrow">¿Qué pasó con la reparación?</div>
+          <div class="sub" style="margin-bottom:7px">Mientras no lo digas, el trabajo se queda abierto. Son dos facturas siempre.</div>
+          <div class="rep-sw">
+            ${[['pendiente','Pendiente','todavía se va a hacer'],
+               ['cancelada','Se canceló','el management no aprobó'],
+               ['no_aplica','No llevaba','solo era el flood']]
+              .map(([k,t,sb2])=>`<button data-repres="${k}" class="${res===k?'on '+k:''}">
+                <b>${t}</b><span>${sb2}</span></button>`).join('')}
+          </div>
+          ${(res==='pendiente'||!res)&&repsJ2.length?`<div class="sub" style="margin-top:6px">Tiene ${repsJ2.length} ${repsJ2.length===1?'reparación capturada':'reparaciones capturadas'}. Cuando estén listas, factúralas desde las etapas.</div>`:''}`;
+        })()}`:''}
       </div>
 
       ${CT.length?`<div class="eyebrow">Contactos de la propiedad · ${CT.length}</div>
@@ -11773,6 +11814,23 @@ async function abrirJob(id){
     if(error) return toast('No se guardó: '+error.message);
     toast(t?'Nota guardada':'Nota borrada'); abrirJob(id);
   };
+  document.querySelectorAll('[data-repres]').forEach(b=>b.onclick=async()=>{
+    const v=b.dataset.repres;
+    let nota=j.nota_estatus||'';
+    if(v==='cancelada'){
+      const t=prompt('¿Por qué se canceló la reparación?','');
+      if(t===null) return;
+      if(t.trim()) nota=t.trim();
+    }
+    const up={rep_resolucion:v};
+    if(v==='cancelada' && nota!==j.nota_estatus){
+      up.nota_estatus=nota; up.nota_estatus_fecha=hoy(); up.nota_estatus_por=U.nombre;
+    }
+    const {error}=await sb.from('jobs').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    toast(v==='pendiente'?'Queda pendiente':v==='cancelada'?'Reparación cancelada':'Sin reparación');
+    abrirJob(id);
+  });
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
   const GAL=[...document.querySelectorAll('[data-verf]')].map(x=>({u:x.dataset.verf, a:x.dataset.vera}));
   document.querySelectorAll('[data-verf]').forEach((x,i)=>x.onclick=()=>abrirVisor(GAL,i));
@@ -11976,8 +12034,13 @@ async function abrirJob(id){
     // CERRAR TRABAJO · la última etapa. Deja el job listo y sin pendientes.
     if(k==='subido' && !estaba){
       const faltan=[];
-      if(!j.invoice_num) faltan.push('no tiene número de invoice');
-      const pend=(PT||[]).filter(x=>(x.clase||'reparacion')==='reparacion' && x.estatus!=='terminado');
+      if(!j.invoice_num) faltan.push('falta la factura del FLOOD');
+      const repsC=(PT||[]).filter(x=>(x.clase||'reparacion')==='reparacion');
+      if(!j.invoice_rep_num && !['cancelada','no_aplica'].includes(j.rep_resolucion||''))
+        faltan.push(repsC.length
+          ? 'falta la factura de la REPARACI\u00d3N, o marcar que se cancel\u00f3'
+          : 'falta decir si lleva reparaci\u00f3n o no');
+      const pend=repsC.filter(x=>x.estatus!=='terminada');
       if(pend.length) faltan.push(pend.length+(pend.length===1?' reparación sin terminar':' reparaciones sin terminar'));
       const aviso = faltan.length
         ? 'Ojo, este trabajo todavía:\n\n· '+faltan.join('\n· ')+'\n\n¿Aun así lo cierras?'
