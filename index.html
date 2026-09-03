@@ -238,6 +238,11 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.et-g{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--gris);
+  text-transform:uppercase;padding:16px 0 7px;margin-left:-2px;
+  border-bottom:1px solid var(--linea);margin-bottom:8px}
+.et-g:first-child{padding-top:4px}
+
 .jc-cerrar.urg{background:rgba(61,214,140,.13);border-left-color:var(--verde)}
 .jc-cerrar.urg b{color:var(--verde)}
 
@@ -1545,16 +1550,28 @@ const CARPET_VACIO = {
   antes:'', despues:'', pendiente:''
 };
 const PUESTOS = ['manager','assistant manager','supervisor','mantenimiento','contabilidad','otro'];
+// El proceso real de Capri, en orden y por bloques.
 const ETAPAS = [
-  {k:'inicial',    t:'Reporte inicial',   s:'Se levantó el trabajo'},
-  {k:'reportes',   t:'Reportes diarios',  s:'Visitas documentadas'},
-  {k:'estimado',   t:'Estimado enviado',  s:'Cotización al management'},
-  {k:'trabajando', t:'Trabajando',        s:'Equipo instalado y operando'},
-  {k:'seco',       t:'Seco',              s:'Lecturas en nivel aceptable'},
-  {k:'reparando',  t:'Reparando',         s:'Reconstrucción en proceso'},
-  {k:'aceptado',   t:'Estimado aceptado', s:'Autorizado para cobrar'},
-  {k:'invoice',    t:'Invoice creado',    s:'Factura generada'},
-  {k:'subido',     t:'Cerrar trabajo',    s:'Listo y sin pendientes'}
+  // ── EN SITIO ──
+  {g:'EN SITIO', k:'inicial',    t:'Trabajo abierto',      s:'Se levantó el reporte inicial'},
+  {g:'EN SITIO', k:'inspeccion', t:'Inspección',           s:'Primera visita y lecturas'},
+  {g:'EN SITIO', k:'mitiga',     t:'Extracción o demolición', s:'Flood: sacar el agua · Remediation: demo'},
+  {g:'EN SITIO', k:'trabajando', t:'Equipo instalado',     s:'Dehus y air movers operando'},
+  {g:'EN SITIO', k:'seco',       t:'Seco',                 s:'Lecturas en nivel aceptable'},
+  // ── REPARACIÓN ──
+  {g:'REPARACIÓN', k:'estimado', t:'Estimado enviado',     s:'Cotización de reparación al management'},
+  {g:'REPARACIÓN', k:'aceptado', t:'Estimado aceptado',    s:'Autorizado para reparar'},
+  {g:'REPARACIÓN', k:'reparando',t:'Reparación hecha',     s:'Reconstrucción terminada'},
+  // ── FACTURA DEL FLOOD ──
+  {g:'FACTURA FLOOD', k:'invoice',    t:'Invoice flood',       s:'Factura de la mitigación'},
+  {g:'FACTURA FLOOD', k:'qb_flood',   t:'Flood en QuickBooks',  s:'Capturado en QuickBooks'},
+  {g:'FACTURA FLOOD', k:'plat_flood', t:'Flood en la plataforma', s:'Subido al portal del management'},
+  // ── FACTURA DE LA REPARACIÓN ──
+  {g:'FACTURA REPARACIÓN', k:'invoice_rep', t:'Invoice reparación', s:'Factura de la reconstrucción'},
+  {g:'FACTURA REPARACIÓN', k:'qb_rep',      t:'Reparación en QuickBooks', s:'Capturado en QuickBooks'},
+  {g:'FACTURA REPARACIÓN', k:'plat_rep',    t:'Reparación en la plataforma', s:'Subido al portal del management'},
+  // ── CIERRE ──
+  {g:'CIERRE', k:'subido', t:'Cerrar trabajo', s:'Listo y sin pendientes'}
 ];
 const DOCS_VIEJO = {
   management:['Work order / PO recibido','Autorización del manager','Fotos de antes','Fotos de después','Reporte final enviado al manager','Factura al management'],
@@ -4470,7 +4487,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v154 · etapas reales del trabajo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v155 · proceso completo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6529,7 +6546,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='154';
+const VERSION='155';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11427,14 +11444,39 @@ async function abrirJob(id){
         const estAcep=EST.some(x=>x.estatus==='aceptado');
         const repProc=P.some(x=>['asignada','proceso'].includes(x.estatus));
         const repTodas=P.length>0 && P.every(x=>x.estatus==='terminada');
-        const auto={inicial:tieneIni, reportes:nRep>0, estimado:estEnv, reparando:repProc||repTodas,
-          aceptado:estAcep, invoice:!!j.invoice_num};
-        const detalle={reportes:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
-          estimado:estEnv?('SÍ TIENE ESTIMADO · '+cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0)):'NO TIENE ESTIMADO',
+        const repsJ=P.filter(x=>(x.clase||'reparacion')==='reparacion');
+        const repListas=repsJ.filter(x=>x.estatus==='terminada').length;
+        const auto={
+          inicial:tieneIni,
+          inspeccion:nRep>0 || tieneIni,
+          mitiga: !!j.extraccion || (j.removido||[]).length>0,
+          trabajando: R.some(r=>Number(r.deshu_inst||0)+Number(r.air_inst||0)+Number(r.scrub_inst||0)>0),
+          estimado:estEnv, aceptado:estAcep,
+          reparando: repsJ.length>0 && repListas===repsJ.length,
+          invoice:!!j.invoice_num,
+          invoice_rep:!!j.invoice_rep_num
+        };
+        const detalle={
+          inspeccion:nRep+' reporte'+(nRep===1?'':'s')+' recibidos',
+          mitiga: j.extraccion ? 'Se hizo water extraction'
+                : (j.removido||[]).length ? 'Se removió: '+(j.removido||[]).join(', ')
+                : 'Todavía no se registra extracción ni demo',
+          trabajando: (()=>{const d=Math.max(0,...R.map(r=>+r.deshu_inst||0)),
+            a2=Math.max(0,...R.map(r=>+r.air_inst||0));
+            return (d||a2)?[d?d+' dehu':'',a2?a2+' air movers':''].filter(Boolean).join(' '+'\u00b7'+' '):'Sin equipo registrado';})(),
+          estimado:estEnv?('S\u00cd TIENE ESTIMADO '+'\u00b7'+' '+cf(EST.filter(x=>['enviado','aceptado'].includes(x.estatus))[0]?.monto||0)):'NO TIENE ESTIMADO',
+          reparando:repsJ.length?repListas+' de '+repsJ.length+' reparaciones listas':'sin reparaciones',
           invoice: j.invoice_num
-            ? ('Invoice '+j.invoice_num+(j.invoice_monto&&VE_DINERO()?' · '+cf(j.invoice_monto):'')+(j.invoice_pagado?' · PAGADO':' · sin pago'))
-            : 'Tócalo para crear la factura y pasar el trabajo a facturado',
-          reparando:P.length?P.filter(x=>x.estatus==='terminada').length+' de '+P.length+' partidas listas':'sin partidas'};
+            ? ('Invoice '+j.invoice_num+(j.invoice_monto&&VE_DINERO()?' '+'\u00b7'+' '+cf(j.invoice_monto):'')+(j.invoice_pagado?' '+'\u00b7'+' PAGADO':' '+'\u00b7'+' sin pago'))
+            : 'T\u00f3calo para facturar la mitigaci\u00f3n',
+          invoice_rep: j.invoice_rep_num
+            ? ('Invoice '+j.invoice_rep_num+(j.invoice_rep_monto&&VE_DINERO()?' '+'\u00b7'+' '+cf(j.invoice_rep_monto):''))
+            : (repsJ.length? 'T\u00f3calo para facturar la reparaci\u00f3n' : 'Este trabajo no lleva reparaci\u00f3n'),
+          qb_flood:'M\u00e1rcalo cuando lo captures en QuickBooks',
+          plat_flood:'M\u00e1rcalo cuando lo subas al portal del management',
+          qb_rep:'M\u00e1rcalo cuando lo captures en QuickBooks',
+          plat_rep:'M\u00e1rcalo cuando lo subas al portal del management'
+        };
         const listo=k=> manuales.includes('-'+k) ? false : (manuales.includes(k) || !!auto[k]);
         const hechas=ETAPAS.filter(e=>listo(e.k)).length;
         const pc=Math.round(hechas*100/ETAPAS.length);
@@ -11453,7 +11495,9 @@ async function abrirJob(id){
           const forzada=manuales.includes(e.k) && esAuto && !auto[e.k];
           const quitada=manuales.includes('-'+e.k);
           const cl=EDIT()?'mano':'';
-          return `<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
+          const grupo = (i===0 || ETAPAS[i-1].g!==e.g)
+            ? `<div class="et-g">${esc(e.g||'')}</div>` : '';
+          return grupo+`<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
             <div class="bolita ${cl}" ${EDIT()?`data-et="${e.k}"`:''} title="${EDIT()?(ok?'toca para desmarcar':'toca para marcar'):''}">${ok?'✓':i+1}</div>
             <div class="txt mano" ${DEST[e.k]?`data-go="${DEST[e.k]}"`:(EDIT()?`data-et="${e.k}"`:'')}>
               <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span>
@@ -11915,6 +11959,7 @@ async function abrirJob(id){
     const d=b.dataset.go;
     if(d==='estimados'){ cerrar(); V='estimados'; render(); return; }
     if(d==='invoice'){ return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
+    if(d==='invoice_rep'){ return formInvoiceRep(id); }
     const dest=document.getElementById(d==='reportes'?'sec_reportes':'sec_reparaciones');
     if(dest) dest.scrollIntoView({behavior:'smooth',block:'start'});
   });
@@ -11926,6 +11971,7 @@ async function abrirJob(id){
     // Si todavía no tiene número de invoice, se lo pedimos de una vez.
     if(k==='invoice' && !estaba && !j.invoice_num){
       return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
+    if(k==='invoice_rep' && !estaba && !j.invoice_rep_num){ return formInvoiceRep(id); }
 
     // CERRAR TRABAJO · la última etapa. Deja el job listo y sin pendientes.
     if(k==='subido' && !estaba){
@@ -12184,6 +12230,92 @@ async function enviarAccesoCliente(j){
   $('#copiar_msg').onclick=async()=>{
     try{ await navigator.clipboard.writeText(msg('')); toast('Mensaje copiado'); }
     catch(e){ prompt('Copia el mensaje:', msg('')); }
+  };
+}
+
+/* Factura de la REPARACIÓN · la segunda del trabajo.
+   Va aparte del invoice del flood porque se cobran por separado. */
+async function formInvoiceRep(id){
+  if(!EDIT()) return toast('Solo administración factura.');
+  const [{data:j},{data:part}] = await Promise.all([
+    sb.from('jobs').select('*, propiedades(nombre), managements(nombre)').eq('id',id).single(),
+    sb.from('partidas').select('*').eq('job_id',id)
+  ]);
+  if(!j) return toast('No se encontró el trabajo.');
+  const reps=(part||[]).filter(x=>(x.clase||'reparacion')==='reparacion');
+  const pend=reps.filter(x=>x.estatus!=='terminada').length;
+  const sug=reps.reduce((a,x)=>a+Number(x.cobro||0),0);
+  const nom=j.propiedades?.nombre||j.cliente||'';
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="hd-masc"></div>
+    <div style="min-width:0;flex:1"><div class="mono" style="color:#C3D6F7">${esc(j.folio||'')} · REPARACIÓN</div>
+    <div class="disp" style="font-size:26px">Facturar reparación</div>
+    <div style="color:#C3D6F7">${esc(nom)}${j.unidad?' · Unit '+esc(j.unidad):''}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+
+      ${j.invoice_num?`<div class="ok"><div class="t">Flood ya facturado</div>
+        <div class="sub">Invoice ${esc(j.invoice_num)}${j.invoice_monto&&VE_DINERO()?' · '+cf(j.invoice_monto):''}</div></div>`
+      :`<div class="alerta"><div class="t">Ojo: el flood todavía no se factura</div>
+        <div class="sub">Normalmente va primero el flood y luego la reparación.</div></div>`}
+
+      ${pend?`<div class="alerta" style="margin-top:10px"><div class="t">${pend} ${pend===1?'reparación sin terminar':'reparaciones sin terminar'}</div>
+        <div class="sub">Puedes facturar igual, pero revisa que no falte trabajo por hacer.</div></div>`:''}
+
+      ${reps.length?`<div class="eyebrow">Reparaciones · ${reps.length}</div>
+      <table class="ptab"><thead><tr><th>Reparación</th><th>Estatus</th>
+        ${VE_DINERO()?'<th style="text-align:right">Cobro</th>':''}</tr></thead><tbody>
+        ${reps.map(r=>`<tr><td>${esc(r.nombre)}${r.detalle?'<br><span class="meta">'+esc(r.detalle)+'</span>':''}</td>
+          <td>${esc(r.estatus||'')}</td>
+          ${VE_DINERO()?`<td style="text-align:right">${r.cobro?cf(r.cobro):'—'}</td>`:''}</tr>`).join('')}
+      </tbody></table>`:'<div class="sub">Este trabajo no tiene reparaciones capturadas.</div>'}
+
+      <div class="g2">
+        <div><label>Número de invoice</label><input id="ir_n" class="mono" value="${esc(j.invoice_rep_num||'')}" placeholder="1053"></div>
+        <div><label>Fecha</label><input id="ir_f" type="date" value="${esc(j.invoice_rep_fecha||hoy())}"></div>
+      </div>
+      <label>Monto de la reparación</label>
+      <input class="num" id="ir_m" inputmode="decimal" value="${esc(j.invoice_rep_monto||sug||'')}">
+      ${sug?`<div class="sub">Sugerido ${cf(sug)} · suma del cobro de las reparaciones</div>`:''}
+
+      <label style="display:flex;align-items:center;gap:9px;margin-top:12px">
+        <input type="checkbox" id="ir_p" style="width:auto" ${j.invoice_rep_pagado?'checked':''}>
+        <span>Ya me la pagaron</span></label>
+
+      <div style="height:16px"></div>
+      <button class="btn wide" id="ir_ok">Guardar</button>
+      ${j.invoice_rep_num?`<div style="height:8px"></div>
+      <button class="btn ghost wide" id="ir_del" style="color:var(--rojo);border-color:var(--rojo)">Quitar esta factura</button>`:''}
+      <div style="height:8px"></div>
+      <button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  $('#ir_ok').onclick=async()=>{
+    const num=$('#ir_n').value.trim();
+    if(!num) return toast('Pon el número de invoice.');
+    let docs=(j.docs||[]).filter(x=>x!=='-invoice_rep');
+    if(!docs.includes('invoice_rep')) docs.push('invoice_rep');
+    const {error}=await sb.from('jobs').update({
+      invoice_rep_num:num,
+      invoice_rep_fecha:$('#ir_f').value||hoy(),
+      invoice_rep_monto:Number($('#ir_m').value)||null,
+      invoice_rep_pagado:$('#ir_p').checked,
+      docs}).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    cerrar(); toast('Reparación facturada · invoice '+num); abrirJob(id);
+  };
+  const d=$('#ir_del');
+  if(d) d.onclick=async()=>{
+    if(!confirm('Se quita la factura de reparación '+j.invoice_rep_num+'.\n\nEl trabajo regresa a "falta facturar reparación". ¿Le seguimos?')) return;
+    const {error}=await sb.from('jobs').update({
+      invoice_rep_num:null, invoice_rep_fecha:null, invoice_rep_monto:null,
+      invoice_rep_pagado:false,
+      docs:(j.docs||[]).filter(x=>x!=='invoice_rep')}).eq('id',id);
+    if(error) return toast('No se pudo: '+error.message);
+    cerrar(); toast('Factura de reparación quitada'); abrirJob(id);
   };
 }
 
