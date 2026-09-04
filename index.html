@@ -238,6 +238,32 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Lista de avance en casillas */
+.chk{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:2px 18px}
+.chk-g{grid-column:1/-1;font-family:var(--mono);font-size:9px;letter-spacing:.17em;
+  color:var(--gris);text-transform:uppercase;padding:13px 0 5px;
+  border-bottom:1px solid var(--linea);margin-bottom:3px}
+.chk-i{display:flex;align-items:center;gap:9px;padding:7px 4px;border-radius:7px;
+  cursor:pointer;transition:background .12s}
+.chk-i:hover{background:var(--sup2)}
+.chk-b{width:20px;height:20px;flex-shrink:0;border:1.5px solid var(--linea);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:transparent}
+.chk-i.si .chk-b{background:var(--verde);border-color:var(--verde);color:#042415}
+.chk-i.ahora .chk-b{border-color:var(--oro);box-shadow:0 0 0 3px rgba(224,179,78,.18)}
+.chk-t{flex:1;min-width:0;line-height:1.2}
+.chk-t b{font-size:14.5px;font-weight:600;display:block}
+.chk-i.si .chk-t b{color:var(--gris)}
+.chk-t em{font-style:normal;font-size:11.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk-a{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--gris);
+  border:1px solid var(--linea);border-radius:4px;padding:1px 5px;flex-shrink:0}
+.chk-ir{color:var(--azul);font-size:17px;flex-shrink:0;padding:0 3px}
+.rep-sw.c4{grid-template-columns:repeat(4,1fr)}
+.rep-sw button.on.estimado{border-color:var(--azul);background:var(--azul-l)}
+.rep-sw button.on.estimado b{color:var(--azul)}
+@media(max-width:760px){ .rep-sw.c4{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:520px){ .rep-sw.c4{grid-template-columns:1fr} }
+
 .est-sw button{display:flex;flex-direction:column;gap:2px;line-height:1.15}
 .est-sw button b{font-family:var(--disp);font-size:15px}
 .est-sw button span{font-family:var(--body);font-size:10.5px;font-weight:400;
@@ -4506,7 +4532,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v158 · cerrado con dos facturas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v159 · avance en casillas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6565,7 +6591,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='158';
+const VERSION='159';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7526,6 +7552,7 @@ async function vJobs(){
   const factRep   = x => !!x.invoice_rep_num;
   // La reparación se puede resolver de tres formas: se facturó, se canceló,
   // o el trabajo no llevaba. Sin una de esas, el trabajo NO se cierra.
+  // Solo 'cancelada' y 'no_aplica' cierran. 'estimado' y 'pendiente' dejan el trabajo abierto.
   const repResuelta = x => factRep(x) || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
   const completo  = x => factFlood(x) && repResuelta(x);
 
@@ -11311,9 +11338,11 @@ async function abrirJob(id){
             <div class="ok"><div class="t">Facturada · invoice ${esc(j.invoice_rep_num)}</div>
             <div class="sub">${j.invoice_rep_monto&&VE_DINERO()?cf(j.invoice_rep_monto):''}</div></div>`;
           return `<div class="eyebrow">¿Qué pasó con la reparación?</div>
-          <div class="sub" style="margin-bottom:7px">Son dos facturas siempre. Si marcas <b>Pendiente</b> el trabajo regresa a ACTIVO. Si marcas <b>Se canceló</b> o <b>No llevaba</b> se cierra, pero hay que dejar nota.</div>
-          <div class="rep-sw">
-            ${[['pendiente','Pendiente','todavía se va a hacer'],
+          <div class="sub" style="margin-bottom:7px">Son dos facturas siempre. Las primeras dos dejan el trabajo <b>abierto</b>. <b>Se canceló</b> y <b>No llevaba</b> lo cierran, pero piden nota.</div>
+          ${j.rep_estimado_num?`<div class="ok" style="margin-bottom:8px"><div class="t">Estimado de reparación ${esc(j.rep_estimado_num)}</div></div>`:''}
+          <div class="rep-sw c4">
+            ${[['estimado','Estimado enviado', j.rep_estimado_num? ('# '+j.rep_estimado_num) :'esperando aprobación'],
+               ['pendiente','Aprobado, en proceso','falta hacer el trabajo'],
                ['cancelada','Se canceló','el management no aprobó'],
                ['no_aplica','No llevaba','solo era el flood']]
               .map(([k,t,sb2])=>`<button data-repres="${k}" class="${res===k?'on '+k:''}">
@@ -11558,25 +11587,18 @@ async function abrirJob(id){
           <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--ambar)'}"></i></div>
           <div class="p" style="margin-top:6px">Ruta ${esc(j.origen||'management')}${idxAct>=0?' · sigue: '+esc(ETAPAS[idxAct].s):''}</div>
         </div>
-        <div class="etapas">${ETAPAS.map((e,i)=>{
+        <div class="chk">${ETAPAS.map((e,i)=>{
           const ok=listo(e.k), esAuto=(e.k in auto), act=(i===idxAct);
-          const forzada=manuales.includes(e.k) && esAuto && !auto[e.k];
-          const quitada=manuales.includes('-'+e.k);
-          const cl=EDIT()?'mano':'';
           const grupo = (i===0 || ETAPAS[i-1].g!==e.g)
-            ? `<div class="et-g">${esc(e.g||'')}</div>` : '';
-          return grupo+`<div class="etapa ${ok?'done':''} ${act?'hoy':''}">
-            <div class="bolita ${cl}" ${EDIT()?`data-et="${e.k}"`:''} title="${EDIT()?(ok?'toca para desmarcar':'toca para marcar'):''}">${ok?'✓':i+1}</div>
-            <div class="txt mano" ${DEST[e.k]?`data-go="${DEST[e.k]}"`:(EDIT()?`data-et="${e.k}"`:'')}>
-              <b>${esc(e.t)}</b><span>${esc(detalle[e.k]||e.s)}</span>
-              ${DEST[e.k]?`<span class="meta" style="color:var(--azul);display:block;margin-top:2px">toca para ir ›</span>`:''}</div>
-            <div class="row" style="gap:5px;align-self:center">
-              ${forzada?'<span class="auto" style="color:var(--azul-d);border-color:var(--azul-b)">A MANO</span>':''}
-              ${quitada?'<span class="auto" style="color:var(--rojo-d);border-color:var(--rojo-b)">QUITADA</span>':''}
-              ${esAuto?'<span class="auto">AUTO</span>':''}
-            </div>
-          </div>`;}).join('')}
-        ${EDIT()?'<div class="sub" style="margin-top:12px">Toca cualquier etapa para marcarla o desmarcarla. Las AUTO se llenan solas con los reportes, estimados y partidas, pero puedes forzarlas.</div>':''}`;
+            ? `<div class="chk-g">${esc(e.g||'')}</div>` : '';
+          const det = detalle[e.k]||'';
+          return grupo+`<div class="chk-i ${ok?'si':''} ${act?'ahora':''}" ${EDIT()?`data-et="${e.k}"`:''}>
+            <span class="chk-b">${ok?'&#10003;':''}</span>
+            <span class="chk-t"><b>${esc(e.t)}</b>${det?`<em>${esc(det)}</em>`:''}</span>
+            ${esAuto?'<span class="chk-a">auto</span>':''}
+            ${DEST[e.k]?`<span class="chk-ir" data-go="${DEST[e.k]}">›</span>`:''}
+          </div>`;}).join('')}</div>
+        ${EDIT()?'<div class="sub" style="margin-top:10px">Toca cualquier casilla para marcarla o quitarla. Las <b>auto</b> se llenan solas con los reportes y las facturas.</div>':''}`;
       })()}
 
       <i data-sx="Estimados|estimados"></i>
@@ -11845,9 +11867,16 @@ async function abrirJob(id){
     const v=b.dataset.repres;
     const up={rep_resolucion:v};
 
+    if(v==='estimado'){
+      // Hay estimado de reparación esperando aprobación. Se guarda el número.
+      const n=prompt('¿Qué número de estimado de reparación mandaste?', j.rep_estimado_num||'');
+      if(n===null) return;
+      if(!n.trim()) return toast('Pon el número del estimado.');
+      up.rep_estimado_num=n.trim();
+      up.estatus='activo';
+    }
     if(v==='pendiente'){
-      // Si la reparación sigue en el aire, el trabajo NO está facturado:
-      // regresa a activo para que no se pierda de la lista.
+      // La reparación sigue en el aire: el trabajo NO está cerrado.
       up.estatus='activo';
     }
 
