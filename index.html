@@ -238,6 +238,15 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.rep-sw.c5{grid-template-columns:repeat(5,1fr)}
+.rep-sw button.on.aprobado{border-color:var(--azul);background:var(--azul-l)}
+.rep-sw button.on.aprobado b{color:var(--azul)}
+.rep-sw button.on.lista{border-color:var(--verde);background:var(--verde-l)}
+.rep-sw button.on.lista b{color:var(--verde)}
+@media(max-width:900px){ .rep-sw.c5{grid-template-columns:repeat(3,1fr)} }
+@media(max-width:560px){ .rep-sw.c5{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:420px){ .rep-sw.c5{grid-template-columns:1fr} }
+
 /* Paso actual · lo primero que se ve del trabajo */
 .pa{background:linear-gradient(150deg,rgba(224,179,78,.13),rgba(224,179,78,.03));
   border:1px solid var(--oro);border-left:6px solid var(--oro);
@@ -4624,7 +4633,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v162 · paso actual primero</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v163 · cinco estados de reparación</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6683,7 +6692,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='162';
+const VERSION='163';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11431,11 +11440,12 @@ async function abrirJob(id){
             <div class="ok"><div class="t">Facturada · invoice ${esc(j.invoice_rep_num)}</div>
             <div class="sub">${j.invoice_rep_monto&&VE_DINERO()?cf(j.invoice_rep_monto):''}</div></div>`;
           return `<div class="eyebrow">¿Qué pasó con la reparación?</div>
-          <div class="sub" style="margin-bottom:7px">Son dos facturas siempre. Las primeras dos dejan el trabajo <b>abierto</b>. <b>Se canceló</b> y <b>No llevaba</b> lo cierran, pero piden nota.</div>
+          <div class="sub" style="margin-bottom:7px">Son dos facturas siempre. Las primeras tres dejan el trabajo <b>abierto</b>. <b>Se canceló</b> y <b>No llevaba</b> lo cierran, pero piden nota.</div>
           ${j.rep_estimado_num?`<div class="ok" style="margin-bottom:8px"><div class="t">Estimado de reparación ${esc(j.rep_estimado_num)}</div></div>`:''}
-          <div class="rep-sw c4">
+          <div class="rep-sw c5">
             ${[['estimado','Estimado enviado', j.rep_estimado_num? ('# '+j.rep_estimado_num) :'esperando aprobación'],
-               ['pendiente','Aprobado, en proceso','falta hacer el trabajo'],
+               ['aprobado','Aprobado','autorizado, falta hacerlo'],
+               ['lista','Terminada','falta facturarla'],
                ['cancelada','Se canceló','el management no aprobó'],
                ['no_aplica','No llevaba','solo era el flood']]
               .map(([k,t,sb2])=>`<button data-repres="${k}" class="${res===k?'on '+k:''}">
@@ -11998,9 +12008,14 @@ async function abrirJob(id){
       up.rep_estimado_num=n.trim();
       up.estatus='activo';
     }
-    if(v==='pendiente'){
+    if(v==='aprobado' || v==='lista' || v==='pendiente'){
       // La reparación sigue en el aire: el trabajo NO está cerrado.
       up.estatus='activo';
+    }
+    if(v==='aprobado' && !j.rep_estimado_num){
+      const n=prompt('¿Qué número de estimado aprobaron?', '');
+      if(n===null) return;
+      if(n.trim()) up.rep_estimado_num=n.trim();
     }
 
     if(v==='cancelada' || v==='no_aplica'){
@@ -12023,9 +12038,12 @@ async function abrirJob(id){
 
     const {error}=await sb.from('jobs').update(up).eq('id',id);
     if(error) return toast('No se guardó: '+error.message);
-    toast(v==='pendiente' ? 'Queda pendiente · el trabajo regresa a ACTIVO'
+    toast(v==='estimado'  ? 'Estimado enviado · esperando aprobación'
+        : v==='aprobado'  ? 'Aprobado · falta hacer el trabajo'
+        : v==='lista'     ? 'Reparación terminada · ya se puede facturar'
         : v==='cancelada' ? 'Reparación cancelada · trabajo cerrado'
-        : 'Sin reparación · trabajo cerrado');
+        : v==='no_aplica' ? 'Sin reparación · trabajo cerrado'
+        : 'Queda pendiente · el trabajo regresa a ACTIVO');
     abrirJob(id);
   });
   const pad=$('#pa_det');
