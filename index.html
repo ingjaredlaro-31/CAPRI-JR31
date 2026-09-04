@@ -238,6 +238,59 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Paso actual · lo primero que se ve del trabajo */
+.pa{background:linear-gradient(150deg,rgba(224,179,78,.13),rgba(224,179,78,.03));
+  border:1px solid var(--oro);border-left:6px solid var(--oro);
+  border-radius:13px;padding:17px 20px 19px;margin:6px 0 12px}
+.pa.fin{background:linear-gradient(150deg,rgba(61,214,140,.13),rgba(61,214,140,.03));
+  border-color:var(--verde);border-left-color:var(--verde)}
+.pa-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.pa-c{font-family:var(--mono);font-size:11px;letter-spacing:.13em;color:var(--gris)}
+.pa-pc{font-family:var(--disp);font-size:26px;color:var(--oro)}
+.pa.fin .pa-pc{color:var(--verde)}
+.pa-barra{display:flex;gap:3px;height:9px;margin-bottom:5px}
+.pa-barra i{background:var(--sup2);border-radius:3px;overflow:hidden}
+.pa-barra b{display:block;height:100%;background:var(--oro);border-radius:3px;transition:width .4s}
+.pa.fin .pa-barra b{background:var(--verde)}
+.pa-fs{display:flex;gap:3px;margin-bottom:16px}
+.pa-fs span{font-family:var(--mono);font-size:7.5px;letter-spacing:.06em;color:var(--gris);
+  text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pa-fs span.ok{color:var(--verde)} .pa-fs span.medio{color:var(--oro)}
+.pa-q{font-family:var(--mono);font-size:10px;letter-spacing:.19em;color:var(--oro)}
+.pa.fin .pa-q{color:var(--verde)}
+.pa-n{font-family:var(--disp);font-size:36px;line-height:1.03;margin:3px 0 4px}
+.pa-s{font-size:16px;color:var(--gris);line-height:1.35}
+.pa-bts{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+.pa-bts .btn{flex:1;min-width:150px}
+.pa-ult{margin-top:12px;padding-top:10px;border-top:1px solid var(--linea);
+  font-size:12.5px;color:var(--gris)}
+
+/* Lista completa, escondida hasta que la pidas */
+.pa-det{border:1px solid var(--linea);border-radius:11px;overflow:hidden}
+.pa-det summary{list-style:none;cursor:pointer;padding:14px 18px;
+  font-family:var(--disp);font-size:17px;text-transform:uppercase;letter-spacing:.02em;
+  display:flex;align-items:center;gap:9px}
+.pa-det summary::-webkit-details-marker{display:none}
+.pa-det summary::after{content:'▾';margin-left:auto;color:var(--gris);transition:transform .2s}
+.pa-det[open] summary::after{transform:rotate(180deg)}
+.pa-det summary:hover{background:var(--sup2)}
+.pa-lista{padding:0 18px 14px}
+.pa-fg{font-family:var(--mono);font-size:9px;letter-spacing:.17em;color:var(--gris);
+  text-transform:uppercase;padding:15px 0 6px;border-bottom:1px solid var(--linea);margin-bottom:4px}
+.pa-p{display:flex;align-items:center;gap:12px;padding:11px 4px;cursor:pointer;
+  border-radius:7px;transition:background .12s}
+.pa-p:hover{background:var(--sup2)}
+.pa-mk{width:22px;flex-shrink:0;text-align:center;font-size:16px;color:var(--linea)}
+.pa-p.si .pa-mk{color:var(--verde);font-weight:700}
+.pa-p.hoy .pa-mk{color:var(--oro)}
+.pa-p.hoy{background:rgba(224,179,78,.09)}
+.pa-tx{flex:1;min-width:0}
+.pa-tx b{display:block;font-size:17px;font-weight:600;line-height:1.25}
+.pa-p.si .pa-tx b{color:var(--gris)}
+.pa-tx em{font-style:normal;font-size:13px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:520px){ .pa-n{font-size:28px} .pa-fs{display:none} .pa-bts .btn{min-width:100%} }
+
 /* Avance por fases */
 .fs-b{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px;margin:4px 0 13px}
 .fs{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
@@ -4571,7 +4624,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v161 · avance por fases</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v162 · paso actual primero</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6630,7 +6683,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='161';
+const VERSION='162';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11147,7 +11200,7 @@ function notaAcceso(txt){
 }
 
 // Visor de fotos: se abre en grande y se pasa con flechas o deslizando.
-let FASE_AB=null;   // fase abierta en el avance del trabajo
+let VER_ETAPAS=false;  // si dejaste desplegada la lista completa de etapas
 let VISOR=[], VISOR_I=0;
 function abrirVisor(lista, i){
   VISOR=lista; VISOR_I=i;
@@ -11619,56 +11672,55 @@ async function abrirJob(id){
         const pc=Math.round(hechas*100/ETAPAS.length);
         const idxAct=ETAPAS.findIndex(e=>!listo(e.k));
         return `<i data-sx="Etapas del trabajo|resumen|abierta"></i>
-        <div class="eyebrow" style="margin-top:6px">Etapas del trabajo · ${hechas} de ${ETAPAS.length}</div>
-        <div class="kpi" style="border-left:4px solid ${pc===100?'var(--azul)':'var(--ambar)'};margin-bottom:14px">
-          <div class="row" style="justify-content:space-between">
-            <span class="disp" style="font-size:19px">${idxAct<0?'Trabajo completo':esc(ETAPAS[idxAct].t)}</span>
-            <span class="disp" style="font-size:25px;color:${pc===100?'var(--azul)':'var(--ambar-d)'}">${pc}%</span></div>
-          <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--ambar)'}"></i></div>
-          <div class="p" style="margin-top:6px">Ruta ${esc(j.origen||'management')}${idxAct>=0?' · sigue: '+esc(ETAPAS[idxAct].s):''}</div>
-        </div>
         ${(()=>{
-          // Por fases: cinco bloques con su avance. Se abre uno a la vez.
-          const FASES=[];
-          ETAPAS.forEach((e,i)=>{
-            let f=FASES.find(x=>x.g===e.g);
-            if(!f){ f={g:e.g, pasos:[]}; FASES.push(f); }
-            f.pasos.push({...e, i});
-          });
-          const abierta = FASE_AB || (FASES.find(f=>f.pasos.some(p=>!listo(p.k)))||FASES[0]).g;
           const act = idxAct>=0 ? ETAPAS[idxAct] : null;
+          const hecho = idxAct>=0 ? ETAPAS[idxAct-1] : ETAPAS[ETAPAS.length-1];
+          const FASES=[];
+          ETAPAS.forEach(e=>{ let f=FASES.find(x=>x.g===e.g); if(!f){f={g:e.g,pasos:[]};FASES.push(f);} f.pasos.push(e); });
 
           return `
-          <div class="fs-b">${FASES.map(f=>{
-            const hechos=f.pasos.filter(p=>listo(p.k)).length, tot=f.pasos.length;
-            const pcf=Math.round(hechos/tot*100);
-            return `<button class="fs ${hechos===tot?'ok':hechos?'medio':''} ${abierta===f.g?'sel':''}"
-              data-fase="${esc(f.g)}">
-              <span class="fs-n">${esc(f.g)}</span>
-              <span class="fs-c">${hechos}<i>/${tot}</i></span>
-              <span class="fs-bar"><i style="width:${pcf}%"></i></span>
-            </button>`;}).join('')}</div>
-
-          ${act?`<div class="fs-ahora">
-            <div class="fs-al">
-              <span>SIGUE AHORA</span>
-              <b>${esc(act.t)}</b>
-              <em>${esc(detalle[act.k]||act.s)}</em>
+          <div class="pa ${act?'':'fin'}">
+            <div class="pa-top">
+              <span class="pa-c">Paso ${Math.min(hechas+1,ETAPAS.length)} de ${ETAPAS.length}</span>
+              <span class="pa-pc">${pc}%</span>
             </div>
-            ${EDIT()?`<button class="btn" data-et="${act.k}">Marcar hecho</button>`:''}
-          </div>`:`<div class="ok"><div class="t">Todas las etapas listas</div>
-            <div class="sub">Ya puedes cerrar el trabajo.</div></div>`}
+            <div class="pa-barra">${FASES.map(f=>{
+              const h=f.pasos.filter(x=>listo(x.k)).length;
+              return `<i title="${esc(f.g)} ${h}/${f.pasos.length}" style="flex:${f.pasos.length}">
+                <b style="width:${Math.round(h/f.pasos.length*100)}%"></b></i>`;}).join('')}</div>
+            <div class="pa-fs">${FASES.map(f=>{
+              const h=f.pasos.filter(x=>listo(x.k)).length;
+              return `<span class="${h===f.pasos.length?'ok':h?'medio':''}" style="flex:${f.pasos.length}">${esc(f.g)}</span>`;}).join('')}</div>
 
-          ${FASES.filter(f=>f.g===abierta).map(f=>`
-            <div class="fs-lista">${f.pasos.map(p=>{
-              const ok=listo(p.k), esAuto=(p.k in auto);
-              return `<div class="fs-p ${ok?'si':''}" ${EDIT()?`data-et="${p.k}"`:''}>
-                <span class="fs-mk">${ok?'&#10003;':'&#9675;'}</span>
-                <span class="fs-tx"><b>${esc(p.t)}</b><em>${esc(detalle[p.k]||p.s)}</em></span>
-                ${esAuto?'<span class="chk-a">auto</span>':''}
-                ${DEST[p.k]?`<span class="chk-ir" data-go="${DEST[p.k]}">›</span>`:''}
-              </div>`;}).join('')}</div>`).join('')}
-          ${EDIT()?'<div class="sub" style="margin-top:9px">Toca una fase para abrirla. Toca un paso para marcarlo o quitarlo.</div>':''}`;
+            ${act?`
+              <div class="pa-q">Lo que sigue</div>
+              <div class="pa-n">${esc(act.t)}</div>
+              <div class="pa-s">${esc(detalle[act.k]||act.s)}</div>
+              <div class="pa-bts">
+                ${EDIT()?`<button class="btn" data-et="${act.k}">Ya está hecho</button>`:''}
+                ${DEST[act.k]?`<button class="btn ghost" data-go="${DEST[act.k]}">Ir a hacerlo</button>`:''}
+              </div>
+              ${hecho?`<div class="pa-ult">Lo último: ${esc(hecho.t)}</div>`:''}
+            `:`
+              <div class="pa-q">Todo listo</div>
+              <div class="pa-n">Las 15 etapas completas</div>
+              <div class="pa-s">Este trabajo ya no tiene pendientes.</div>
+            `}
+          </div>
+
+          <details class="pa-det" ${VER_ETAPAS?'open':''} id="pa_det">
+            <summary>Ver las ${ETAPAS.length} etapas</summary>
+            <div class="pa-lista">${FASES.map(f=>`
+              <div class="pa-fg">${esc(f.g)}</div>
+              ${f.pasos.map(e=>{
+                const ok=listo(e.k), es=(act && e.k===act.k);
+                return `<div class="pa-p ${ok?'si':''} ${es?'hoy':''}" ${EDIT()?`data-et="${e.k}"`:''}>
+                  <span class="pa-mk">${ok?'&#10003;':es?'&#9679;':'&#9675;'}</span>
+                  <span class="pa-tx"><b>${esc(e.t)}</b><em>${esc(detalle[e.k]||e.s)}</em></span>
+                  ${(e.k in auto)?'<span class="chk-a">auto</span>':''}
+                  ${DEST[e.k]?`<span class="chk-ir" data-go="${DEST[e.k]}">&rsaquo;</span>`:''}
+                </div>`;}).join('')}`).join('')}</div>
+          </details>`;
         })()}`;
       })()}
 
@@ -11976,10 +12028,8 @@ async function abrirJob(id){
         : 'Sin reparación · trabajo cerrado');
     abrirJob(id);
   });
-  document.querySelectorAll('[data-fase]').forEach(b=>b.onclick=()=>{
-    FASE_AB = (FASE_AB===b.dataset.fase) ? null : b.dataset.fase;
-    abrirJob(id);
-  });
+  const pad=$('#pa_det');
+  if(pad) pad.ontoggle=()=>{ VER_ETAPAS=pad.open; };
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
   const GAL=[...document.querySelectorAll('[data-verf]')].map(x=>({u:x.dataset.verf, a:x.dataset.vera}));
   document.querySelectorAll('[data-verf]').forEach((x,i)=>x.onclick=()=>abrirVisor(GAL,i));
