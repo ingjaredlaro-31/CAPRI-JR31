@@ -4532,7 +4532,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v159 · avance en casillas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v160 · casillas arregladas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6591,7 +6591,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='159';
+const VERSION='160';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -12105,7 +12105,9 @@ async function abrirJob(id){
   });
   document.querySelectorAll('[data-et]').forEach(b=>b.onclick=async()=>{
     const k=b.dataset.et;
-    const estaba=b.closest('.etapa').classList.contains('done');
+    // La casilla se llama .chk-i y su marca es .si
+    const caja=b.closest('.chk-i') || b.closest('.etapa');
+    const estaba = caja ? (caja.classList.contains('si') || caja.classList.contains('done')) : false;
 
     // Invoice creado: aquí es donde el trabajo pasa a FACTURADO.
     // Si todavía no tiene número de invoice, se lo pedimos de una vez.
