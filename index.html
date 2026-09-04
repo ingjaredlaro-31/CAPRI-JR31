@@ -238,6 +238,45 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Avance por fases */
+.fs-b{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px;margin:4px 0 13px}
+.fs{background:var(--sup);border:1.5px solid var(--linea);border-radius:10px;
+  padding:10px 11px 9px;cursor:pointer;text-align:left;transition:all .13s}
+.fs:hover{border-color:var(--azul-b)}
+.fs.sel{border-color:var(--azul);background:var(--azul-l)}
+.fs.ok{border-color:var(--verde)}
+.fs-n{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.11em;
+  color:var(--gris);text-transform:uppercase;line-height:1.25;min-height:21px}
+.fs-c{display:block;font-family:var(--disp);font-size:24px;line-height:1;margin:2px 0 6px}
+.fs-c i{font-style:normal;font-size:14px;color:var(--gris)}
+.fs.ok .fs-c{color:var(--verde)}
+.fs.medio .fs-c{color:var(--oro)}
+.fs-bar{display:block;height:4px;background:var(--sup2);border-radius:2px;overflow:hidden}
+.fs-bar i{display:block;height:100%;background:var(--oro);border-radius:2px;transition:width .3s}
+.fs.ok .fs-bar i{background:var(--verde)}
+
+.fs-ahora{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:linear-gradient(135deg,rgba(224,179,78,.15),rgba(224,179,78,.05));
+  border:1px solid var(--oro);border-left:5px solid var(--oro);
+  border-radius:11px;padding:14px 17px;margin-bottom:14px}
+.fs-al{flex:1;min-width:190px}
+.fs-al span{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--oro)}
+.fs-al b{display:block;font-family:var(--disp);font-size:26px;line-height:1.05;margin:2px 0 2px}
+.fs-al em{font-style:normal;font-size:14px;color:var(--gris)}
+
+.fs-lista{display:flex;flex-direction:column;border-top:1px solid var(--linea)}
+.fs-p{display:flex;align-items:center;gap:11px;padding:11px 4px;
+  border-bottom:1px solid var(--linea);cursor:pointer;transition:background .12s}
+.fs-p:hover{background:var(--sup2)}
+.fs-mk{width:22px;flex-shrink:0;text-align:center;font-size:15px;color:var(--linea)}
+.fs-p.si .fs-mk{color:var(--verde);font-weight:700}
+.fs-tx{flex:1;min-width:0}
+.fs-tx b{display:block;font-size:16px;font-weight:600;line-height:1.2}
+.fs-p.si .fs-tx b{color:var(--gris)}
+.fs-tx em{font-style:normal;font-size:12.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:520px){ .fs-al b{font-size:22px} .fs-ahora .btn{width:100%} }
+
 /* Lista de avance en casillas */
 .chk{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:2px 18px}
 .chk-g{grid-column:1/-1;font-family:var(--mono);font-size:9px;letter-spacing:.17em;
@@ -4532,7 +4571,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v160 · casillas arregladas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v161 · avance por fases</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6591,7 +6630,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='160';
+const VERSION='161';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11108,6 +11147,7 @@ function notaAcceso(txt){
 }
 
 // Visor de fotos: se abre en grande y se pasa con flechas o deslizando.
+let FASE_AB=null;   // fase abierta en el avance del trabajo
 let VISOR=[], VISOR_I=0;
 function abrirVisor(lista, i){
   VISOR=lista; VISOR_I=i;
@@ -11587,18 +11627,49 @@ async function abrirJob(id){
           <div class="barra"><i style="width:${pc}%;background:${pc===100?'var(--azul)':'var(--ambar)'}"></i></div>
           <div class="p" style="margin-top:6px">Ruta ${esc(j.origen||'management')}${idxAct>=0?' · sigue: '+esc(ETAPAS[idxAct].s):''}</div>
         </div>
-        <div class="chk">${ETAPAS.map((e,i)=>{
-          const ok=listo(e.k), esAuto=(e.k in auto), act=(i===idxAct);
-          const grupo = (i===0 || ETAPAS[i-1].g!==e.g)
-            ? `<div class="chk-g">${esc(e.g||'')}</div>` : '';
-          const det = detalle[e.k]||'';
-          return grupo+`<div class="chk-i ${ok?'si':''} ${act?'ahora':''}" ${EDIT()?`data-et="${e.k}"`:''}>
-            <span class="chk-b">${ok?'&#10003;':''}</span>
-            <span class="chk-t"><b>${esc(e.t)}</b>${det?`<em>${esc(det)}</em>`:''}</span>
-            ${esAuto?'<span class="chk-a">auto</span>':''}
-            ${DEST[e.k]?`<span class="chk-ir" data-go="${DEST[e.k]}">›</span>`:''}
-          </div>`;}).join('')}</div>
-        ${EDIT()?'<div class="sub" style="margin-top:10px">Toca cualquier casilla para marcarla o quitarla. Las <b>auto</b> se llenan solas con los reportes y las facturas.</div>':''}`;
+        ${(()=>{
+          // Por fases: cinco bloques con su avance. Se abre uno a la vez.
+          const FASES=[];
+          ETAPAS.forEach((e,i)=>{
+            let f=FASES.find(x=>x.g===e.g);
+            if(!f){ f={g:e.g, pasos:[]}; FASES.push(f); }
+            f.pasos.push({...e, i});
+          });
+          const abierta = FASE_AB || (FASES.find(f=>f.pasos.some(p=>!listo(p.k)))||FASES[0]).g;
+          const act = idxAct>=0 ? ETAPAS[idxAct] : null;
+
+          return `
+          <div class="fs-b">${FASES.map(f=>{
+            const hechos=f.pasos.filter(p=>listo(p.k)).length, tot=f.pasos.length;
+            const pcf=Math.round(hechos/tot*100);
+            return `<button class="fs ${hechos===tot?'ok':hechos?'medio':''} ${abierta===f.g?'sel':''}"
+              data-fase="${esc(f.g)}">
+              <span class="fs-n">${esc(f.g)}</span>
+              <span class="fs-c">${hechos}<i>/${tot}</i></span>
+              <span class="fs-bar"><i style="width:${pcf}%"></i></span>
+            </button>`;}).join('')}</div>
+
+          ${act?`<div class="fs-ahora">
+            <div class="fs-al">
+              <span>SIGUE AHORA</span>
+              <b>${esc(act.t)}</b>
+              <em>${esc(detalle[act.k]||act.s)}</em>
+            </div>
+            ${EDIT()?`<button class="btn" data-et="${act.k}">Marcar hecho</button>`:''}
+          </div>`:`<div class="ok"><div class="t">Todas las etapas listas</div>
+            <div class="sub">Ya puedes cerrar el trabajo.</div></div>`}
+
+          ${FASES.filter(f=>f.g===abierta).map(f=>`
+            <div class="fs-lista">${f.pasos.map(p=>{
+              const ok=listo(p.k), esAuto=(p.k in auto);
+              return `<div class="fs-p ${ok?'si':''}" ${EDIT()?`data-et="${p.k}"`:''}>
+                <span class="fs-mk">${ok?'&#10003;':'&#9675;'}</span>
+                <span class="fs-tx"><b>${esc(p.t)}</b><em>${esc(detalle[p.k]||p.s)}</em></span>
+                ${esAuto?'<span class="chk-a">auto</span>':''}
+                ${DEST[p.k]?`<span class="chk-ir" data-go="${DEST[p.k]}">›</span>`:''}
+              </div>`;}).join('')}</div>`).join('')}
+          ${EDIT()?'<div class="sub" style="margin-top:9px">Toca una fase para abrirla. Toca un paso para marcarlo o quitarlo.</div>':''}`;
+        })()}`;
       })()}
 
       <i data-sx="Estimados|estimados"></i>
@@ -11903,6 +11974,10 @@ async function abrirJob(id){
     toast(v==='pendiente' ? 'Queda pendiente · el trabajo regresa a ACTIVO'
         : v==='cancelada' ? 'Reparación cancelada · trabajo cerrado'
         : 'Sin reparación · trabajo cerrado');
+    abrirJob(id);
+  });
+  document.querySelectorAll('[data-fase]').forEach(b=>b.onclick=()=>{
+    FASE_AB = (FASE_AB===b.dataset.fase) ? null : b.dataset.fase;
     abrirJob(id);
   });
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
