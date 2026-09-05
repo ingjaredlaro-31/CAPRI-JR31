@@ -238,6 +238,40 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Calendario de trabajos activos */
+.cal{background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:13px 15px;margin-bottom:8px}
+.cal-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.cal-h b{font-family:var(--disp);font-size:21px;flex:1;text-transform:capitalize}
+.cal-f{background:var(--sup2);border:1px solid var(--linea);border-radius:7px;
+  width:32px;height:32px;color:var(--tinta);font-size:17px;cursor:pointer}
+.cal-f:hover{border-color:var(--azul);color:var(--azul)}
+.cal-hoy{background:transparent;border:1px solid var(--azul);color:var(--azul);
+  border-radius:7px;padding:6px 11px;font-size:12px;cursor:pointer}
+.cal-s{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+.cal-s span{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--gris)}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cd{aspect-ratio:1;background:var(--sup2);border:1px solid transparent;border-radius:7px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  cursor:pointer;padding:2px;transition:all .12s}
+.cd.vacio{background:transparent;cursor:default}
+.cd:not(.vacio):hover{border-color:var(--azul-b)}
+.cd.con{background:var(--sup)}
+.cd.hoy{border-color:var(--oro)}
+.cd.sel{border-color:var(--azul);background:var(--azul-l)}
+.cd-n{font-family:var(--mono);font-size:12px;color:var(--gris)}
+.cd.con .cd-n{color:var(--tinta);font-weight:600}
+.cd.hoy .cd-n{color:var(--oro);font-weight:700}
+.cd-p{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:15px;
+  border-radius:4px;font-family:var(--mono);font-size:9.5px;font-weight:700;padding:0 3px}
+.cd-p.ini{background:var(--oro);color:#1A1206}
+.cd-p.vis{background:var(--azul);color:#fff}
+.cal-ley{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;
+  font-size:11.5px;color:var(--gris)}
+.cal-det{background:var(--sup);border:1px solid var(--linea);border-left:4px solid var(--azul);
+  border-radius:11px;padding:12px 15px;margin-bottom:14px}
+.cal-dt{font-family:var(--disp);font-size:19px;text-transform:capitalize;margin-bottom:7px}
+@media(max-width:520px){ .cd-n{font-size:10.5px} .cd-p{min-width:14px;height:13px;font-size:8.5px} }
+
 .rep-sw.c5{grid-template-columns:repeat(5,1fr)}
 .rep-sw button.on.aprobado{border-color:var(--azul);background:var(--azul-l)}
 .rep-sw button.on.aprobado b{color:var(--azul)}
@@ -4633,7 +4667,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v163 · cinco estados de reparación</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v164 · calendario en el home</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6692,7 +6726,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='163';
+const VERSION='164';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9126,6 +9160,77 @@ async function mandarResumenTecnicos(){
   });
 }
 
+/* Calendario del mes con los trabajos activos.
+   Cada trabajo se pone en su fecha de inicio; los días con visita
+   agendada se marcan aparte. Tocas un día y ves qué hay. */
+let CAL_MES=null, CAL_DIA=null;
+
+function calendarioActivos(activos, asig){
+  const hoyS=hoy();
+  const base = CAL_MES || hoyS.slice(0,7);
+  const [aa,mm]=base.split('-').map(Number);
+  const primero=new Date(aa,mm-1,1), ultimo=new Date(aa,mm,0);
+  const dias=ultimo.getDate(), arranque=primero.getDay();
+
+  const porDia={};
+  activos.forEach(x=>{
+    const f=(x.fecha_inicio||(x.created_at||'').slice(0,10)||'').slice(0,10);
+    if(f.slice(0,7)===base) (porDia[f] ||= {ini:[],vis:[]}).ini.push(x);
+  });
+  (asig||[]).forEach(a=>{
+    const f=(a.fecha||'').slice(0,10);
+    if(f.slice(0,7)===base && a.jobs) (porDia[f] ||= {ini:[],vis:[]}).vis.push(a);
+  });
+
+  const NM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
+            'Septiembre','Octubre','Noviembre','Diciembre'];
+  const celdas=[];
+  for(let i=0;i<arranque;i++) celdas.push('<div class="cd vacio"></div>');
+  for(let d=1;d<=dias;d++){
+    const f=`${aa}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const p=porDia[f]||{ini:[],vis:[]};
+    const n=p.ini.length, v=p.vis.length;
+    const esHoy=f===hoyS, sel=CAL_DIA===f;
+    celdas.push(`<button class="cd ${esHoy?'hoy':''} ${sel?'sel':''} ${n||v?'con':''}" data-cald="${f}">
+      <span class="cd-n">${d}</span>
+      ${n?`<span class="cd-p ini">${n}</span>`:''}
+      ${v?`<span class="cd-p vis">${v}</span>`:''}
+    </button>`);
+  }
+
+  const det = CAL_DIA && porDia[CAL_DIA];
+  const nomDia = CAL_DIA ? new Date(CAL_DIA+'T12:00:00')
+      .toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}) : '';
+
+  return `
+    <div class="eyebrow">📆 Calendario · ${activos.length} ${activos.length===1?'trabajo activo':'trabajos activos'}</div>
+    <div class="cal">
+      <div class="cal-h">
+        <button class="cal-f" data-calm="-1">‹</button>
+        <b>${NM[mm-1]} ${aa}</b>
+        <button class="cal-f" data-calm="1">›</button>
+        ${base!==hoyS.slice(0,7)?'<button class="cal-hoy" data-calm="0">hoy</button>':''}
+      </div>
+      <div class="cal-s">${['D','L','M','M','J','V','S'].map(x=>`<span>${x}</span>`).join('')}</div>
+      <div class="cal-g">${celdas.join('')}</div>
+      <div class="cal-ley"><span class="cd-p ini">3</span> abrieron ese día
+        <span class="cd-p vis">2</span> visita agendada</div>
+    </div>
+    ${det?`
+      <div class="cal-det">
+        <div class="cal-dt">${esc(nomDia)}</div>
+        ${det.ini.map(x=>`<div class="fila" data-hj="${x.id}" style="cursor:pointer">
+          <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'')}${x.unidad?' · '+esc(x.unidad):''}</b>
+            <span class="sub">${esc(x.folio||'')} · ${esc(x.tipo||'')} · abrió este día</span></div>
+          <span class="chip ambar">ABRIÓ</span></div>`).join('')}
+        ${det.vis.map(a=>`<div class="fila" data-hj="${a.job_id}" style="cursor:pointer">
+          <div class="t"><b>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</b>
+            <span class="sub">${esc(a.hora||'')} · ${esc(a.usuarios?.nombre||'sin técnico')}</span></div>
+          <span class="chip azul">VISITA</span></div>`).join('')}
+        ${(!det.ini.length&&!det.vis.length)?'<div class="sub">Nada ese día.</div>':''}
+      </div>`:''}`;
+}
+
 /* ============ HOME · qué hay que hacer hoy ============
    Un tablero corto: cuatro números que se tocan, y una lista
    priorizada de lo que urge. Nada de scroll infinito. */
@@ -9156,7 +9261,9 @@ async function vHome(){
   const espera = E.map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e,
              tipo:'est', txt:'estimado sin respuesta', acc:'INSISTIR'})).filter(o=>o.d>=5);
   const porFac = J.filter(x=>x.estatus==='terminado' && !x.invoice_num)
-    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac', txt:'falta facturar', acc:'FACTURAR'}));
+    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac',
+              txt: factFl(x)?'reparación lista, falta cobrarla':'falta facturar el flood',
+              acc:'FACTURAR'}));
   const porCob = J.filter(x=>x.invoice_num && !x.invoice_pagado)
     .map(x=>({d:x.invoice_fecha?dias(x.invoice_fecha,h):0, x, tipo:'cob', txt:'factura sin pago', acc:'COBRAR'}))
     .filter(o=>o.d>=30);
@@ -9223,6 +9330,8 @@ async function vHome(){
       <button class="hm-rev" data-hk="rev">
         <b>${porRev.length}</b> ${porRev.length===1?'partida terminada espera tu visto bueno':'partidas terminadas esperan tu visto bueno'}</button>`:''}
 
+    ${calendarioActivos(activos, asig)}
+
     ${zonas}
 
     <div class="eyebrow">🚀 Ir a</div>
@@ -9257,6 +9366,22 @@ function engancharHome(){
     return abrirJob(id);
   });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
+  document.querySelectorAll('[data-calm]').forEach(b=>b.onclick=()=>{
+    const d=+b.dataset.calm;
+    if(!d){ CAL_MES=null; CAL_DIA=null; }
+    else{
+      const base=CAL_MES||hoy().slice(0,7);
+      const [a2,m2]=base.split('-').map(Number);
+      const nd=new Date(a2, m2-1+d, 1);
+      CAL_MES=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0');
+      CAL_DIA=null;
+    }
+    render();
+  });
+  document.querySelectorAll('[data-cald]').forEach(b=>b.onclick=()=>{
+    CAL_DIA = (CAL_DIA===b.dataset.cald) ? null : b.dataset.cald;
+    render();
+  });
   pintarZonas();
   const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
     if(confirm('Se le manda a cada técnico su resumen detallado: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
