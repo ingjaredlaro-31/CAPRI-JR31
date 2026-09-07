@@ -238,6 +238,45 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Línea de tiempo de trabajos activos */
+.tl{background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:14px 16px 12px;margin-bottom:14px}
+.tl-eje{position:relative;height:16px;margin-left:230px;margin-bottom:6px;
+  border-bottom:1px solid var(--linea)}
+.tl-eje span{position:absolute;top:0;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--gris);text-transform:uppercase}
+.tl-hoy{position:absolute;top:0;bottom:-999px;width:2px;background:var(--oro);opacity:.55;z-index:1}
+.tl-f{display:flex;align-items:center;gap:12px;padding:7px 0;cursor:pointer;
+  border-bottom:1px solid var(--linea);transition:background .12s}
+.tl-f:hover{background:var(--sup2)}
+.tl-n{width:218px;flex:0 0 218px;min-width:0}
+.tl-n b{display:block;font-size:14.5px;font-weight:600;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-n em{font-style:normal;font-size:11.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-p{flex:1;position:relative;height:24px;min-width:80px}
+.tl-b{position:absolute;top:4px;height:16px;border-radius:8px;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:7px;min-width:34px}
+.tl-b span{font-family:var(--mono);font-size:9.5px;font-weight:700;color:#0A0E15}
+.tl-b.a{background:linear-gradient(90deg,var(--azul-b),var(--azul))}
+.tl-b.a span{color:#fff}
+.tl-b.m{background:linear-gradient(90deg,rgba(224,179,78,.5),var(--oro))}
+.tl-b.r{background:linear-gradient(90deg,rgba(212,33,41,.5),var(--rojo))}
+.tl-b.r span{color:#fff}
+.tl-v{position:absolute;top:1px;width:9px;height:9px;border-radius:50%;
+  background:var(--verde);border:2px solid var(--sup);transform:translateX(-50%);z-index:2}
+.tl-v.hoy{top:16px;background:var(--azul)}
+.tl-e{width:66px;flex:0 0 66px;text-align:right}
+.tl-ley{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--gris)}
+.tl-ley .pt{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px}
+.tl-ley .pt.a{background:var(--azul)} .tl-ley .pt.m{background:var(--oro)}
+.tl-ley .pt.r{background:var(--rojo)} .tl-ley .pt.v{background:var(--verde);border-radius:50%}
+@media(max-width:700px){
+  .tl-eje{margin-left:0}
+  .tl-f{flex-wrap:wrap;gap:6px}
+  .tl-n{width:100%;flex:1 1 100%}
+  .tl-p{min-width:0}
+}
+
 /* Lista completa de activos, debajo del calendario */
 .act-l{display:flex;flex-direction:column;margin-bottom:14px}
 .act-i{display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer;
@@ -4686,7 +4725,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v167 · calendario visible</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v168 · línea de tiempo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6745,7 +6784,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='167';
+const VERSION='168';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9182,95 +9221,72 @@ async function mandarResumenTecnicos(){
 /* Calendario del mes con los trabajos activos.
    Cada trabajo se pone en su fecha de inicio; los días con visita
    agendada se marcan aparte. Tocas un día y ves qué hay. */
-let CAL_MES=null, CAL_DIA=null;
+
 
 function calendarioActivos(activos, asig){
   const hoyS=hoy();
-  const base = CAL_MES || hoyS.slice(0,7);
-  const [aa,mm]=base.split('-').map(Number);
-  const primero=new Date(aa,mm-1,1), ultimo=new Date(aa,mm,0);
-  // OJO: no llamarle 'dias', tapa la funcion global dias(a,b)
-  const totDias=ultimo.getDate(), arranque=primero.getDay();
+  if(!activos.length) return `<div class="eyebrow">Calendario</div>
+    <div class="ok"><div class="t">No hay trabajos activos.</div></div>`;
 
-  const porDia={};
-  activos.forEach(x=>{
-    const f=(x.fecha_inicio||(x.created_at||'').slice(0,10)||'').slice(0,10);
-    if(f.slice(0,7)===base) (porDia[f] ||= {ini:[],vis:[]}).ini.push(x);
-  });
-  (asig||[]).forEach(a=>{
-    const f=(a.fecha||'').slice(0,10);
-    if(f.slice(0,7)===base && a.jobs) (porDia[f] ||= {ini:[],vis:[]}).vis.push(a);
-  });
+  const iniDe = x => (x.fecha_inicio||(x.created_at||'').slice(0,10)||hoyS).slice(0,10);
+  const L=[...activos].sort((a,b)=>iniDe(a).localeCompare(iniDe(b)));
 
-  const NM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
-            'Septiembre','Octubre','Noviembre','Diciembre'];
-  const celdas=[];
-  for(let i=0;i<arranque;i++) celdas.push('<div class="cd vacio"></div>');
-  for(let d=1;d<=totDias;d++){
-    const f=`${aa}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const p=porDia[f]||{ini:[],vis:[]};
-    const n=p.ini.length, v=p.vis.length;
-    const esHoy=f===hoyS, sel=CAL_DIA===f;
-    celdas.push(`<button class="cd ${esHoy?'hoy':''} ${sel?'sel':''} ${n||v?'con':''}" data-cald="${f}">
-      <span class="cd-n">${d}</span>
-      ${n?`<span class="cd-p ini">${n}</span>`:''}
-      ${v?`<span class="cd-p vis">${v}</span>`:''}
-    </button>`);
+  // El eje va del trabajo más viejo hasta hoy, con una semana de aire
+  const min=iniDe(L[0]);
+  const total=Math.max(dias(min,hoyS),7)+3;
+  const desde=new Date(min+'T12:00:00');
+  const pos = f => Math.max(0, Math.min(100, dias(min,f)/total*100));
+
+  // Marcas de mes en el eje
+  const marcas=[];
+  const cur=new Date(desde.getFullYear(),desde.getMonth(),1);
+  const NM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  while(cur<=new Date(hoyS+'T12:00:00')){
+    const f=cur.toISOString().slice(0,10);
+    if(f>=min) marcas.push({t:NM[cur.getMonth()]+(cur.getMonth()===0?' '+cur.getFullYear():''), p:pos(f)});
+    cur.setMonth(cur.getMonth()+1);
   }
 
-  const det = CAL_DIA && porDia[CAL_DIA];
-  const nomDia = CAL_DIA ? new Date(CAL_DIA+'T12:00:00')
-      .toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}) : '';
+  const visHoy=new Set((asig||[]).filter(a=>a.fecha===hoyS).map(a=>a.job_id));
+  const proxVis={};
+  (asig||[]).forEach(a=>{ if(a.fecha>=hoyS && (!proxVis[a.job_id]||a.fecha<proxVis[a.job_id])) proxVis[a.job_id]=a.fecha; });
 
   return `
-    <div class="eyebrow">📆 Calendario · ${activos.length} ${activos.length===1?'trabajo activo':'trabajos activos'}</div>
-    <div class="calx">
-      <div class="calx-h">
-        <button class="calx-f" data-calm="-1">‹</button>
-        <b>${NM[mm-1]} ${aa}</b>
-        <button class="calx-f" data-calm="1">›</button>
-        ${base!==hoyS.slice(0,7)?'<button class="calx-hoy" data-calm="0">hoy</button>':''}
-      </div>
-      <div class="calx-s">${['D','L','M','M','J','V','S'].map(x=>`<span>${x}</span>`).join('')}</div>
-      <div class="calx-g">${celdas.join('')}</div>
-      <div class="calx-ley"><span class="cd-p ini">3</span> abrieron ese día
-        <span class="cd-p vis">2</span> visita agendada</div>
-    </div>
-    ${(()=>{
-      // TODOS los activos, sin importar el mes. El calendario solo ubica
-      // los que abrieron o tienen visita; aquí no se esconde ninguno.
-      if(!activos.length) return `<div class="ok"><div class="t">No hay trabajos activos.</div></div>`;
-      const conVis=new Set((asig||[]).map(a=>a.job_id));
-      const L=[...activos].sort((a,b)=>
-        dias(a.fecha_inicio||(a.created_at||'').slice(0,10),hoyS)<dias(b.fecha_inicio||(b.created_at||'').slice(0,10),hoyS)?1:-1);
-      return `
-      <div class="eyebrow">Todos los activos · ${L.length}</div>
-      <div class="act-l">${L.map(x=>{
-        const f=(x.fecha_inicio||(x.created_at||'').slice(0,10)||'').slice(0,10);
-        const d=dias(f,hoyS);
-        const enMes=f.slice(0,7)===base;
-        return `<div class="act-i ${d>=21?'r':d>=10?'m':''}" data-hj="${x.id}">
-          <span class="act-d">${d}d</span>
-          <span class="act-t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · '+esc(x.unidad):''}</b>
-            <em>${esc(x.folio||'')} · ${esc(x.tipo||'')} · abrió ${fmt(f)}</em></span>
-          ${conVis.has(x.id)?'<span class="chip azul">VISITA HOY</span>':''}
-          ${!enMes?'<span class="act-fu">otro mes</span>':''}
-        </div>`;}).join('')}</div>`;
-    })()}
+    <div class="eyebrow">📆 Los ${L.length} trabajos activos · desde ${fmt(min)}</div>
+    <div class="tl">
+      <div class="tl-eje">${marcas.map(m=>
+        `<span style="left:${m.p}%">${m.t}</span>`).join('')}
+        <i class="tl-hoy" style="left:${pos(hoyS)}%"></i></div>
 
-    ${det?`
-      <div class="calx-det">
-        <div class="calx-dt">${esc(nomDia)}</div>
-        ${det.ini.map(x=>`<div class="fila" data-hj="${x.id}" style="cursor:pointer">
-          <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'')}${x.unidad?' · '+esc(x.unidad):''}</b>
-            <span class="sub">${esc(x.folio||'')} · ${esc(x.tipo||'')} · abrió este día</span></div>
-          <span class="chip ambar">ABRIÓ</span></div>`).join('')}
-        ${det.vis.map(a=>`<div class="fila" data-hj="${a.job_id}" style="cursor:pointer">
-          <div class="t"><b>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</b>
-            <span class="sub">${esc(a.hora||'')} · ${esc(a.usuarios?.nombre||'sin técnico')}</span></div>
-          <span class="chip azul">VISITA</span></div>`).join('')}
-        ${(!det.ini.length&&!det.vis.length)?'<div class="sub">Nada ese día.</div>':''}
-      </div>`:''}`;
+      ${L.map(x=>{
+        const f=iniDe(x), d=dias(f,hoyS);
+        const izq=pos(f), anc=Math.max(2, pos(hoyS)-izq);
+        const col = d>=21?'r' : d>=10?'m' : 'a';
+        const pv = proxVis[x.id];
+        return `<div class="tl-f" data-hj="${x.id}">
+          <div class="tl-n">
+            <b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · '+esc(x.unidad):''}</b>
+            <em>${esc(x.folio||'')} · ${esc(x.tipo||'')}${x.usuarios?.nombre?' · '+esc(x.usuarios.nombre):' · sin técnico'}</em>
+          </div>
+          <div class="tl-p">
+            <div class="tl-b ${col}" style="left:${izq}%;width:${anc}%">
+              <span>${d}d</span>
+            </div>
+            ${visHoy.has(x.id)?`<i class="tl-v hoy" style="left:${pos(hoyS)}%" title="Visita hoy"></i>`:''}
+            ${(pv&&pv!==hoyS)?`<i class="tl-v" style="left:${pos(pv)}%" title="Visita ${fmt(pv)}"></i>`:''}
+          </div>
+          <div class="tl-e">${visHoy.has(x.id)?'<span class="chip azul">HOY</span>'
+            : pv?`<span class="chip">${fmt(pv).slice(0,5)}</span>`
+            : '<span class="chip rojo">SIN VISITA</span>'}</div>
+        </div>`;}).join('')}
+
+      <div class="tl-ley">
+        <span><i class="pt a"></i>menos de 10 días</span>
+        <span><i class="pt m"></i>10 a 20</span>
+        <span><i class="pt r"></i>21 o más</span>
+        <span><i class="pt v"></i>visita agendada</span>
+      </div>
+    </div>`;
 }
 
 /* ============ HOME · qué hay que hacer hoy ============
@@ -9408,22 +9424,6 @@ function engancharHome(){
     return abrirJob(id);
   });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
-  document.querySelectorAll('[data-calm]').forEach(b=>b.onclick=()=>{
-    const d=+b.dataset.calm;
-    if(!d){ CAL_MES=null; CAL_DIA=null; }
-    else{
-      const base=CAL_MES||hoy().slice(0,7);
-      const [a2,m2]=base.split('-').map(Number);
-      const nd=new Date(a2, m2-1+d, 1);
-      CAL_MES=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0');
-      CAL_DIA=null;
-    }
-    render();
-  });
-  document.querySelectorAll('[data-cald]').forEach(b=>b.onclick=()=>{
-    CAL_DIA = (CAL_DIA===b.dataset.cald) ? null : b.dataset.cald;
-    render();
-  });
   pintarZonas();
   const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
     if(confirm('Se le manda a cada técnico su resumen detallado: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
