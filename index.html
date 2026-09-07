@@ -4685,7 +4685,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v165 · todos los activos a la vista</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v166 · todos los activos a la vista</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6744,7 +6744,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='165';
+const VERSION='166';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9188,7 +9188,8 @@ function calendarioActivos(activos, asig){
   const base = CAL_MES || hoyS.slice(0,7);
   const [aa,mm]=base.split('-').map(Number);
   const primero=new Date(aa,mm-1,1), ultimo=new Date(aa,mm,0);
-  const dias=ultimo.getDate(), arranque=primero.getDay();
+  // OJO: no llamarle 'dias', tapa la funcion global dias(a,b)
+  const totDias=ultimo.getDate(), arranque=primero.getDay();
 
   const porDia={};
   activos.forEach(x=>{
@@ -9204,7 +9205,7 @@ function calendarioActivos(activos, asig){
             'Septiembre','Octubre','Noviembre','Diciembre'];
   const celdas=[];
   for(let i=0;i<arranque;i++) celdas.push('<div class="cd vacio"></div>');
-  for(let d=1;d<=dias;d++){
+  for(let d=1;d<=totDias;d++){
     const f=`${aa}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const p=porDia[f]||{ini:[],vis:[]};
     const n=p.ini.length, v=p.vis.length;
