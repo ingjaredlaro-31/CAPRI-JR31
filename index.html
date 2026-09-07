@@ -238,6 +238,24 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* Lista completa de activos, debajo del calendario */
+.act-l{display:flex;flex-direction:column;margin-bottom:14px}
+.act-i{display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer;
+  border-bottom:1px solid var(--linea);border-left:3px solid transparent;
+  padding-left:9px;transition:background .12s}
+.act-i:hover{background:var(--sup2)}
+.act-i.m{border-left-color:var(--oro)}
+.act-i.r{border-left-color:var(--rojo)}
+.act-d{font-family:var(--disp);font-size:21px;width:52px;flex:0 0 52px;color:var(--gris)}
+.act-i.m .act-d{color:var(--oro)} .act-i.r .act-d{color:var(--rojo)}
+.act-t{flex:1;min-width:0}
+.act-t b{display:block;font-size:16px;font-weight:600;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act-t em{font-style:normal;font-size:12.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act-fu{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--gris);
+  border:1px solid var(--linea);border-radius:4px;padding:2px 6px;flex-shrink:0}
+
 /* Calendario de trabajos activos */
 .cal{background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:13px 15px;margin-bottom:8px}
 .cal-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -4667,7 +4685,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v164 · calendario en el home</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v165 · todos los activos a la vista</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6726,7 +6744,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='164';
+const VERSION='165';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9216,6 +9234,28 @@ function calendarioActivos(activos, asig){
       <div class="cal-ley"><span class="cd-p ini">3</span> abrieron ese día
         <span class="cd-p vis">2</span> visita agendada</div>
     </div>
+    ${(()=>{
+      // TODOS los activos, sin importar el mes. El calendario solo ubica
+      // los que abrieron o tienen visita; aquí no se esconde ninguno.
+      if(!activos.length) return `<div class="ok"><div class="t">No hay trabajos activos.</div></div>`;
+      const conVis=new Set((asig||[]).map(a=>a.job_id));
+      const L=[...activos].sort((a,b)=>
+        dias(a.fecha_inicio||(a.created_at||'').slice(0,10),hoyS)<dias(b.fecha_inicio||(b.created_at||'').slice(0,10),hoyS)?1:-1);
+      return `
+      <div class="eyebrow">Todos los activos · ${L.length}</div>
+      <div class="act-l">${L.map(x=>{
+        const f=(x.fecha_inicio||(x.created_at||'').slice(0,10)||'').slice(0,10);
+        const d=dias(f,hoyS);
+        const enMes=f.slice(0,7)===base;
+        return `<div class="act-i ${d>=21?'r':d>=10?'m':''}" data-hj="${x.id}">
+          <span class="act-d">${d}d</span>
+          <span class="act-t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · '+esc(x.unidad):''}</b>
+            <em>${esc(x.folio||'')} · ${esc(x.tipo||'')} · abrió ${fmt(f)}</em></span>
+          ${conVis.has(x.id)?'<span class="chip azul">VISITA HOY</span>':''}
+          ${!enMes?'<span class="act-fu">otro mes</span>':''}
+        </div>`;}).join('')}</div>`;
+    })()}
+
     ${det?`
       <div class="cal-det">
         <div class="cal-dt">${esc(nomDia)}</div>
