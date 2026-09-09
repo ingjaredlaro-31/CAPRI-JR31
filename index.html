@@ -238,6 +238,32 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.eq-t{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:11px}
+.eq-k{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--linea);
+  border-radius:10px;padding:12px 13px}
+.eq-k b{display:block;font-family:var(--disp);font-size:30px;line-height:1}
+.eq-k span{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--gris)}
+.eq-k.lgr{border-top-color:var(--azul)} .eq-k.lgr b{color:var(--azul)}
+.eq-k.blo{border-top-color:var(--oro)}  .eq-k.blo b{color:var(--oro)}
+.eq-k.hep{border-top-color:var(--verde)} .eq-k.hep b{color:var(--verde)}
+.eq-l{display:flex;flex-direction:column;margin-bottom:6px}
+.eq-i{display:flex;align-items:center;gap:12px;padding:10px 4px 10px 9px;cursor:pointer;
+  border-bottom:1px solid var(--linea);border-left:3px solid transparent;transition:background .12s}
+.eq-i:hover{background:var(--sup2)}
+.eq-i.m{border-left-color:var(--oro)} .eq-i.r{border-left-color:var(--rojo)}
+.eq-n{flex:1;min-width:0}
+.eq-n b{display:block;font-size:15.5px;font-weight:600;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq-n em{font-style:normal;font-size:12px;color:var(--gris)}
+.eq-p{display:flex;gap:6px;flex-shrink:0}
+.eq-c{display:inline-flex;align-items:baseline;gap:3px;font-family:var(--disp);font-size:19px;
+  padding:4px 10px;border-radius:7px;line-height:1}
+.eq-c i{font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.08em}
+.eq-c.lgr{background:rgba(27,86,211,.16);color:var(--azul)}
+.eq-c.blo{background:rgba(224,179,78,.16);color:var(--oro)}
+.eq-c.hep{background:rgba(61,214,140,.16);color:var(--verde)}
+@media(max-width:640px){ .eq-t{grid-template-columns:repeat(2,1fr)} .eq-i{flex-wrap:wrap} }
+
 /* Línea de tiempo de trabajos activos */
 .tl{background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:14px 16px 12px;margin-bottom:14px}
 .tl-eje{position:relative;height:16px;margin-left:230px;margin-bottom:6px;
@@ -4725,7 +4751,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v168 · línea de tiempo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v169 · equipo en propiedades</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6784,7 +6810,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='168';
+const VERSION='169';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9223,70 +9249,80 @@ async function mandarResumenTecnicos(){
    agendada se marcan aparte. Tocas un día y ves qué hay. */
 
 
-function calendarioActivos(activos, asig){
+/* ============ EQUIPO REGADO EN LAS PROPIEDADES ============
+   Cuanto equipo tienes fuera y donde. Sale de dos lados: de lo que
+   el tecnico captura en su reporte, y de lo que dice el scope. */
+
+// Lee el scope buscando equipo: "2 Dehumidifiers", "4 air movers", "1 HEPA"
+function equipoDelScope(txt){
+  const r={lgr:0, blower:0, hepa:0};
+  if(!txt) return r;
+  // Se va borrando lo ya contado, para no contar el mismo numero dos veces
+  let T=String(txt);
+  const LGR='lgr|dehumidifiers?|dehus?|deshumidificadores?|deshus?';
+  const BLW='air\\s*movers?|blowers?|axials?|ventiladores?';
+  const HEP='hepa(?:\\s*air\\s*scrubbers?)?|air\\s*scrubbers?|scrubbers?';
+  const saca=(pat)=>{ let n=0;
+    T=T.replace(new RegExp(pat,'ig'),(m,a,b)=>{ n+=parseInt(a||b,10)||0; return ' '; });
+    return n; };
+  // Primero HEPA para que 'air scrubber' no se lo lleve blower
+  r.hepa   = saca('(?:'+HEP+')\\s*:\\s*(\\d+)') + saca('(\\d+)\\s*(?:x\\s*)?(?:'+HEP+')\\b');
+  r.blower = saca('(?:'+BLW+')\\s*:\\s*(\\d+)') + saca('(\\d+)\\s*(?:x\\s*)?(?:'+BLW+')\\b');
+  r.lgr    = saca('(?:'+LGR+')\\s*:\\s*(\\d+)') + saca('(\\d+)\\s*(?:x\\s*)?(?:'+LGR+')\\b');
+  return r;
+}
+
+function equipoRegado(activos, reps){
   const hoyS=hoy();
-  if(!activos.length) return `<div class="eyebrow">Calendario</div>
-    <div class="ok"><div class="t">No hay trabajos activos.</div></div>`;
+  const ult={};
+  (reps||[]).forEach(r=>{
+    const a=ult[r.job_id];
+    if(!a || r.fecha>a.fecha) ult[r.job_id]={fecha:r.fecha,
+      lgr:+r.deshu_inst||0, blower:+r.air_inst||0, hepa:+r.scrub_inst||0};
+  });
 
-  const iniDe = x => (x.fecha_inicio||(x.created_at||'').slice(0,10)||hoyS).slice(0,10);
-  const L=[...activos].sort((a,b)=>iniDe(a).localeCompare(iniDe(b)));
+  const L=[];
+  activos.forEach(x=>{
+    const rep=ult[x.id];
+    const sc=equipoDelScope(x.scope);
+    const e = (rep && (rep.lgr||rep.blower||rep.hepa)) ? {...rep, de:'reporte'}
+            : (sc.lgr||sc.blower||sc.hepa) ? {...sc, de:'scope'} : null;
+    if(!e) return;
+    const desde=(x.fecha_inicio||(x.created_at||'').slice(0,10)||hoyS).slice(0,10);
+    L.push({x, ...e, desde, d:dias(desde,hoyS)});
+  });
+  L.sort((a,b)=>(b.lgr+b.blower+b.hepa)-(a.lgr+a.blower+a.hepa));
 
-  // El eje va del trabajo más viejo hasta hoy, con una semana de aire
-  const min=iniDe(L[0]);
-  const total=Math.max(dias(min,hoyS),7)+3;
-  const desde=new Date(min+'T12:00:00');
-  const pos = f => Math.max(0, Math.min(100, dias(min,f)/total*100));
+  const T={lgr:0,blower:0,hepa:0,dias:0};
+  L.forEach(e=>{ T.lgr+=e.lgr; T.blower+=e.blower; T.hepa+=e.hepa;
+    T.dias += (e.lgr+e.blower+e.hepa)*e.d; });
 
-  // Marcas de mes en el eje
-  const marcas=[];
-  const cur=new Date(desde.getFullYear(),desde.getMonth(),1);
-  const NM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  while(cur<=new Date(hoyS+'T12:00:00')){
-    const f=cur.toISOString().slice(0,10);
-    if(f>=min) marcas.push({t:NM[cur.getMonth()]+(cur.getMonth()===0?' '+cur.getFullYear():''), p:pos(f)});
-    cur.setMonth(cur.getMonth()+1);
-  }
-
-  const visHoy=new Set((asig||[]).filter(a=>a.fecha===hoyS).map(a=>a.job_id));
-  const proxVis={};
-  (asig||[]).forEach(a=>{ if(a.fecha>=hoyS && (!proxVis[a.job_id]||a.fecha<proxVis[a.job_id])) proxVis[a.job_id]=a.fecha; });
+  if(!L.length) return `<div class="eyebrow">Equipo en propiedades</div>
+    <div class="ok"><div class="t">No hay equipo registrado en la calle.</div>
+    <div class="sub">Sale de lo que el tecnico captura en su reporte o de lo que dice el scope of work.</div></div>`;
 
   return `
-    <div class="eyebrow">📆 Los ${L.length} trabajos activos · desde ${fmt(min)}</div>
-    <div class="tl">
-      <div class="tl-eje">${marcas.map(m=>
-        `<span style="left:${m.p}%">${m.t}</span>`).join('')}
-        <i class="tl-hoy" style="left:${pos(hoyS)}%"></i></div>
-
-      ${L.map(x=>{
-        const f=iniDe(x), d=dias(f,hoyS);
-        const izq=pos(f), anc=Math.max(2, pos(hoyS)-izq);
-        const col = d>=21?'r' : d>=10?'m' : 'a';
-        const pv = proxVis[x.id];
-        return `<div class="tl-f" data-hj="${x.id}">
-          <div class="tl-n">
-            <b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · '+esc(x.unidad):''}</b>
-            <em>${esc(x.folio||'')} · ${esc(x.tipo||'')}${x.usuarios?.nombre?' · '+esc(x.usuarios.nombre):' · sin técnico'}</em>
-          </div>
-          <div class="tl-p">
-            <div class="tl-b ${col}" style="left:${izq}%;width:${anc}%">
-              <span>${d}d</span>
-            </div>
-            ${visHoy.has(x.id)?`<i class="tl-v hoy" style="left:${pos(hoyS)}%" title="Visita hoy"></i>`:''}
-            ${(pv&&pv!==hoyS)?`<i class="tl-v" style="left:${pos(pv)}%" title="Visita ${fmt(pv)}"></i>`:''}
-          </div>
-          <div class="tl-e">${visHoy.has(x.id)?'<span class="chip azul">HOY</span>'
-            : pv?`<span class="chip">${fmt(pv).slice(0,5)}</span>`
-            : '<span class="chip rojo">SIN VISITA</span>'}</div>
-        </div>`;}).join('')}
-
-      <div class="tl-ley">
-        <span><i class="pt a"></i>menos de 10 días</span>
-        <span><i class="pt m"></i>10 a 20</span>
-        <span><i class="pt r"></i>21 o más</span>
-        <span><i class="pt v"></i>visita agendada</span>
-      </div>
-    </div>`;
+    <div class="eyebrow">Equipo regado en ${L.length} ${L.length===1?'propiedad':'propiedades'}</div>
+    <div class="eq-t">
+      <div class="eq-k lgr"><b>${T.lgr}</b><span>LGR / DEHUS</span></div>
+      <div class="eq-k blo"><b>${T.blower}</b><span>BLOWERS</span></div>
+      <div class="eq-k hep"><b>${T.hepa}</b><span>HEPA</span></div>
+      <div class="eq-k dia"><b>${T.dias}</b><span>EQUIPO-DIAS</span></div>
+    </div>
+    <div class="eq-l">
+      ${L.map(e=>`<div class="eq-i ${e.d>=10?'r':e.d>=5?'m':''}" data-hj="${e.x.id}">
+        <div class="eq-n">
+          <b>${esc(e.x.propiedades?.nombre||e.x.cliente||'Sin nombre')}${e.x.unidad?' \u00b7 '+esc(e.x.unidad):''}</b>
+          <em>${esc(e.x.folio||'')} \u00b7 ${e.d} ${e.d===1?'dia':'dias'} en sitio${e.de==='scope'?' \u00b7 segun el scope':''}</em>
+        </div>
+        <div class="eq-p">
+          ${e.lgr?`<span class="eq-c lgr">${e.lgr} <i>LGR</i></span>`:''}
+          ${e.blower?`<span class="eq-c blo">${e.blower} <i>BLW</i></span>`:''}
+          ${e.hepa?`<span class="eq-c hep">${e.hepa} <i>HEPA</i></span>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="sub" style="margin-bottom:14px">Equipo-dias es lo que llevas acumulado de renta: cada pieza por los dias que lleva en sitio.</div>`;
 }
 
 /* ============ HOME · qué hay que hacer hoy ============
@@ -9297,10 +9333,10 @@ async function vHome(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre), usuarios(nombre)')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,scope,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre), usuarios(nombre)')
       .eq('departamento',DEPV()).limit(500),
     sb.from('asignaciones').select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
-    sb.from('reportes').select('job_id,fecha,revisado').gte('fecha',hace(40)),
+    sb.from('reportes').select('job_id,fecha,revisado,deshu_inst,air_inst,scrub_inst').gte('fecha',hace(60)),
     sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at').eq('departamento',DEPV()).eq('estatus','enviado'),
     sb.from('partidas').select('id,job_id,nombre,estatus,revisado')
   ]);
@@ -9388,7 +9424,7 @@ async function vHome(){
       <button class="hm-rev" data-hk="rev">
         <b>${porRev.length}</b> ${porRev.length===1?'partida terminada espera tu visto bueno':'partidas terminadas esperan tu visto bueno'}</button>`:''}
 
-    ${calendarioActivos(activos, asig)}
+    ${equipoRegado(activos, R)}
 
     ${zonas}
 
