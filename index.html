@@ -238,6 +238,34 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.ct-cab{display:flex;align-items:center;gap:13px;background:var(--sup);border:1px solid var(--linea);
+  border-left:5px solid var(--oro);border-radius:11px;padding:13px 16px;margin-bottom:12px}
+.ct-n{flex:1;min-width:0}
+.ct-n b{display:block;font-family:var(--disp);font-size:25px;line-height:1.05;text-transform:uppercase}
+.ct-n span{font-size:13.5px;color:var(--gris)}
+.ct-sem{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ct-sem b{flex:1;font-family:var(--disp);font-size:18px}
+.ct-d{border:1px solid var(--linea);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.ct-d.hoy{border-color:var(--oro)}
+.ct-d.con{background:var(--sup)}
+.ct-dh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--sup2)}
+.ct-d.hoy .ct-dh{background:rgba(224,179,78,.12)}
+.ct-dh b{font-family:var(--disp);font-size:17px;text-transform:uppercase}
+.ct-dh span{font-family:var(--mono);font-size:11px;color:var(--gris);flex:1}
+.ct-dh i{font-style:normal;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--verde)}
+.ct-r{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;
+  border-top:1px solid var(--linea);transition:background .12s}
+.ct-r:hover{background:var(--sup2)}
+.ct-t{flex:1;min-width:0}
+.ct-t b{display:block;font-size:15.5px;font-weight:600;line-height:1.25}
+.ct-t span{display:block;font-size:12.5px;color:var(--gris)}
+.ct-f{color:var(--azul)!important;font-family:var(--mono);font-size:11px}
+.ct-c{text-align:right;flex-shrink:0}
+.ct-c b{display:block;font-family:var(--mono);font-size:16px;font-weight:700}
+.ct-vac{padding:10px 14px;font-size:13px;color:var(--gris);font-style:italic}
+.fo-x{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
+  background:rgba(6,10,18,.8);color:#fff;border:0;font-size:11px;cursor:pointer;line-height:1}
+
 .eq-t{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:11px}
 .eq-k{background:var(--sup);border:1px solid var(--linea);border-top:3px solid var(--linea);
   border-radius:10px;padding:12px 13px}
@@ -4547,6 +4575,7 @@ const IRA_ALIAS = {
   equipo:'usuarios personal tecnicos contraseñas acceso',
   import:'google calendar importar calendario',
   historial:'archivo historial pasado meses estado de cuenta mensual',
+  construccion:'construccion contratistas miguel saul daniel manuel drywall pisos bitacora',
   precios:'precios catalogo lista de precios tarifas costos',
   buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
 };
@@ -4667,8 +4696,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['rastro','Rastro']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['horas',BI('Horas','Hours')],['partes',BI('Contratistas','Contractors')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
@@ -4678,7 +4707,7 @@ function shell(html){
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     estimados:'DINERO', cobranza:'DINERO', horas:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', partes:'DIRECTORIO', equipo:'DIRECTORIO',
-    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO', rastro:'DÍA A DÍA'
+    import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO', rastro:'DÍA A DÍA', construccion:'TRABAJOS'
   };
   const ORDEN_GRUPOS = ['DÍA A DÍA','TRABAJOS','DINERO','DIRECTORIO','HERRAMIENTAS'];
   const restantes = tabs.filter(t=>t[0]!==inicio);
@@ -4751,7 +4780,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v169 · equipo en propiedades</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v170 · área de construcción</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4897,6 +4926,10 @@ async function render(){
       shell(await vCobranza()); return engancharCobranza();
     }
     if(V==='historial'){ shell(await vHistorial()); return engancharHistorial(); }
+    if(V==='construccion'){
+      if(!EDIT()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>Construcción es de administración.</p></div>');
+      shell(await vConstruccion()); return engancharConstruccion();
+    }
     if(V==='rastro'){
       if(!EDIT()) return shell('<div class="empty"><div class="disp">Sin acceso</div><p>El rastro es de administración.</p></div>');
       shell(await vRastro()); return engancharRastro();
@@ -6810,7 +6843,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='169';
+const VERSION='170';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9248,6 +9281,278 @@ async function mandarResumenTecnicos(){
    Cada trabajo se pone en su fecha de inicio; los días con visita
    agendada se marcan aparte. Tocas un día y ves qué hay. */
 
+
+/* ==================== ÁREA DE CONSTRUCCIÓN ====================
+   Los contratistas y su bitácora. Cada uno tiene su calendario:
+   qué hizo cada día, cuánto cobra, cuánto ya se le pagó, y las
+   fotos del reporte que mandan al grupo de WhatsApp. */
+
+let CONS_CT = null;     // contratista abierto
+let CONS_SEM = null;    // lunes de la semana que se está viendo
+
+function lunesDe(f){
+  const d=new Date((f||hoy())+'T12:00:00');
+  const n=(d.getDay()+6)%7;           // 0 = lunes
+  d.setDate(d.getDate()-n);
+  return d.toISOString().slice(0,10);
+}
+function masDias(f,n){
+  const d=new Date(f+'T12:00:00'); d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+
+async function vConstruccion(){
+  if(CONS_CT) return vContratista(CONS_CT);
+
+  const [{data:cts},{data:bit}] = await Promise.all([
+    sb.from('contratistas').select('*').eq('activo',true).order('nombre'),
+    sb.from('bitacora_contratista').select('contratista_id,fecha,cobro,pagado').gte('fecha',hace(60))
+  ]);
+  const C=cts||[], B=bit||[];
+  const sem=lunesDe(hoy());
+
+  const dat={};
+  B.forEach(x=>{
+    const a=dat[x.contratista_id] || (dat[x.contratista_id]={dias:new Set(),cobro:0,deber:0,semana:0});
+    a.dias.add(x.fecha);
+    a.cobro+=Number(x.cobro||0);
+    if(!x.pagado) a.deber+=Number(x.cobro||0);
+    if(x.fecha>=sem) a.semana+=Number(x.cobro||0);
+  });
+
+  const tDeber=Object.values(dat).reduce((a,x)=>a+x.deber,0);
+  const tSem=Object.values(dat).reduce((a,x)=>a+x.semana,0);
+
+  return `
+    <div class="eyebrow">Construcción · ${C.length} ${C.length===1?'contratista':'contratistas'}</div>
+    <div class="row" style="gap:10px;margin-bottom:14px">
+      <div class="stat" style="flex:1"><div class="l">ESTA SEMANA</div>
+        <div class="v" style="color:var(--azul)">${VE_DINERO()?cf(tSem):'—'}</div>
+        <div class="s">desde ${fmt(sem)}</div></div>
+      <div class="stat" style="flex:1"><div class="l">POR PAGARLES</div>
+        <div class="v" style="color:var(--rojo)">${VE_DINERO()?cf(tDeber):'—'}</div>
+        <div class="s">trabajo sin pagar</div></div>
+    </div>
+
+    ${EDIT()?'<button class="btn wide" id="cs_nuevo" style="margin-bottom:14px">+ Agregar contratista</button>':''}
+
+    <div class="mosaico">
+      ${C.map(c=>{
+        const a=dat[c.id]||{dias:new Set(),cobro:0,deber:0,semana:0};
+        return `<button class="mos ${a.deber?'r':a.semana?'a':''}" data-cons="${c.id}">
+          <div class="mos-ic">${svgIC('cpartes')}</div>
+          <div class="mos-t">${esc(c.nombre)}</div>
+          <div class="mos-s">${esc(c.especialidad||'sin especialidad')}</div>
+          <div class="mos-b">
+            ${a.dias.size?`<span class="jc-chip">${a.dias.size} DÍAS TRABAJADOS</span>`:'<span class="jc-chip">SIN REGISTROS</span>'}
+            ${(a.semana&&VE_DINERO())?`<span class="jc-chip azul">${cf(a.semana)} ESTA SEMANA</span>`:''}
+            ${(a.deber&&VE_DINERO())?`<span class="jc-chip rojo">${cf(a.deber)} POR PAGAR</span>`:''}
+          </div></button>`;}).join('')}
+    </div>
+    ${!C.length?`<div class="empty"><div class="disp">Sin contratistas</div>
+      <p>Agrega a Miguel, Saúl, Daniel, Manuel y los demás para llevarles su bitácora.</p></div>`:''}`;
+}
+
+/* ============ Un contratista · su semana ============ */
+async function vContratista(id){
+  const sem = CONS_SEM || lunesDe(hoy());
+  const fin = masDias(sem,6);
+
+  const [{data:c},{data:bit},{data:jobs}] = await Promise.all([
+    sb.from('contratistas').select('*').eq('id',id).single(),
+    sb.from('bitacora_contratista')
+      .select('*, jobs(folio,cliente,unidad, propiedades(nombre))')
+      .eq('contratista_id',id).gte('fecha',sem).lte('fecha',fin).order('fecha'),
+    sb.from('jobs').select('id,folio,cliente,unidad, propiedades(nombre)')
+      .not('estatus','in','("facturado")').order('created_at',{ascending:false}).limit(150)
+  ]);
+  if(!c) { CONS_CT=null; return vConstruccion(); }
+
+  const B=bit||[];
+  CONS_JOBS = jobs||[];
+  const porDia={}; B.forEach(x=>(porDia[x.fecha] ||= []).push(x));
+  const totSem=B.reduce((a,x)=>a+Number(x.cobro||0),0);
+  const sinPagar=B.filter(x=>!x.pagado).reduce((a,x)=>a+Number(x.cobro||0),0);
+  const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+  return `
+    <button class="btn ghost wide" id="cs_atras" style="margin-bottom:12px">‹ Todos los contratistas</button>
+
+    <div class="ct-cab">
+      <div class="ct-n"><b>${esc(c.nombre)}</b><span>${esc(c.especialidad||'')}${c.telefono?' · '+esc(c.telefono):''}</span></div>
+      ${c.telefono?`<a class="btn ghost sm" target="_blank" rel="noopener"
+        href="https://wa.me/${esc((c.telefono||'').replace(/[^0-9]/g,''))}">WhatsApp</a>`:''}
+    </div>
+
+    <div class="ct-sem">
+      <button class="calx-f" data-csem="-1">‹</button>
+      <b>Semana del ${fmt(sem)} al ${fmt(fin)}</b>
+      <button class="calx-f" data-csem="1">›</button>
+      ${sem!==lunesDe(hoy())?'<button class="calx-hoy" data-csem="0">esta semana</button>':''}
+    </div>
+
+    <div class="row" style="gap:10px;margin-bottom:14px">
+      <div class="stat" style="flex:1"><div class="l">DE LA SEMANA</div>
+        <div class="v">${VE_DINERO()?cf(totSem):B.length}</div>
+        <div class="s">${B.length} ${B.length===1?'registro':'registros'}</div></div>
+      <div class="stat" style="flex:1"><div class="l">SIN PAGARLE</div>
+        <div class="v" style="color:var(--rojo)">${VE_DINERO()?cf(sinPagar):'—'}</div>
+        <div class="s">de esta semana</div></div>
+    </div>
+
+    ${DIAS.map((nom,i)=>{
+      const f=masDias(sem,i), L=porDia[f]||[];
+      const esHoy=f===hoy();
+      const tot=L.reduce((a,x)=>a+Number(x.cobro||0),0);
+      return `<div class="ct-d ${esHoy?'hoy':''} ${L.length?'con':''}">
+        <div class="ct-dh">
+          <b>${nom}</b><span>${fmt(f)}</span>
+          ${(tot&&VE_DINERO())?`<i>${cf(tot)}</i>`:''}
+          ${EDIT()?`<button class="btn mini" data-cadd="${f}">+ AGREGAR</button>`:''}
+        </div>
+        ${L.map(x=>`<div class="ct-r" data-cedit="${x.id}">
+          <div class="ct-t">
+            <b>${esc(x.descripcion||'Sin descripción')}</b>
+            <span>${x.jobs?esc((x.jobs.propiedades?.nombre||x.jobs.cliente||'')+(x.jobs.unidad?' · '+x.jobs.unidad:'')+' · '+(x.jobs.folio||'')):'sin trabajo ligado'}</span>
+            ${(x.fotos||[]).length?`<span class="ct-f">${(x.fotos||[]).length} ${(x.fotos||[]).length===1?'foto':'fotos'}</span>`:''}
+          </div>
+          <div class="ct-c">
+            ${VE_DINERO()?`<b>${cf(x.cobro||0)}</b>`:''}
+            <span class="chip ${x.pagado?'verde':'ambar'}">${x.pagado?'PAGADO':'POR PAGAR'}</span>
+          </div>
+        </div>`).join('')}
+        ${!L.length?'<div class="ct-vac">Sin trabajo ese día</div>':''}
+      </div>`;}).join('')}`;
+}
+
+let CONS_JOBS=[];
+
+function engancharConstruccion(){
+  const a=$('#cs_atras'); if(a) a.onclick=()=>{ CONS_CT=null; CONS_SEM=null; render(); };
+  const n=$('#cs_nuevo'); if(n) n.onclick=()=>formContratista();
+  document.querySelectorAll('[data-cons]').forEach(b=>b.onclick=()=>{
+    CONS_CT=b.dataset.cons; CONS_SEM=null; render();
+  });
+  document.querySelectorAll('[data-csem]').forEach(b=>b.onclick=()=>{
+    const d=+b.dataset.csem;
+    CONS_SEM = d ? masDias(CONS_SEM||lunesDe(hoy()), d*7) : null;
+    render();
+  });
+  document.querySelectorAll('[data-cadd]').forEach(b=>b.onclick=()=>formBitacora(CONS_CT,b.dataset.cadd));
+  document.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=()=>formBitacora(CONS_CT,null,b.dataset.cedit));
+}
+
+/* ============ Registrar lo que hizo un día ============ */
+async function formBitacora(ctId, fecha, regId){
+  if(!EDIT()) return toast('Solo administración registra la bitácora.');
+  let r={fecha:fecha||hoy(), descripcion:'', cobro:'', job_id:'', pagado:false, notas:'', fotos:[]};
+  if(regId){
+    const {data}=await sb.from('bitacora_contratista').select('*').eq('id',regId).single();
+    if(data) r=data;
+  }
+  const {data:c}=await sb.from('contratistas').select('nombre').eq('id',ctId).single();
+  let FOTOS=(r.fotos||[]).slice();
+
+  const pinta=()=>{
+    $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div class="hd-masc"></div>
+      <div style="min-width:0;flex:1"><div class="mono" style="color:#C3D6F7">CONSTRUCCIÓN</div>
+      <div class="disp" style="font-size:26px">${regId?'Editar registro':'Qué hizo'}</div>
+      <div style="color:#C3D6F7">${esc(c?.nombre||'')} · ${fmt(r.fecha)}</div></div>
+      <button class="x" id="c1">✕</button></div>
+      <div class="franja split"><i></i><i></i></div>
+      <div class="sheet-body">
+
+        <label>Fecha</label>
+        <input id="b_f" type="date" value="${esc(r.fecha)}">
+
+        <label>¿Qué trabajo hizo?</label>
+        <textarea id="b_d" placeholder="Drywall en recámara, 2 hojas · texturizado">${esc(r.descripcion||'')}</textarea>
+
+        <label>¿En qué trabajo?</label>
+        <select id="b_j"><option value="">— sin ligar a un job —</option>
+          ${CONS_JOBS.map(j=>`<option value="${j.id}" ${r.job_id===j.id?'selected':''}>${
+            esc((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · '+j.unidad:'')+' · '+(j.folio||''))}</option>`).join('')}
+        </select>
+
+        <div class="g2">
+          <div><label>¿Cuánto cobra?</label><input class="num" id="b_c" inputmode="decimal" value="${esc(r.cobro||'')}"></div>
+          <div><label>¿Ya se le pagó?</label>
+            <div class="si-no" id="b_p">
+              <button data-bp="1" class="${r.pagado?'on':''}">Sí</button>
+              <button data-bp="0" class="${r.pagado?'':'on'}">No</button>
+            </div></div>
+        </div>
+
+        <div class="eyebrow">Fotos del reporte</div>
+        <div class="sub" style="margin-bottom:7px">Las que mandó al grupo de WhatsApp. Bájalas y súbelas aquí.</div>
+        <input type="file" id="b_fo" accept="image/*" multiple
+          style="padding:12px;width:100%;border:1px dashed var(--linea);border-radius:9px;background:transparent;color:inherit">
+        ${FOTOS.length?`<div class="gal-g" style="margin-top:8px">${FOTOS.map((u,i)=>
+          `<div class="gal-f" style="position:relative">
+            <img src="${esc(u)}" alt="">
+            <button class="fo-x" data-bdel="${i}">✕</button></div>`).join('')}</div>`:''}
+
+        <label>Notas</label>
+        <textarea id="b_n" placeholder="Lo que haga falta anotar">${esc(r.notas||'')}</textarea>
+
+        <div style="height:14px"></div>
+        <button class="btn wide" id="b_ok">Guardar</button>
+        ${regId?`<div style="height:8px"></div>
+        <button class="btn ghost wide" id="b_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar este registro</button>`:''}
+        <div style="height:8px"></div>
+        <button class="btn ghost wide" id="c2">Cancelar</button>
+      </div></div>`;
+
+    $('#c1').onclick=$('#c2').onclick=cerrar;
+    let PAG=!!r.pagado;
+    document.querySelectorAll('[data-bp]').forEach(b=>b.onclick=()=>{
+      PAG=b.dataset.bp==='1';
+      document.querySelectorAll('[data-bp]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+    document.querySelectorAll('[data-bdel]').forEach(b=>b.onclick=()=>{
+      FOTOS.splice(+b.dataset.bdel,1); r.fotos=FOTOS; pinta();
+    });
+
+    $('#b_fo').onchange=async e=>{
+      const fs=[...e.target.files];
+      if(!fs.length) return;
+      toast('Subiendo '+fs.length+'…');
+      for(let i=0;i<fs.length;i++){
+        const nm='ct-'+ctId+'/'+Date.now()+'-'+i+'.jpg';
+        const {error}=await sb.storage.from('capri').upload(nm,fs[i],{contentType:fs[i].type||'image/jpeg'});
+        if(error){ toast('Falló una: '+error.message); continue; }
+        FOTOS.push(sb.storage.from('capri').getPublicUrl(nm).data.publicUrl);
+      }
+      r.fotos=FOTOS; pinta(); toast(FOTOS.length+' fotos');
+    };
+
+    $('#b_ok').onclick=async()=>{
+      const d=$('#b_d').value.trim();
+      if(!d) return toast('Escribe qué trabajo hizo.');
+      const p={contratista_id:ctId, fecha:$('#b_f').value||hoy(),
+        descripcion:d, job_id:$('#b_j').value||null,
+        cobro:Number($('#b_c').value)||0, pagado:PAG,
+        pago_fecha: PAG?hoy():null,
+        notas:$('#b_n').value.trim()||null, fotos:FOTOS};
+      const {error} = regId
+        ? await sb.from('bitacora_contratista').update(p).eq('id',regId)
+        : await sb.from('bitacora_contratista').insert(p);
+      if(error) return toast('No se guardó: '+error.message);
+      cerrar(); toast('Guardado'); render();
+    };
+
+    const bd=$('#b_del');
+    if(bd) bd.onclick=async()=>{
+      if(!confirm('¿Borrar este registro de la bitácora?')) return;
+      const {error}=await sb.from('bitacora_contratista').delete().eq('id',regId);
+      if(error) return toast('No se pudo: '+error.message);
+      cerrar(); toast('Borrado'); render();
+    };
+  };
+  pinta();
+}
 
 /* ============ EQUIPO REGADO EN LAS PROPIEDADES ============
    Cuanto equipo tienes fuera y donde. Sale de dos lados: de lo que
