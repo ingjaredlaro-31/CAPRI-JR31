@@ -4782,7 +4782,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v172 · sin contractors ni hours</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v173 · borrar miembros del equipo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6845,7 +6845,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='172';
+const VERSION='173';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -13934,6 +13934,10 @@ async function formUsuario(id){
       <label>Contraseña ${id?'(dejar vacío para no cambiarla)':''}</label><input id="u_pass" type="password">
       <label><input type="checkbox" id="u_act" ${u.activo?'checked':''} style="width:auto"> Activo</label>
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
+      ${id?`
+      <div class="eyebrow">Dar de baja</div>
+      <div class="sub" style="margin-bottom:8px">Desactivarlo lo saca de las listas pero conserva su historial. Borrarlo lo quita del todo.</div>
+      <button class="btn ghost wide" id="u_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar esta cuenta</button>`:''}
       <div style="height:12px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
@@ -13947,6 +13951,39 @@ async function formUsuario(id){
     const q=id?sb.from('usuarios').update(p).eq('id',id):sb.from('usuarios').insert(p);
     const {error}=await q; if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Personal guardado'); render();
+  };
+
+  const bdel=$('#u_del');
+  if(bdel) bdel.onclick=async()=>{
+    if(id===U.id) return toast('No te puedes borrar a ti mismo.');
+    // Ver qué trae colgando antes de decidir
+    const [{count:nr},{count:nj},{count:na}] = await Promise.all([
+      sb.from('reportes').select('*',{count:'exact',head:true}).eq('tecnico_id',id),
+      sb.from('jobs').select('*',{count:'exact',head:true}).eq('tecnico_id',id),
+      sb.from('asistencias').select('*',{count:'exact',head:true}).eq('usuario_id',id)
+    ]);
+    const trae=[nr?nr+' reportes':'', nj?nj+' trabajos':'', na?na+' checadas':''].filter(Boolean);
+
+    if(trae.length){
+      if(!confirm((u.nombre||'')+' tiene '+trae.join(', ')+'.\n\n'+
+        'Si lo borras, su nombre se guarda en los reportes pero deja de aparecer como técnico.\n\n'+
+        '¿Prefieres desactivarlo? Cancela y desmarca la casilla de Activo.\n\n'+
+        'Aceptar = BORRAR de todas formas.')) return;
+    } else {
+      if(!confirm('¿Borrar la cuenta de '+(u.nombre||'')+'? No tiene nada colgando.')) return;
+    }
+
+    // Guardar el nombre en los reportes para no perder el historial
+    if(nr) await sb.from('reportes').update({tecnico_nombre:u.nombre}).eq('tecnico_id',id).is('tecnico_nombre',null);
+    await sb.from('reportes').update({tecnico_id:null}).eq('tecnico_id',id);
+    await sb.from('jobs').update({tecnico_id:null}).eq('tecnico_id',id);
+    await sb.from('asignaciones').delete().eq('tecnico_id',id);
+    await sb.from('asistencias').delete().eq('usuario_id',id);
+    await sb.from('ubicaciones').delete().eq('usuario_id',id);
+    await sb.from('notificaciones').delete().eq('para_usuario',id);
+    const {error}=await sb.from('usuarios').delete().eq('id',id);
+    if(error) return toast('No se pudo borrar: '+error.message);
+    cerrar(); toast((u.nombre||'Cuenta')+' borrada'); render();
   };
 }
 async function formContratista(id){
