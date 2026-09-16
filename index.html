@@ -238,6 +238,13 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.hm-cer{width:100%;text-align:left;background:var(--sup2);border:1px solid var(--linea);
+  border-left:4px solid var(--gris);border-radius:10px;padding:11px 15px;margin-bottom:12px;
+  cursor:pointer;font-size:14.5px;color:var(--tinta)}
+.hm-cer:hover{border-left-color:var(--azul)}
+.hm-cer b{font-family:var(--disp);font-size:19px;margin-right:3px}
+.hm-cer span{display:block;font-size:12px;color:var(--gris);margin-top:2px}
+
 .jc-av{display:inline-block;background:var(--azul);color:#fff;border-radius:6px;
   padding:4px 11px;margin-top:10px;font-family:var(--mono);font-size:11px;
   font-weight:700;letter-spacing:.06em}
@@ -4815,7 +4822,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v175 · avisos por trabajo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v176 · lo primero solo abierto</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6880,7 +6887,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='175';
+const VERSION='176';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9697,18 +9704,26 @@ async function vHome(){
     return dias(u,h)>=2;
   }).map(x=>({d:dias(ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10),h), x,
              tipo:'rep', txt:'sin reporte', acc:'VER'}));
-  const espera = E.map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e,
+  const idsAb=new Set(activos.map(x=>x.id));
+  const espera = E.filter(e=>!e.job_id || idsAb.has(e.job_id))
+    .map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e,
              tipo:'est', txt:'estimado sin respuesta', acc:'INSISTIR'})).filter(o=>o.d>=5);
-  const porFac = J.filter(x=>x.estatus==='terminado' && !x.invoice_num)
+  // LO PRIMERO es solo trabajo ABIERTO. Lo que ya se cerró no vuelve
+  // a aparecer aquí aunque falte cobrarlo: eso vive en Facturación.
+  const porFac = activos.filter(x=>!factFl(x) ? x.estatus==='terminado'
+                                : (repsH(x).length>0 && repsH(x).every(y=>y.estatus==='terminada') && !x.invoice_rep_num))
     .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac',
               txt: factFl(x)?'reparación lista, falta cobrarla':'falta facturar el flood',
               acc:'FACTURAR'}));
-  const porCob = J.filter(x=>x.invoice_num && !x.invoice_pagado)
+  const porCob = activos.filter(x=>x.invoice_num && !x.invoice_pagado)
     .map(x=>({d:x.invoice_fecha?dias(x.invoice_fecha,h):0, x, tipo:'cob', txt:'factura sin pago', acc:'COBRAR'}))
     .filter(o=>o.d>=30);
   const porRev = P.filter(x=>x.estatus==='terminado' && !x.revisado);
 
-  const tCob = J.filter(x=>x.invoice_num&&!x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const tCob = activos.filter(x=>x.invoice_num&&!x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  // Lo cerrado pero sin pagar no desaparece: se cuenta aparte
+  const cerradoSinPago = J.filter(x=>cerrado(x) && x.invoice_num && !x.invoice_pagado);
+  const tCerradoSinPago = cerradoSinPago.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
   const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
 
   const [arranque, zonas] = await Promise.all([bloqueArranque(), bloqueZonas()]);
@@ -9752,6 +9767,11 @@ async function vHome(){
         <em>${esc(a.usuarios?.nombre||'sin técnico')}</em></button>`).join('')}</div>`:''}
 
     ${arranque}
+
+    ${cerradoSinPago.length?`<button class="hm-cer" data-hk="cob">
+      <b>${cerradoSinPago.length}</b> ${cerradoSinPago.length===1?'factura cerrada sin pago':'facturas cerradas sin pago'}${
+        VE_DINERO()&&tCerradoSinPago?' · '+cf(tCerradoSinPago):''}
+      <span>trabajos ya cerrados · míralos en Facturación ›</span></button>`:''}
 
     <div class="eyebrow">🔥 Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
     ${urge.length? `<div class="hm-lista">${urge.slice(0,7).map(o=>`
