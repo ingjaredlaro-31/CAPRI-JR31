@@ -238,6 +238,30 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.jc-av{display:inline-block;background:var(--azul);color:#fff;border-radius:6px;
+  padding:4px 11px;margin-top:10px;font-family:var(--mono);font-size:11px;
+  font-weight:700;letter-spacing:.06em}
+
+/* Avisos del trabajo */
+.avj{background:linear-gradient(135deg,rgba(27,86,211,.15),rgba(27,86,211,.05));
+  border:1px solid var(--azul);border-left:5px solid var(--azul);
+  border-radius:11px;padding:13px 16px;margin-bottom:14px}
+.avj-h{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:8px}
+.avj-h b{flex:1;font-family:var(--disp);font-size:19px;color:var(--azul);text-transform:uppercase}
+.avj-i{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--linea)}
+.avj-p{width:7px;height:7px;border-radius:50%;background:var(--azul);flex-shrink:0;margin-top:7px}
+.avj-t{flex:1;min-width:0}
+.avj-t b{display:block;font-size:15px;font-weight:600;line-height:1.25}
+.avj-t em{font-style:normal;font-size:13.5px;color:var(--tinta);display:block;line-height:1.35}
+.avj-t span{font-family:var(--mono);font-size:10.5px;color:var(--gris)}
+.avj-i.vista .avj-t b{color:var(--gris);font-weight:500}
+.avj-ant{border:1px solid var(--linea);border-radius:10px;margin-bottom:14px;padding:0 15px}
+.avj-ant summary{list-style:none;cursor:pointer;padding:12px 0;font-family:var(--mono);
+  font-size:11px;letter-spacing:.09em;color:var(--gris)}
+.avj-ant summary::-webkit-details-marker{display:none}
+.avj-ant summary::after{content:' ▾'}
+.avj-ant[open] summary::after{content:' ▴'}
+
 .ct-cab{display:flex;align-items:center;gap:13px;background:var(--sup);border:1px solid var(--linea);
   border-left:5px solid var(--oro);border-radius:11px;padding:13px 16px;margin-bottom:12px}
 .ct-n{flex:1;min-width:0}
@@ -1800,6 +1824,15 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = s => document.querySelector(s);
 const hoy = () => new Date().toLocaleDateString('en-CA');
 const fmt = d => d ? d.split('-').reverse().join('/') : '—';
+// Fecha y hora corta para los avisos: "16 sep 10:42"
+const fmtHora = ts => {
+  if(!ts) return '';
+  try{
+    const d=new Date(ts);
+    return d.toLocaleDateString('es-MX',{day:'numeric',month:'short'})
+         +' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return ''; }
+};
 const esc = s => (s??'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cf = n => '$'+Number(n||0).toLocaleString('en-US');
 const hace = d => { const x=new Date(); x.setDate(x.getDate()-d); return x.toLocaleDateString('en-CA'); };
@@ -4782,7 +4815,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v174 · sin menú de estimados</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v175 · avisos por trabajo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6847,7 +6880,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='174';
+const VERSION='175';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7768,18 +7801,20 @@ async function formContacto(id, mgId, props){
 let JNIVEL='mgmt', JMG=null, JPROP=null;
 
 async function vJobs(){
-  const [{data:jobs},{data:reps},{data:parts},{data:ests}] = await Promise.all([
+  const [{data:jobs},{data:reps},{data:parts},{data:ests},{data:avisos}] = await Promise.all([
     sb.from('jobs').select('*, managements(id,nombre), usuarios(nombre), propiedades(id,nombre,direccion,ciudad)')
       .eq('departamento',DEP).order('created_at',{ascending:false}).limit(400),
     sb.from('reportes').select('job_id,fecha').limit(2000),
     sb.from('partidas').select('job_id,estatus,revisado,costo,cobro'),
-    sb.from('estimados').select('job_id,estatus,monto')
+    sb.from('estimados').select('job_id,estatus,monto'),
+    sb.from('notificaciones').select('job_id').eq('leida',false).not('job_id','is',null)
   ]);
   const TODOS=jobs||[];
   const nRep={}, part={}, est={};
   (reps||[]).forEach(x=>nRep[x.job_id]=(nRep[x.job_id]||0)+1);
   (parts||[]).forEach(x=>(part[x.job_id] ||= []).push(x));
   (ests||[]).forEach(x=>(est[x.job_id] ||= []).push(x));
+  const avJ={}; (avisos||[]).forEach(x=>avJ[x.job_id]=(avJ[x.job_id]||0)+1);
 
   const etapa=j=>{
     const man=j.docs||[], P=part[j.id]||[], E=est[j.id]||[];
@@ -7998,6 +8033,7 @@ async function vJobs(){
                    : 'En proceso';
           return `<div class="jc-cerrar ${esRepSinFac(j)?'urg':''}">
             <b>${et}</b><span>Le falta: ${esc(f.join(' \u00b7 '))}</span></div>`;})()}
+        ${avJ[j.id]?`<div class="jc-av">${avJ[j.id]} ${avJ[j.id]===1?'aviso nuevo':'avisos nuevos'}</div>`:''}
         ${j.nota_estatus?`<div class="jc-nota">${esc(j.nota_estatus)}</div>`:''}
         <div class="mos-b">
           <span class="jc-chip ${e.tieneEst?'azul':'rojo'}">${e.tieneEst?'CON ESTIMADO':'SIN ESTIMADO'}</span>
@@ -11773,6 +11809,11 @@ async function abrirJob(id){
   ]);
   if(!MIO_DEP(j&&j.departamento)) return sinAcceso();
   const R=reps||[], PT=part||[], N=nts||[], RC=rec||[];
+  // Avisos de ESTE trabajo: lo que mandó el técnico y nadie ha visto
+  const {data:avs}=await sb.from('notificaciones')
+    .select('id,titulo,texto,tipo,leida,de_usuario,created_at')
+    .eq('job_id',id).order('created_at',{ascending:false}).limit(30);
+  const AV=avs||[], AVN=AV.filter(x=>!x.leida);
   const P=PT.filter(x=>(x.clase||'reparacion')==='reparacion');
   const SV=PT.filter(x=>x.clase==='servicio');
   let CT=[];
@@ -11806,6 +11847,30 @@ async function abrirJob(id){
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
+
+      ${AVN.length?`
+      <div class="avj no-print">
+        <div class="avj-h">
+          <b>${AVN.length} ${AVN.length===1?'aviso nuevo':'avisos nuevos'} de este trabajo</b>
+          <button class="btn mini" id="avj_ok">MARCAR VISTOS</button>
+        </div>
+        ${AVN.slice(0,6).map(x=>`<div class="avj-i">
+          <span class="avj-p"></span>
+          <div class="avj-t"><b>${esc(x.titulo||'')}</b>
+            <em>${esc(x.texto||'')}</em>
+            <span>${esc(x.de_usuario||'')} · ${fmtHora(x.created_at)}</span></div>
+        </div>`).join('')}
+        ${AVN.length>6?`<div class="sub" style="margin-top:6px">y ${AVN.length-6} más</div>`:''}
+      </div>`:''}
+
+      ${(AV.length&&!AVN.length)?`<details class="avj-ant no-print">
+        <summary>Ver los ${AV.length} avisos de este trabajo</summary>
+        ${AV.map(x=>`<div class="avj-i vista">
+          <div class="avj-t"><b>${esc(x.titulo||'')}</b>
+            <em>${esc(x.texto||'')}</em>
+            <span>${esc(x.de_usuario||'')} · ${fmtHora(x.created_at)}</span></div>
+        </div>`).join('')}
+      </details>`:''}
 
       ${(j.nota_estatus||EDIT())?`
       <div class="nest ${j.nota_estatus?'hay':'vacia'} no-print" id="nest_box">
@@ -12560,6 +12625,15 @@ async function abrirJob(id){
   });
   const pad=$('#pa_det');
   if(pad) pad.ontoggle=()=>{ VER_ETAPAS=pad.open; };
+  const bav=$('#avj_ok');
+  if(bav) bav.onclick=async()=>{
+    const ids=AVN.map(x=>x.id);
+    if(!ids.length) return;
+    const {error}=await sb.from('notificaciones').update({leida:true}).in('id',ids);
+    if(error) return toast('No se pudo: '+error.message);
+    await contarNotif();
+    toast(ids.length+' marcados como vistos'); abrirJob(id);
+  };
   const bfo=$('#fo_org'); if(bfo) bfo.onclick=()=>organizarFotos(id);
   const GAL=[...document.querySelectorAll('[data-verf]')].map(x=>({u:x.dataset.verf, a:x.dataset.vera}));
   document.querySelectorAll('[data-verf]').forEach((x,i)=>x.onclick=()=>abrirVisor(GAL,i));
