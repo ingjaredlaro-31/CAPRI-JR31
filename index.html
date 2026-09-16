@@ -4570,8 +4570,8 @@ const IRA_ALIAS = {
   resumen:'inicio home principal pulso', dia:'control checadas hoy pendientes',
   jobs:'trabajos obras', inicial:'levantamiento reporte inicial',
   mapa:'ruta rutas mapa gps direcciones', schedule:'agenda calendario citas',
-  estimados:'estimado cotizacion cotizaciones presupuesto',
-  cobranza:'factura facturas facturacion cobrar pagos invoice dinero',
+
+  cobranza:'factura facturas facturacion cobrar pagos invoice dinero estimado estimados cotizacion presupuesto',
   construccion:'contratistas subcontratos nomina pago semana bitacora',
   mgmt:'management propiedades clientes complejos',
   equipo:'usuarios personal tecnicos contraseñas acceso',
@@ -4698,8 +4698,8 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['estimados',BI('Estimados','Estimates')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['estimados','Estimados'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
@@ -4707,7 +4707,7 @@ function shell(html){
   const GRUPO_DE = {
     dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA',
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
-    estimados:'DINERO', cobranza:'DINERO', cpartes:'DINERO', choras:'DINERO',
+    cobranza:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', equipo:'DIRECTORIO',
     import:'HERRAMIENTAS', buscar:'HERRAMIENTAS', historial:'DINERO', precios:'DINERO', rastro:'DÍA A DÍA', construccion:'TRABAJOS'
   };
@@ -4782,7 +4782,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v173 · borrar miembros del equipo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v174 · sin menú de estimados</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -4918,6 +4918,8 @@ async function render(){
     if(V==='dia')       return shell(await vControl());
     // Contratistas y Horas se retiraron: todo eso vive ahora en Construcción.
     if(V==='horas' || V==='partes'){ V='construccion'; return render(); }
+    // Estimados se retiró del menú: viven dentro de Facturación.
+    if(V==='estimados'){ V='cobranza'; COBTAB='estimados'; return render(); }
     if(V==='buscar')    return shell(await vBuscar());
     if(V==='jobs')      return shell(await vJobs());
     if(V==='schedule')  return shell(await vSchedule());
@@ -6845,7 +6847,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='173';
+const VERSION='174';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -12750,7 +12752,7 @@ async function abrirJob(id){
   };
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
     const d=b.dataset.go;
-    if(d==='estimados'){ cerrar(); V='estimados'; render(); return; }
+    if(d==='estimados'){ cerrar(); V='cobranza'; COBTAB='estimados'; render(); return; }
     if(d==='invoice'){ return j.departamento==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id); }
     if(d==='invoice_rep'){ return formInvoiceRep(id); }
     const dest=document.getElementById(d==='reportes'?'sec_reportes':'sec_reparaciones');
