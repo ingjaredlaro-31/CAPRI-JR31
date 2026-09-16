@@ -4387,7 +4387,7 @@ function portada(){
             <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
 
         <div class="grupo-et">${PT('Field crews','Personal de campo')}</div>
-        ${['restoration','carpet','contratista'].filter(k=>CARPET_ON||k!=='carpet').map(k=>{const v=PUERTAS[k];return `
+        ${['restoration','carpet'].filter(k=>CARPET_ON||k!=='carpet').map(k=>{const v=PUERTAS[k];return `
           <button class="puerta" data-p="${k}" style="border-left-color:${v.c}">
             <span class="t">${v.t}</span><span class="s">${v.s}</span></button>`;}).join('')}
       </div>
@@ -4529,6 +4529,8 @@ async function entrar(){
     .eq('password_hash',await sha256(p)).eq('activo',true).maybeSingle();
   if(error) return errLogin('No hay conexión con la base de datos.');
   if(!data) return errLogin('Usuario o contraseña incorrectos.');
+  // La puerta de contratistas se quitó: no servía y nadie la usa.
+  if(PUERTA==='contratista') return errLogin('Esa entrada ya no existe. Regresa y entra por tu puerta.');
   const areaP = AREA_PUERTA[PUERTA];
   if(areaP){
     // Por esta puerta entran gerentes y técnicos del área.
@@ -4780,7 +4782,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v170 · área de construcción</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v171 · sin puerta de contratista</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6843,7 +6845,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='170';
+const VERSION='171';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
