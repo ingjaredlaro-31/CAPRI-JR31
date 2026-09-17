@@ -238,6 +238,33 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+/* La semana en números */
+.sem{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px;margin-bottom:16px}
+.sem div{background:var(--sup);border:1px solid var(--linea);border-radius:10px;padding:12px 14px}
+.sem b{display:block;font-family:var(--disp);font-size:27px;line-height:1}
+.sem span{font-size:11.5px;color:var(--gris)}
+/* Actividad en vivo */
+.fe{display:flex;flex-direction:column;border-left:2px solid var(--linea);margin-left:6px}
+.fe-i{display:flex;align-items:center;gap:12px;padding:10px 4px 10px 16px;position:relative;
+  cursor:pointer;transition:background .12s}
+.fe-i.nolink{cursor:default}
+.fe-i:not(.nolink):hover{background:var(--sup2)}
+.fe-c{position:absolute;left:-13px;width:24px;height:24px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  border:2px solid var(--fondo);flex-shrink:0}
+.fe-c.az{background:var(--azul);color:#fff}
+.fe-c.ve{background:var(--verde);color:#042415}
+.fe-c.am{background:var(--oro);color:#1A1206}
+.fe-c.ro{background:var(--rojo);color:#fff}
+.fe-t{flex:1;min-width:0;padding-left:8px}
+.fe-t b{display:block;font-size:15px;font-weight:600;line-height:1.2}
+.fe-t em{font-style:normal;font-size:12.5px;color:var(--gris);display:block;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fe-r{text-align:right;flex-shrink:0}
+.fe-x{display:block;font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--verde)}
+.fe-h{font-family:var(--mono);font-size:10px;color:var(--gris)}
+@media(max-width:520px){ .fe-t em{white-space:normal} }
+
 
 .jc-av{display:inline-block;background:var(--azul);color:#fff;border-radius:6px;
   padding:4px 11px;margin-top:10px;font-family:var(--mono);font-size:11px;
@@ -4816,7 +4843,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v178 · sin perseguir pagos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v179 · actividad en vivo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6881,7 +6908,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='178';
+const VERSION='179';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9595,6 +9622,115 @@ async function formBitacora(ctId, fecha, regId){
   pinta();
 }
 
+/* ============ ACTIVIDAD EN VIVO ============
+   Lo que está pasando ahorita: reportes que entran, trabajos que
+   abren, facturas que salen, fotos que suben. Todo en una sola
+   línea de tiempo para que se sienta el movimiento del día. */
+
+async function actividadViva(){
+  const h=hoy(), desde=hace(7);
+  const [{data:reps},{data:jobs},{data:bit},{data:avs}] = await Promise.all([
+    sb.from('reportes')
+      .select('id,job_id,fecha,created_at,tipo_reporte,trabajo_realizado,fotos,no_visita, usuarios(nombre), jobs(folio,cliente,unidad,departamento, propiedades(nombre))')
+      .gte('fecha',desde).order('created_at',{ascending:false}).limit(40),
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,created_at,fecha_inicio,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num, propiedades(nombre), usuarios(nombre)')
+      .eq('departamento',DEPV()).gte('created_at',desde+'T00:00:00').order('created_at',{ascending:false}).limit(25),
+    sb.from('bitacora_contratista')
+      .select('id,fecha,descripcion,cobro,created_at, contratistas(nombre), jobs(folio, propiedades(nombre))')
+      .gte('fecha',desde).order('created_at',{ascending:false}).limit(25),
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,invoice_num,invoice_fecha,invoice_monto, propiedades(nombre)')
+      .eq('departamento',DEPV()).not('invoice_num','is',null)
+      .gte('invoice_fecha',desde).order('invoice_fecha',{ascending:false}).limit(20)
+  ]);
+
+  const ev=[];
+  (reps||[]).forEach(r=>{
+    if(r.jobs && r.jobs.departamento!==DEPV()) return;
+    const prop=r.jobs?.propiedades?.nombre||r.jobs?.cliente||'';
+    ev.push({t:r.created_at||r.fecha, tipo: r.no_visita?'nofue':'rep', job:r.job_id,
+      quien:r.usuarios?.nombre||'', 
+      que: r.no_visita ? 'No pudo entrar'
+         : r.tipo_reporte==='inicial' ? 'Levantó el trabajo' : 'Mandó su reporte',
+      det: prop+(r.jobs?.unidad?' · '+r.jobs.unidad:'')+(r.jobs?.folio?' · '+r.jobs.folio:''),
+      extra: (r.fotos||[]).length ? (r.fotos||[]).length+' fotos' : ''});
+  });
+  (jobs||[]).forEach(j=>{
+    ev.push({t:j.created_at, tipo:'nuevo', job:j.id,
+      quien:j.usuarios?.nombre||'', que:'Trabajo nuevo',
+      det:(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · '+j.unidad:'')+' · '+(j.folio||''),
+      extra:j.tipo||''});
+  });
+  (avs||[]).forEach(j=>{
+    ev.push({t:(j.invoice_fecha||'')+'T12:00:00', tipo:'fact', job:j.id,
+      quien:'', que:'Se facturó',
+      det:(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · '+j.unidad:'')+' · inv '+(j.invoice_num||''),
+      extra: (VE_DINERO()&&j.invoice_monto)?cf(j.invoice_monto):''});
+  });
+  (bit||[]).forEach(b=>{
+    ev.push({t:b.created_at||b.fecha, tipo:'obra', job:null,
+      quien:b.contratistas?.nombre||'', que:'Trabajo de construcción',
+      det:(b.descripcion||'').slice(0,70)+(b.jobs?.propiedades?.nombre?' · '+b.jobs.propiedades.nombre:''),
+      extra:(VE_DINERO()&&b.cobro)?cf(b.cobro):''});
+  });
+
+  ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+
+  const ICO={rep:'✎', nofue:'✕', nuevo:'▲', fact:'$', obra:'⚒'};
+  const COL={rep:'az', nofue:'ro', nuevo:'ve', fact:'ve', obra:'am'};
+  const hoyEv=ev.filter(e=>String(e.t).slice(0,10)===h).length;
+
+  // La semana en números
+  const semReps=(reps||[]).filter(r=>!r.no_visita).length;
+  const semNuevos=(jobs||[]).length;
+  const semFact=(avs||[]).reduce((a,j)=>a+Number(j.invoice_monto||0),0);
+  const semObra=(bit||[]).reduce((a,b)=>a+Number(b.cobro||0),0);
+
+  return `
+    <div class="eyebrow">Los últimos 7 días</div>
+    <div class="sem">
+      <div><b>${semNuevos}</b><span>trabajos nuevos</span></div>
+      <div><b>${semReps}</b><span>reportes</span></div>
+      ${VE_DINERO()?`<div><b>${cf(semFact)}</b><span>facturado</span></div>`:''}
+      ${VE_DINERO()?`<div><b>${cf(semObra)}</b><span>construcción</span></div>`:''}
+    </div>
+
+    <div class="eyebrow">En vivo${hoyEv?' · '+hoyEv+' hoy':''}</div>
+    ${ev.length? `<div class="fe">${ev.slice(0,14).map(e=>`
+      <div class="fe-i ${e.job?'':'nolink'}" ${e.job?`data-hj="${e.job}"`:''}>
+        <span class="fe-c ${COL[e.tipo]}">${ICO[e.tipo]}</span>
+        <div class="fe-t">
+          <b>${esc(e.que)}${e.quien?' · '+esc(e.quien):''}</b>
+          <em>${esc(e.det)}</em>
+        </div>
+        <div class="fe-r">
+          ${e.extra?`<span class="fe-x">${esc(e.extra)}</span>`:''}
+          <span class="fe-h">${fmtRel(e.t)}</span>
+        </div>
+      </div>`).join('')}</div>`
+    : `<div class="ok"><div class="t">Sin movimiento esta semana.</div>
+       <div class="sub">Aquí aparecen los reportes, trabajos nuevos y facturas conforme entran.</div></div>`}
+    <div style="height:16px"></div>`;
+}
+
+// "hace 2 h", "ayer", "mar 14"
+function fmtRel(ts){
+  if(!ts) return '';
+  try{
+    const d=new Date(ts), ahora=new Date();
+    const min=Math.round((ahora-d)/60000);
+    if(min<2) return 'ahorita';
+    if(min<60) return 'hace '+min+' min';
+    const hr=Math.round(min/60);
+    if(hr<24) return 'hace '+hr+' h';
+    const dd=Math.round(hr/24);
+    if(dd===1) return 'ayer';
+    if(dd<7) return 'hace '+dd+' días';
+    return d.toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+  }catch(e){ return ''; }
+}
+
 /* ============ EQUIPO REGADO EN LAS PROPIEDADES ============
    Cuanto equipo tienes fuera y donde. Sale de dos lados: de lo que
    el tecnico captura en su reporte, y de lo que dice el scope. */
@@ -9725,7 +9861,7 @@ async function vHome(){
 
   const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
 
-  const [arranque, zonas] = await Promise.all([bloqueArranque(), bloqueZonas()]);
+  const [arranque, zonas, viva] = await Promise.all([bloqueArranque(), bloqueZonas(), actividadViva()]);
   const nom=(o)=> o.tipo==='est' ? (o.x.cliente||'Sin nombre')
                 : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
   const col={rep:'m',est:'am',fac:'r',cob:'r'};
@@ -9764,6 +9900,8 @@ async function vHome(){
         <b>${esc(a.hora||'--:--')}</b>
         <span>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</span>
         <em>${esc(a.usuarios?.nombre||'sin técnico')}</em></button>`).join('')}</div>`:''}
+
+    ${viva}
 
     ${arranque}
 
