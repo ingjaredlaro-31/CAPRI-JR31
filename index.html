@@ -4822,7 +4822,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v176 · lo primero solo abierto</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v177 · home cuadrado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6887,7 +6887,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='176';
+const VERSION='177';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -9685,17 +9685,24 @@ async function vHome(){
   const h=hoy();
   const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,scope,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,precio_carpet, propiedades(nombre), usuarios(nombre)')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,scope,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,invoice_rep_num,rep_resolucion,precio_carpet, propiedades(nombre), usuarios(nombre)')
       .eq('departamento',DEPV()).limit(500),
     sb.from('asignaciones').select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
     sb.from('reportes').select('job_id,fecha,revisado,deshu_inst,air_inst,scrub_inst').gte('fecha',hace(60)),
     sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at').eq('departamento',DEPV()).eq('estatus','enviado'),
-    sb.from('partidas').select('id,job_id,nombre,estatus,revisado')
+    sb.from('partidas').select('id,job_id,nombre,estatus,revisado,clase')
   ]);
 
   const J=jobs||[], R=reps||[], E=ests||[], P=parts||[];
   const A=(asig||[]).filter(a=>a.jobs && a.jobs.departamento===DEPV());
-  const activos=J.filter(x=>!['terminado','facturado'].includes(x.estatus) && !x.invoice_num);
+
+  // MISMA REGLA QUE EN JOBS: el trabajo sigue abierto hasta que están
+  // las dos facturas, o hasta que se resolvió que no lleva reparación.
+  const repsH   = x => P.filter(y=>y.job_id===x.id && (y.clase||'reparacion')==='reparacion');
+  const factFl  = x => !!x.invoice_num || x.estatus==='facturado';
+  const repOkH  = x => !!x.invoice_rep_num || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
+  const cerrado = x => factFl(x) && repOkH(x);
+  const activos = J.filter(x=>!cerrado(x));
   const ultRep={}; R.forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
 
   // ── Las cuatro cosas que importan ──
