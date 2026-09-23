@@ -238,6 +238,17 @@ nav .dot{position:absolute;top:5px;right:calc(50% - 24px);width:7px;height:7px;b
   border-radius:8px;padding:12px 18px;font-family:var(--disp);font-size:17px;font-weight:700;text-transform:uppercase;
   letter-spacing:.02em;cursor:pointer;text-decoration:none;box-shadow:0 1px 3px rgba(27,86,211,.25);transition:transform .12s}
 .btn:active{transform:translateY(1px)}
+.falta-sc{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--rojo-l);border:1px solid var(--rojo);border-left:5px solid var(--rojo);
+  border-radius:11px;padding:12px 16px;margin-bottom:14px}
+.falta-sc .fs-t{flex:1;min-width:190px}
+.falta-sc .fs-t b{display:block;font-family:var(--disp);font-size:20px;color:var(--rojo);
+  text-transform:uppercase;line-height:1.1}
+.falta-sc .fs-t span{font-size:13.5px;color:var(--tinta)}
+.jc-sc{display:inline-block;background:var(--rojo);color:#fff;border-radius:6px;
+  padding:4px 11px;margin-top:10px;margin-right:6px;font-family:var(--mono);
+  font-size:11px;font-weight:700;letter-spacing:.06em}
+
 /* La semana en números */
 .sem{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px;margin-bottom:16px}
 .sem div{background:var(--sup);border:1px solid var(--linea);border-radius:10px;padding:12px 14px}
@@ -4901,7 +4912,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v180 · iniciales del técnico</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v181 · ruta completa y falta scope</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6966,7 +6977,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='180';
+const VERSION='181';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -7305,14 +7316,40 @@ async function vMapa(){
 
 async function rutaDelTecnico(){
   const h=hoy();
-  const {data}=await sb.from('asignaciones')
+  const dep = U.departamento==='ambos'?null:U.departamento;
+
+  // 1 · Lo agendado para hoy
+  const {data} = await sb.from('asignaciones')
     .select('hora, jobs(*, propiedades(nombre,lat,lng), managements(nombre))')
     .eq('tecnico_id',U.id).eq('fecha',h).order('hora');
-  const items=(data||[]).map(a=>({job:a.jobs,hora:a.hora}));
+
+  // 2 · Y TODOS sus trabajos abiertos, tengan o no visita agendada.
+  //     Un trabajo activo sin reportar sigue siendo su responsabilidad.
+  let qa = sb.from('jobs')
+    .select('*, propiedades(nombre,lat,lng), managements(nombre)')
+    .eq('tecnico_id',U.id)
+    .not('estatus','in','("terminado","facturado")');
+  if(dep) qa = qa.eq('departamento',dep);
+  const {data:mios} = await qa;
+
+  const ultRep={};
+  const idsM=(mios||[]).map(x=>x.id);
+  if(idsM.length){
+    const {data:rr}=await sb.from('reportes').select('job_id,fecha').in('job_id',idsM);
+    (rr||[]).forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
+  }
+
+  const vistos=new Set();
+  const items=[];
+  (data||[]).forEach(a=>{ if(a.jobs){ vistos.add(a.jobs.id); items.push({job:a.jobs,hora:a.hora,agendado:true}); } });
+  (mios||[]).forEach(j=>{ if(!vistos.has(j.id)) items.push({job:j,hora:null,agendado:false,
+      ultimo:ultRep[j.id]||null, dias:dias(ultRep[j.id]||j.fecha_inicio||(j.created_at||'').slice(0,10),h)}); });
+  // Primero lo agendado, luego lo que más días lleva sin reportar
+  items.sort((a,b)=> a.agendado!==b.agendado ? (a.agendado?-1:1) : ((b.dias||0)-(a.dias||0)));
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
     <div><div class="mono" style="font-size:11px;color:#C3D6F7">MI RUTA</div>
     <div class="disp" style="font-size:21px;line-height:1">${fmt(h)}</div>
-    <div style="font-size:13px;color:#C3D6F7">${items.length} paradas</div></div>
+    <div style="font-size:13px;color:#C3D6F7">${items.length} ${items.length===1?'parada':'paradas'} · ${items.filter(x=>x.agendado).length} agendadas</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
@@ -7320,12 +7357,19 @@ async function rutaDelTecnico(){
       <div id="rinfo" style="margin-bottom:10px"></div>
       <a class="btn wide no-print" id="glink" target="_blank" rel="noopener" href="#">Abrir ruta en Google Maps</a>
       <div class="eyebrow">Orden de visitas</div>
-      ${items.map((it,i)=>`<div class="fila a">
+      ${items.map((it,i)=>{
+        const reportadoHoy = it.ultimo===h;
+        const cl = it.agendado?'a' : reportadoHoy?'' : (it.dias>=3?'r':'m');
+        return `<div class="fila ${cl}" data-vj="${it.job.id}" style="cursor:pointer">
         <span class="disp" style="font-size:22px;width:30px;flex:0 0 30px;text-align:center;color:var(--azul)">${i+1}</span>
         <div class="t"><b>${esc(it.job.propiedades?.nombre||it.job.cliente)}</b>
         <span class="sub">${it.job.unidad?'Unit '+esc(it.job.unidad)+' · ':''}${esc(it.job.direccion||'')}</span>
-        ${it.hora?`<span class="meta">Llegada ${esc(it.hora)}</span>`:''}</div>
-      </div>`).join('')||'<div class="sub">Sin visitas hoy.</div>'}
+        <span class="meta">${it.agendado ? (it.hora?'Llegada '+esc(it.hora):'Agendado hoy')
+          : it.ultimo ? ('último reporte '+fmt(it.ultimo)+' · '+it.dias+' días')
+          : 'nunca se ha reportado'}</span>
+        ${!it.job.scope?'<span class="meta" style="color:var(--rojo)">Falta el scope of work</span>':''}</div>
+        ${!it.agendado?`<span class="chip ${it.dias>=3?'rojo':'ambar'}">SIN AGENDAR</span>`:''}
+      </div>`;}).join('')||'<div class="sub">No tienes trabajos abiertos.</div>'}
       <div style="height:18px"></div>
       <button class="btn ghost wide no-print" id="c2">Cerrar</button>
     </div></div>`;
@@ -8119,6 +8163,7 @@ async function vJobs(){
                    : 'En proceso';
           return `<div class="jc-cerrar ${esRepSinFac(j)?'urg':''}">
             <b>${et}</b><span>Le falta: ${esc(f.join(' \u00b7 '))}</span></div>`;})()}
+        ${!j.scope?'<div class="jc-sc">Falta el scope of work</div>':''}
         ${avJ[j.id]?`<div class="jc-av">${avJ[j.id]} ${avJ[j.id]===1?'aviso nuevo':'avisos nuevos'}</div>`:''}
         ${j.nota_estatus?`<div class="jc-nota">${esc(j.nota_estatus)}</div>`:''}
         <div class="mos-b">
@@ -12058,6 +12103,12 @@ async function abrirJob(id){
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
 
+      ${!j.scope?`<div class="falta-sc no-print">
+        <div class="fs-t"><b>Falta el scope of work</b>
+          <span>Sin scope nadie sabe qué se va a hacer, y no se pueden sacar las reparaciones.</span></div>
+        ${EDIT()?'<button class="btn mini" id="sc_add">ESCRIBIRLO</button>':''}
+      </div>`:''}
+
       ${AVN.length?`
       <div class="avj no-print">
         <div class="avj-h">
@@ -12835,6 +12886,7 @@ async function abrirJob(id){
   });
   const pad=$('#pa_det');
   if(pad) pad.ontoggle=()=>{ VER_ETAPAS=pad.open; };
+  const bsc=$('#sc_add'); if(bsc) bsc.onclick=()=>editarScope(id, j.scope||'');
   const bav=$('#avj_ok');
   if(bav) bav.onclick=async()=>{
     const ids=AVN.map(x=>x.id);
