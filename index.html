@@ -1984,6 +1984,30 @@ const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 /* ==================== ENVÍO Y REVISIÓN DEL LEVANTAMIENTO ==================== */
 async function enviarLevantamiento(){
   const d=G.d;
+
+  // No puede haber dos veces la misma unidad de la misma propiedad.
+  // Se revisa contra los trabajos abiertos y contra los iniciales pendientes.
+  if(d.unidad && (d.prop_id || d.propiedad_texto)){
+    const u=String(d.unidad).trim().toLowerCase();
+    let qj=sb.from('jobs').select('id,folio,cliente,unidad,estatus, propiedades(nombre)')
+      .eq('departamento',G.dep).not('estatus','in','("facturado")');
+    qj = d.prop_id ? qj.eq('propiedad_id',d.prop_id) : qj.ilike('cliente','%'+(d.propiedad_texto||'')+'%');
+    const [{data:dupJ},{data:dupI}] = await Promise.all([
+      qj,
+      sb.from('reportes_iniciales').select('id,unidad,propiedad_texto,tecnico_nombre,fecha,estatus')
+        .eq('departamento',G.dep).eq('estatus','pendiente')
+    ]);
+    const chocaJ=(dupJ||[]).find(x=>String(x.unidad||'').trim().toLowerCase()===u);
+    const chocaI=(dupI||[]).find(x=>String(x.unidad||'').trim().toLowerCase()===u &&
+      String(x.propiedad_texto||'').trim().toLowerCase()===String(d.propiedad_texto||'').trim().toLowerCase());
+    if(chocaJ){
+      return toast('Esa unidad ya tiene trabajo abierto: '+(chocaJ.folio||'')+'. Habla con oficina.');
+    }
+    if(chocaI){
+      return toast('Ya hay un inicial pendiente de esa unidad, lo mandó '+(chocaI.tecnico_nombre||'alguien')+' el '+fmt(chocaI.fecha)+'.');
+    }
+  }
+
   const p={
     tecnico_id:U.id, tecnico_nombre:U.nombre, departamento:G.dep, fecha:G.fecha,
     hora_entrada:d.hora_entrada, hora_salida:d.hora_salida||null,
@@ -2068,9 +2092,14 @@ async function abrirLevantamiento(id){
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
 
-      ${x.estatus==='pendiente'&&EDIT()?`<div class="row no-print" style="margin-bottom:14px">
+      ${x.estatus==='pendiente'&&EDIT()?`<div class="row no-print" style="margin-bottom:8px">
         <button class="btn" style="flex:2" id="crear">Crear trabajo con estos datos</button>
         <button class="btn ghost" style="flex:1" id="desc">Descartar</button>
+      </div>`:''}
+      ${EDIT()?`<div class="row no-print" style="margin-bottom:14px">
+        <button class="btn ghost sm" style="flex:1" id="li_ed">Corregir datos</button>
+        <button class="btn ghost sm" style="flex:1" id="li_del"
+          style="color:var(--rojo)">Borrar este inicial</button>
       </div>`:''}
       ${x.estatus==='convertido'?`<div class="ok" style="margin-bottom:12px">Ya se convirtió en el job <b>${esc(x.jobs?.folio||'')}</b>${x.jobs?.cliente?' — '+esc(x.jobs.cliente):''}</div>`:''}
 
@@ -2127,6 +2156,34 @@ async function abrirLevantamiento(id){
       <button class="btn ghost wide no-print" id="c2">Cerrar</button>
     </div></div>`;
   $('#c1').onclick=$('#c2').onclick=cerrar;
+
+  // Corregir a mano lo que el técnico capturó mal desde campo
+  const led=$('#li_ed');
+  if(led) led.onclick=async()=>{
+    const campos=[['propiedad_texto','Propiedad'],['unidad','Unidad'],['direccion','Dirección'],
+                  ['ciudad','Ciudad'],['zip','ZIP'],['cliente','Cliente'],['tipo','Tipo de servicio']];
+    const up={};
+    for(const [k,et] of campos){
+      const v=prompt(et+':', x[k]||'');
+      if(v===null) return;          // cancela todo
+      if(v.trim()!==String(x[k]||'')) up[k]=v.trim()||null;
+    }
+    if(!Object.keys(up).length) return toast('No cambiaste nada.');
+    const {error}=await sb.from('reportes_iniciales').update(up).eq('id',id);
+    if(error) return toast('No se guardó: '+error.message);
+    toast('Corregido'); abrirLevantamiento(id);
+  };
+
+  const ldl=$('#li_del');
+  if(ldl) ldl.onclick=async()=>{
+    if(x.estatus==='convertido' && x.job_id)
+      return toast('Este ya se convirtió en job. Borra el job si quieres deshacerlo.');
+    if(!confirm('¿Borrar el reporte inicial de '+(x.propiedad_texto||'')+(x.unidad?' · Unit '+x.unidad:'')+'?\n\n'+
+      'Lo levantó '+(x.tecnico_nombre||'un técnico')+' el '+fmt(x.fecha)+'. Esto no se puede deshacer.')) return;
+    const {error}=await sb.from('reportes_iniciales').delete().eq('id',id);
+    if(error) return toast('No se pudo borrar: '+error.message);
+    cerrar(); toast('Reporte inicial borrado'); render();
+  };
   const dc=$('#desc'); if(dc) dc.onclick=async()=>{
     if(!confirm('¿Descartar este reporte inicial?')) return;
     await sb.from('reportes_iniciales').update({estatus:'descartado'}).eq('id',id);
@@ -2142,6 +2199,7 @@ async function abrirLevantamiento(id){
       folio, cliente: x.cliente || x.propiedad_texto || 'Sin nombre',
       telefono:x.contacto_tel, direccion:x.direccion||'', ciudad:x.ciudad||'San Diego', zip:x.zip,
       unidad:x.unidad, tipo_propiedad: x.management_id?'apartamento':'casa',
+      tecnico_id:x.tecnico_id,   // se queda asignado a quien lo levantó
       ocupada:x.ocupada, areas:x.areas, removido:x.material_removido,
       extraccion:x.agua_extraida, extraccion_notas:x.causa,
       notas:x.causa, intake:x
@@ -4843,7 +4901,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v179 · actividad en vivo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v180 · iniciales del técnico</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6908,7 +6966,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='179';
+const VERSION='180';
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
