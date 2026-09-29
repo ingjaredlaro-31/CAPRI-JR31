@@ -4982,6 +4982,7 @@ function shell(html){
       ${(CARPET_ON&&DEP==='cleaning'&&FACTURA())?'<button data-q="fac">+ Nueva factura</button>':''}
       ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
+      <button data-q="llam">📞 Escuchar llamada</button>
       <button data-q="est">+ Nuevo estimado</button>
       <button data-q="asig">+ Asignar trabajo</button>
       <button data-q="pers">+ Agregar personal</button>
@@ -4992,6 +4993,7 @@ function shell(html){
       if(q==='fac')  return nuevaFacturaCarpet();
       if(q==='esp')  return formTrabajoEspecial();
       if(q==='job')  return formJob();
+      if(q==='llam') return escucharLlamada();
       if(q==='est')  return formEstimado();
       if(q==='pers') return formUsuario();
       if(q==='asig'){
@@ -8012,6 +8014,7 @@ async function vJobs(){
 
   setTimeout(()=>{ engancharDep();
     const nj=$('#nj'); if(nj) nj.onclick=()=>formJob();
+    const nll=$('#nll'); if(nll) nll.onclick=()=>escucharLlamada();
     document.querySelectorAll('#jtabs button').forEach(b=>b.onclick=()=>{JTAB=b.dataset.t;JNIVEL='mgmt';JMG=null;JPROP=null;render();});
     document.querySelectorAll('[data-jmg]').forEach(b=>b.onclick=()=>{JMG=b.dataset.jmg;JNIVEL='prop';render();});
     document.querySelectorAll('[data-jpr]').forEach(b=>b.onclick=()=>{JPROP=b.dataset.jpr;JNIVEL='unidad';render();});
@@ -8033,7 +8036,7 @@ async function vJobs(){
       <button data-t="todos" class="${JTAB==='todos'?'on':''}">Todos<span class="c">${TODOS.length}</span></button>
     </div>`;
 
-  const cabeza = selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button>':''}`+pestanas;
+  const cabeza = selectorDep()+`${EDIT()?'<button class="btn wide no-print" id="nj">+ Nuevo job</button><div style="height:10px"></div><button class="btn ghost wide no-print" id="nll">📞 Escuchar llamada</button>':''}`+pestanas;
 
   if(!J.length) return cabeza+`<div class="empty"><div class="masc-busto masc-vacio"></div>
     <div class="disp">Nada en esta lista</div><p>Cambia de pestaña para ver otros trabajos.</p></div>`;
@@ -8779,6 +8782,242 @@ async function gcImportar(PR){
   toast(ok+' importados');
 }
 
+
+/* ==================== ESCUCHAR LLAMADA ====================
+   Pones la llamada en altavoz junto a la compu. El navegador va escribiendo
+   lo que se dice (Chrome o Edge). Al colgar, la IA (ruta /api/ia del worker)
+   saca los datos y abre "Nuevo job" ya llenado. Si la IA todavía no está
+   conectada, se llena lo que se pueda (teléfono, unidad) y la transcripción
+   queda en las notas internas. */
+let LLAM = null;   // estado de la escucha en curso
+function llamSoporta(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function llamDetener(){
+  if(!LLAM) return;
+  LLAM.activo=false;
+  try{ LLAM.rec && LLAM.rec.stop(); }catch(e){}
+}
+function llamTexto(){
+  const t=$('#ll_txt');
+  return t ? t.value.trim() : '';
+}
+async function escucharLlamada(){
+  const en = (typeof ING==='function' && ING());
+  const T=(es,in_)=>en?in_:es;
+  llamDetener();
+  LLAM={activo:false, rec:null, idioma:(en?'en-US':'es-MX'), inicio:null};
+
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">${T('Escuchar llamada','Listen to call')}</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="ok">${T(
+        '<b>1.</b> Pon la llamada en altavoz cerca de la compu. <b>2.</b> Presiona <b>Empezar</b>. <b>3.</b> Al colgar, presiona <b>Crear trabajo con IA</b>.',
+        '<b>1.</b> Put the call on speaker near the computer. <b>2.</b> Press <b>Start</b>. <b>3.</b> When you hang up, press <b>Create job with AI</b>.')}</div>
+      <div class="sub" style="margin:-4px 0 14px;color:var(--rojo)">${T(
+        'Avísale al cliente al inicio: “Esta llamada se está transcribiendo para tomar sus datos.” (ley de California).',
+        'Tell the caller first: “This call is being transcribed to take down your information.” (California law).')}</div>
+
+      ${llamSoporta()?'':`<div class="ok" style="border-left-color:var(--rojo);background:var(--rojo-l);color:var(--rojo-d)">${T(
+        'Este navegador no puede escuchar. Abre la app en <b>Chrome</b> o <b>Edge</b>. Mientras, puedes escribir o pegar las notas de la llamada abajo.',
+        'This browser cannot listen. Open the app in <b>Chrome</b> or <b>Edge</b>. Meanwhile you can type or paste the call notes below.')}</div>`}
+
+      <div class="eyebrow">${T('Idioma de la llamada','Call language')}</div>
+      <div class="si-no" id="ll_id">
+        <button data-l="es-MX">Español</button>
+        <button data-l="en-US">English</button>
+      </div>
+      <div class="sub" style="margin-top:6px">${T('Puedes cambiarlo a media llamada si el cliente cambia de idioma.','You can switch mid-call if the caller changes language.')}</div>
+
+      <div style="height:14px"></div>
+      <button class="btn wide" id="ll_go" ${llamSoporta()?'':'disabled'}>🎙 ${T('Empezar a escuchar','Start listening')}</button>
+      <div id="ll_est" class="sub" style="margin-top:8px;text-align:center"></div>
+
+      <div class="eyebrow">${T('Lo que se va diciendo','Live transcript')}</div>
+      <textarea id="ll_txt" style="min-height:230px;line-height:1.6" placeholder="${T('Aquí aparece el texto de la llamada. También puedes escribir o corregir.','The call text shows up here. You can also type or fix it.')}"></textarea>
+      <div id="ll_int" class="sub" style="min-height:22px;font-style:italic"></div>
+
+      <div style="height:10px"></div>
+      <button class="btn wide" id="ll_ia">✨ ${T('Crear trabajo con IA','Create job with AI')}</button>
+      <div style="height:12px"></div>
+      <div class="g2">
+        <button class="btn ghost wide" id="ll_cp">${T('Copiar texto','Copy text')}</button>
+        <button class="btn ghost wide" id="ll_bor">${T('Borrar','Clear')}</button>
+      </div>
+      <div style="height:12px"></div><button class="btn ghost wide" id="c2">${T('Cerrar','Close')}</button>
+    </div></div>`;
+
+  const pintarId=()=>document.querySelectorAll('#ll_id [data-l]').forEach(b=>b.className=b.dataset.l===LLAM.idioma?'on':'');
+  pintarId();
+  document.querySelectorAll('#ll_id [data-l]').forEach(b=>b.onclick=()=>{
+    LLAM.idioma=b.dataset.l; pintarId();
+    if(LLAM.activo){ try{ LLAM.rec.stop(); }catch(e){} }   // se reinicia solo con el idioma nuevo
+  });
+
+  const est=(m)=>{ const e=$('#ll_est'); if(e) e.textContent=m; };
+  const boton=()=>{
+    const b=$('#ll_go'); if(!b) return;
+    b.innerHTML = LLAM.activo ? '■ '+T('Detener','Stop') : '🎙 '+T('Empezar a escuchar','Start listening');
+    b.style.background = LLAM.activo ? 'var(--rojo)' : '';
+  };
+
+  const arrancar=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.lang=LLAM.idioma; rec.continuous=true; rec.interimResults=true;
+    rec.onresult=ev=>{
+      if(!$('#ll_txt')){ llamDetener(); return; }
+      let inter='';
+      for(let i=ev.resultIndex;i<ev.results.length;i++){
+        const r=ev.results[i];
+        if(r.isFinal){
+          const t=$('#ll_txt'); if(!t) return;
+          const frase=r[0].transcript.trim();
+          if(frase) t.value += (t.value && !t.value.endsWith('\n')?' ':'') + frase.charAt(0).toUpperCase()+frase.slice(1) + '.';
+          t.scrollTop=t.scrollHeight;
+        } else inter += r[0].transcript;
+      }
+      const iEl=$('#ll_int'); if(iEl) iEl.textContent=inter;
+    };
+    rec.onerror=ev=>{
+      if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){
+        LLAM.activo=false; boton();
+        est(T('No hay permiso para el micrófono. Dale “Permitir” en el candado junto a la dirección.','Microphone blocked. Click “Allow” in the lock icon next to the address.'));
+      } else if(ev.error==='no-speech'){ /* silencio: se reinicia solo */ }
+      else est(T('Aviso: ','Notice: ')+ev.error);
+    };
+    rec.onend=()=>{
+      const iEl=$('#ll_int'); if(iEl) iEl.textContent='';
+      if(LLAM && LLAM.activo && $('#ll_txt')){ setTimeout(()=>{ if(LLAM.activo) arrancar(); },250); }
+      else { boton(); }
+    };
+    LLAM.rec=rec;
+    try{ rec.start(); }catch(e){}
+  };
+
+  $('#ll_go').onclick=()=>{
+    if(!llamSoporta()) return;
+    if(LLAM.activo){ llamDetener(); boton(); est(T('Detenido.','Stopped.')); return; }
+    LLAM.activo=true;
+    if(!LLAM.inicio) LLAM.inicio=new Date();
+    boton(); est(T('Escuchando… habla normal, el texto aparece abajo.','Listening… speak normally, text shows below.'));
+    arrancar();
+  };
+
+  $('#ll_cp').onclick=async()=>{
+    try{ await navigator.clipboard.writeText(llamTexto()); toast(T('Copiado','Copied')); }
+    catch(e){ toast(T('No se pudo copiar','Could not copy')); }
+  };
+  $('#ll_bor').onclick=()=>{ if(llamTexto() && !confirm(T('¿Borrar el texto de la llamada?','Clear the call text?'))) return; $('#ll_txt').value=''; };
+  $('#c1').onclick=$('#c2').onclick=()=>{
+    if(llamTexto() && !confirm(T('¿Cerrar? Se pierde el texto de la llamada.','Close? The call text will be lost.'))) return;
+    llamDetener(); LLAM=null; cerrar();
+  };
+
+  $('#ll_ia').onclick=async()=>{
+    const texto=llamTexto();
+    if(texto.length<15) return toast(T('Todavía no hay suficiente texto de la llamada.','Not enough call text yet.'));
+    llamDetener(); boton();
+    const b=$('#ll_ia'); b.disabled=true; b.textContent=T('Leyendo la llamada…','Reading the call…');
+    const inicio = LLAM && LLAM.inicio ? LLAM.inicio : new Date();
+    try{
+      await llamCrearJob(texto, inicio);
+    }finally{ if($('#ll_ia')){ b.disabled=false; b.innerHTML='✨ '+T('Crear trabajo con IA','Create job with AI'); } }
+  };
+}
+
+// Normaliza para comparar nombres ("The Plaza" ~ "plaza")
+function llamNorm(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function llamBusca(lista, nombre, campo='nombre'){
+  const n=llamNorm(nombre); if(!n) return null;
+  return lista.find(x=>llamNorm(x[campo])===n)
+      || lista.find(x=>{ const m=llamNorm(x[campo]); return m && (m.includes(n)||n.includes(m)); })
+      || null;
+}
+// Lo mínimo que se puede sacar sin IA
+function llamSinIA(texto){
+  const tel=(texto.match(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/)||[])[0]||null;
+  const un=(texto.match(/\b(?:unit|unidad|apartment|apartamento|departamento|apt|depto)\.?\s*#?\s*([a-z]?\d{1,5}[a-z]?(?:-\d{1,4})?)/i)||[])[1]||null;
+  return {telefono:tel, unidad:un};
+}
+
+async function llamCrearJob(texto, inicio){
+  const en = (typeof ING==='function' && ING());
+  const T=(es,in_)=>en?in_:es;
+  const dep = (typeof DEP!=='undefined' && DEP) ? DEP : 'restoration';
+  const [{data:mgs},{data:props}] = await Promise.all([
+    sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
+    sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip').order('nombre')
+  ]);
+  const MG=mgs||[], PR=props||[];
+
+  let d=null, conIA=true;
+  try{
+    const r=await fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        tarea:'llamada', texto:texto.slice(0,20000),
+        managements:MG.map(m=>m.nombre),
+        propiedades:PR.map(p=>({n:p.nombre, mg:(MG.find(m=>m.id===p.management_id)||{}).nombre||''})),
+        tipos:TIPOS[dep].filter(x=>x!=='otro')
+      })});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(!j || !j.datos) throw new Error(j&&j.error||'sin datos');
+    d=j.datos;
+  }catch(e){
+    conIA=false; d=llamSinIA(texto);
+  }
+
+  const mg = d.management ? llamBusca(MG, d.management) : null;
+  const prLista = mg ? PR.filter(p=>p.management_id===mg.id) : PR;
+  const pr = d.propiedad ? llamBusca(prLista, d.propiedad) : null;
+  const mgFinal = mg || (pr ? MG.find(m=>m.id===pr.management_id) : null);
+  const origen = mgFinal ? 'management'
+               : (['management','aseguranza','particular'].includes(d.origen) ? d.origen : 'particular');
+  const tipo = TIPOS[dep].includes(d.tipo) ? d.tipo : TIPOS[dep][0];
+
+  const cuando = inicio.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' '
+               + inicio.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const notas = [
+    (d.urgente?'🔴 URGENTE · ':'')+'Llamada '+cuando+(typeof U!=='undefined'&&U&&U.nombre?' · tomó '+U.nombre:''),
+    d.resumen ? 'Resumen: '+d.resumen : null,
+    d.quien_llama ? 'Llamó: '+d.quien_llama : null,
+    '— Transcripción —', texto
+  ].filter(Boolean).join('\n');
+
+  const pre = {
+    departamento:dep, tipo, estatus:'activo', origen,
+    management_id: mgFinal ? mgFinal.id : null,
+    propiedad_id:  pr ? pr.id : null,
+    cliente: d.cliente || (pr ? pr.nombre : null),
+    telefono: d.telefono || null,
+    direccion: d.direccion || (pr ? pr.direccion : null),
+    ciudad: d.ciudad || (pr ? pr.ciudad : null) || 'San Diego',
+    zip: d.zip || (pr ? pr.zip : null),
+    unidad: d.unidad || null,
+    tipo_propiedad: ['apartamento','condominio','casa','comercial','otro'].includes(d.tipo_propiedad) ? d.tipo_propiedad : (mgFinal?'apartamento':'casa'),
+    ocupada: d.ocupada==='ocupada' ? 'ocupada' : 'vacia',
+    areas: Array.isArray(d.areas) ? d.areas.filter(Boolean).slice(0,15) : [],
+    aseguranza: d.aseguranza || null, claim_number: d.claim_number || null,
+    scope: d.scope || null,
+    notas
+  };
+  llamDetener(); LLAM=null;
+  await formJob(null, pre);
+  // Aviso arriba del formulario para revisar antes de guardar
+  const body=document.querySelector('#sheet .sheet-body');
+  if(body){
+    const av=document.createElement('div');
+    av.className='ok';
+    if(!conIA){ av.style.borderLeftColor='var(--oro)'; }
+    av.innerHTML = conIA
+      ? (d.urgente?'<b style="color:var(--rojo)">🔴 '+T('URGENTE','URGENT')+'</b> · ':'')
+        + T('La IA llenó este trabajo con la llamada. <b>Revisa los datos</b> antes de guardar.','AI filled this job from the call. <b>Check the data</b> before saving.')
+        + (d.resumen?'<div style="margin-top:6px">'+esc(d.resumen)+'</div>':'')
+      : T('La IA todavía no está conectada. Llené lo que pude y la transcripción quedó en <b>Notas internas</b>.','AI is not connected yet. I filled what I could and the transcript is in <b>Internal notes</b>.');
+    body.insertBefore(av, body.firstChild);
+  }
+  toast(conIA?T('Datos listos · revisa y guarda','Data ready · review and save'):T('Sin IA · revisa y completa','No AI · review and complete'));
+}
 
 async function formJob(id, pre){
   let j = pre || {departamento:DEP, tipo:TIPOS[DEP][0], estatus:'activo', ciudad:'San Diego',
