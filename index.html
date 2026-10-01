@@ -2125,6 +2125,24 @@ async function altaDirecta(x){
   }
   const direccion = x.direccion || (pr&&pr.direccion) || null;
   if(!direccion) return {ok:false, msg:'falta la dirección. Quedó para oficina.'};
+  // Si escribió el nombre de un management como "lugar" (sin escoger propiedad),
+  // no se da de alta como particular: se queda para que oficina ponga la propiedad.
+  if(!x.management_id){
+    const {data:mgs}=await sb.from('managements').select('id,nombre');
+    const n=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+    const txt=n(x.propiedad_texto)+' '+n(x.cliente);
+    const mg=(mgs||[]).find(m=>{ const k=n(m.nombre).replace(/\b(management|mgmt|company|inc|llc)\b/g,'').trim(); return k.length>=4 && txt.includes(k); });
+    if(mg){
+      const tit='Inicial por revisar · parece de '+mg.nombre+(x.unidad?' · Unit '+x.unidad:'');
+      // avisar una sola vez por inicial (la app reintenta al abrir)
+      const {data:ya}=await sb.from('notificaciones').select('id').eq('titulo',tit).gte('created_at',(x.created_at||hoy())).limit(1);
+      if(!(ya&&ya.length)) await notifIns({tipo:'levantamiento',
+        titulo:tit,
+        texto:(x.tecnico_nombre||'')+' lo mandó como particular ("'+(x.propiedad_texto||x.cliente||'')+'", '+direccion+'). Escoge la propiedad de '+mg.nombre+' y créalo.',
+        de_usuario:x.tecnico_nombre||'', para_rol:'admin', departamento:x.departamento});
+      return {ok:false, msg:'parece de '+mg.nombre+'. Oficina le pone la propiedad.'};
+    }
+  }
   const folio=await nuevoFolio(x.departamento);
   const esCln = x.departamento==='cleaning';
   const p={
@@ -5110,7 +5128,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v186 · terminado pasa a facturar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v187 · managements no como particular</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
