@@ -5119,14 +5119,14 @@ function shell(html){
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
        : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
+      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['llamadas',BI('Notas de llamadas','Call notes')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['llamadas','Notas de llamadas'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
   // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
   const GRUPO_DE = {
-    dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA',
+    dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA', llamadas:'DÍA A DÍA',
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     cobranza:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', equipo:'DIRECTORIO',
@@ -5203,7 +5203,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v189 · avisos con voz</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v190 · notas de llamadas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5274,6 +5274,7 @@ function shell(html){
       ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="llam">📞 Escuchar llamada</button>
+      <button data-q="llnot">📝 Notas de llamada (Julio)</button>
       <button data-q="est">+ Nuevo estimado</button>
       <button data-q="asig">+ Asignar trabajo</button>
       <button data-q="pers">+ Agregar personal</button>
@@ -5285,6 +5286,7 @@ function shell(html){
       if(q==='esp')  return formTrabajoEspecial();
       if(q==='job')  return formJob();
       if(q==='llam') return escucharLlamada();
+      if(q==='llnot') return escucharLlamada('notas');
       if(q==='est')  return formEstimado();
       if(q==='pers') return formUsuario();
       if(q==='asig'){
@@ -5332,6 +5334,7 @@ async function render(){
     if(V==='notif')     return shell(await vNotificaciones());
     if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
+    if(V==='llamadas')  return shell(await vLlamadas());
     if(CARPET_ON && V==='resumen' && DEPV()==='cleaning'){
       shell(await vHoyCarpet()); return engancharHoyCarpet();
     }
@@ -9159,7 +9162,7 @@ function llamTexto(){
   const t=$('#ll_txt');
   return t ? t.value.trim() : '';
 }
-async function escucharLlamada(){
+async function escucharLlamada(modo){
   const en = (typeof ING==='function' && ING());
   const T=(es,in_)=>en?in_:es;
   llamDetener();
@@ -9180,6 +9183,10 @@ async function escucharLlamada(){
         'Este navegador no puede escuchar. Abre la app en <b>Chrome</b> o <b>Edge</b>. Mientras, puedes escribir o pegar las notas de la llamada abajo.',
         'This browser cannot listen. Open the app in <b>Chrome</b> or <b>Edge</b>. Meanwhile you can type or paste the call notes below.')}</div>`}
 
+      <div class="g2">
+        <div><label>${T('¿Con quién hablas?','Who is on the call?')}</label><input id="ll_con" placeholder="Julio · cliente · manager" value="${esc(modo==='notas'?'Julio':'')}"></div>
+        <div><label>${T('¿De qué trabajo? (opcional)','Which job? (optional)')}</label><select id="ll_job"><option value="">${T('— ninguno / varios —','— none / several —')}</option></select></div>
+      </div>
       <div class="eyebrow">${T('Idioma de la llamada','Call language')}</div>
       <div class="si-no" id="ll_id">
         <button data-l="es-MX">Español</button>
@@ -9196,7 +9203,9 @@ async function escucharLlamada(){
       <div id="ll_int" class="sub" style="min-height:22px;font-style:italic"></div>
 
       <div style="height:10px"></div>
-      <button class="btn wide" id="ll_ia">✨ ${T('Crear trabajo con IA','Create job with AI')}</button>
+      <button class="btn wide" id="ll_nt" ${modo==='notas'?'':'style="background:var(--azul)"'}>📝 ${T('Guardar notas y resumen de la llamada','Save call notes and summary')}</button>
+      <div style="height:10px"></div>
+      <button class="btn ${modo==='notas'?'ghost ':''}wide" id="ll_ia">✨ ${T('Crear trabajo con IA','Create job with AI')}</button>
       <div style="height:12px"></div>
       <div class="g2">
         <button class="btn ghost wide" id="ll_cp">${T('Copiar texto','Copy text')}</button>
@@ -9272,6 +9281,20 @@ async function escucharLlamada(){
     llamDetener(); LLAM=null; cerrar();
   };
 
+  // Trabajos activos para ligar la llamada (opcional)
+  sb.from('jobs').select('id,folio,cliente,unidad').not('estatus','in','("facturado")').order('created_at',{ascending:false}).limit(150)
+    .then(({data})=>{ const sel=$('#ll_job'); if(!sel||!data) return;
+      sel.innerHTML += data.map(j=>`<option value="${j.id}">${esc(j.folio||'')} · ${esc(j.cliente||'')}${j.unidad&&!(j.cliente||'').includes(j.unidad)?' · Unit '+esc(j.unidad):''}</option>`).join(''); });
+  $('#ll_nt').onclick=async()=>{
+    const texto=llamTexto();
+    if(texto.length<15) return toast(T('Todavía no hay suficiente texto de la llamada.','Not enough call text yet.'));
+    llamDetener(); boton();
+    const b=$('#ll_nt'); b.disabled=true; b.textContent=T('Haciendo el resumen…','Summarizing…');
+    const inicio = LLAM && LLAM.inicio ? LLAM.inicio : new Date();
+    const id = await guardarNotasLlamada(texto, inicio, ($('#ll_con').value||'').trim(), $('#ll_job').value||null);
+    if(id){ llamDetener(); LLAM=null; abrirLlamada(id); }
+    else if($('#ll_nt')){ b.disabled=false; b.innerHTML='📝 '+T('Guardar notas y resumen de la llamada','Save call notes and summary'); }
+  };
   $('#ll_ia').onclick=async()=>{
     const texto=llamTexto();
     if(texto.length<15) return toast(T('Todavía no hay suficiente texto de la llamada.','Not enough call text yet.'));
@@ -9281,6 +9304,122 @@ async function escucharLlamada(){
     try{
       await llamCrearJob(texto, inicio);
     }finally{ if($('#ll_ia')){ b.disabled=false; b.innerHTML='✨ '+T('Crear trabajo con IA','Create job with AI'); } }
+  };
+}
+
+
+/* ==================== NOTAS DE LLAMADAS ====================
+   Bitácora: cada llamada queda guardada con fecha, hora, con quién,
+   la transcripción completa y un resumen (medidas, acuerdos, pendientes).
+   Tabla: llamadas (ver llamadas.sql). */
+function llamResumenLocal(texto){
+  // Sin IA: saca medidas, cantidades y fechas que se dijeron.
+  const frases = texto.split(/(?<=[.!?])\s+|\n+/).map(x=>x.trim()).filter(Boolean);
+  const reMed = /\b\d+(?:[.,]\d+)?\s*(?:x\s*\d+(?:[.,]\d+)?\s*)?(?:ft|feet|foot|pies?|pulgadas?|inch(?:es)?|in\b|sq\s?ft|sqft|sf|lf|linear|metros?|m2|galones?|gallons?|yardas?)\b|\b\d+\s*x\s*\d+\b|\b\d+'\s*\d*"?/i;
+  const reFecha = /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[nñ]ana|hoy|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b|\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\b\d{1,2}\/\d{1,2}\b/i;
+  const rePend = /\b(hay que|tienes que|tenemos que|falta|pendiente|no se te olvide|acu[eé]rdate|necesito|necesitamos|manda|env[ií]a|compra|llama|habla con|need to|have to|don't forget|remember)\b/i;
+  const medidas=frases.filter(f=>reMed.test(f)).slice(0,25);
+  const fechas=frases.filter(f=>reFecha.test(f) && !medidas.includes(f)).slice(0,15);
+  const pendientes=frases.filter(f=>rePend.test(f) && !medidas.includes(f)).slice(0,20);
+  return {resumen:null, medidas, acuerdos:[], pendientes, fechas, unidades:[]};
+}
+async function guardarNotasLlamada(texto, inicio, conQuien, jobId){
+  const en=(typeof ING==='function'&&ING()); const T=(es,i)=>en?i:es;
+  let d=null, conIA=true;
+  try{
+    const r=await fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tarea:'resumen', texto:texto.slice(0,40000), con:conQuien||'', autor:U?U.nombre:''})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); if(!j||!j.datos) throw new Error('sin datos'); d=j.datos;
+  }catch(e){ conIA=false; d=llamResumenLocal(texto); }
+  const fin=new Date();
+  const fila={
+    usuario_id:U?U.id:null, autor:U?U.nombre:null, con_quien:conQuien||null,
+    job_id:jobId||null, inicio:inicio.toISOString(), fin:fin.toISOString(),
+    duracion_seg:Math.max(0,Math.round((fin-inicio)/1000)),
+    transcripcion:texto, resumen:d.resumen||null,
+    medidas:d.medidas||[], acuerdos:d.acuerdos||[], pendientes:d.pendientes||[], fechas:d.fechas||[],
+    con_ia:conIA
+  };
+  const {data,error}=await sb.from('llamadas').insert(fila).select().single();
+  if(error){
+    if(/llamadas/.test(error.message)) toast(T('Falta crear la tabla de llamadas en Supabase (llamadas.sql). El texto sigue en pantalla.','Calls table missing in Supabase.'));
+    else toast(T('No se guardó: ','Not saved: ')+error.message);
+    return null;
+  }
+  if(jobId){
+    const lineas=[ '📞 '+T('Llamada','Call')+(conQuien?' con '+conQuien:'')+' · '+fmtHora(inicio.toISOString()),
+      d.resumen||'', (d.medidas||[]).length?'Medidas: '+d.medidas.join(' · '):'',
+      (d.pendientes||[]).length?'Pendientes: '+d.pendientes.join(' · '):'' ].filter(Boolean).join('\n');
+    try{ await sb.from('notas').insert({job_id:jobId,usuario_id:U.id,autor:U.nombre,texto:lineas}); }catch(e){}
+  }
+  toast(conIA?T('Llamada guardada con resumen','Call saved with summary'):T('Llamada guardada · resumen básico (IA no conectada)','Call saved · basic summary'));
+  return data.id;
+}
+async function vLlamadas(){
+  const {data,error}=await sb.from('llamadas').select('*, jobs(folio,cliente)').order('inicio',{ascending:false}).limit(150);
+  setTimeout(()=>{
+    const n=$('#ll_nueva'); if(n) n.onclick=()=>escucharLlamada('notas');
+    const q=$('#ll_q'); if(q) q.oninput=()=>{ const t=q.value.toLowerCase();
+      document.querySelectorAll('[data-ll]').forEach(f=>f.style.display=f.dataset.txt.includes(t)?'':'none'); };
+    document.querySelectorAll('[data-ll]').forEach(f=>f.onclick=()=>abrirLlamada(f.dataset.ll));
+  },0);
+  const cab=`<button class="btn wide no-print" id="ll_nueva">📞 Nueva llamada · escuchar y anotar</button>
+    <input id="ll_q" placeholder="Buscar: Julio, medidas, Avino, drywall…" style="margin:12px 0">`;
+  if(error) return cab+`<div class="empty"><div class="disp">Falta un paso</div><p>Crea la tabla de llamadas en Supabase con el archivo <b>llamadas.sql</b> que te mandó Claude.</p></div>`;
+  const L=data||[];
+  if(!L.length) return cab+`<div class="empty"><div class="disp">Sin llamadas guardadas</div><p>Pon la llamada en altavoz, presiona “Nueva llamada” y al colgar “Guardar notas”. Queda con fecha, hora y resumen.</p></div>`;
+  return cab+`<div class="eyebrow">Bitácora · ${L.length} llamadas</div>`+L.map(x=>{
+    const res=(x.resumen||(x.medidas||[]).concat(x.pendientes||[]).join(' · ')||x.transcripcion||'').slice(0,160);
+    const txt=[x.con_quien,x.autor,x.resumen,x.transcripcion,(x.medidas||[]).join(' '),x.jobs?.folio,x.jobs?.cliente].join(' ').toLowerCase();
+    return `<div class="fila" data-ll="${x.id}" data-txt="${esc(txt)}" style="cursor:pointer">
+      <div class="t"><b>📞 ${esc(x.con_quien||'Llamada')} <span class="mono" style="font-weight:400;font-size:13px">· ${esc(fmtHora(x.inicio))}</span></b>
+      <span class="sub">${esc(res)}</span>
+      <span class="meta">${esc(x.autor||'')}${x.duracion_seg?' · '+Math.round(x.duracion_seg/60)+' min':''}${(x.medidas||[]).length?' · '+x.medidas.length+' medidas':''}${(x.pendientes||[]).length?' · '+x.pendientes.length+' pendientes':''}</span></div>
+      ${x.jobs?.folio?`<span class="chip azul">${esc(x.jobs.folio)}</span>`:''}
+    </div>`;}).join('');
+}
+async function abrirLlamada(id){
+  const {data:x,error}=await sb.from('llamadas').select('*, jobs(folio,cliente)').eq('id',id).single();
+  if(error||!x) return toast('No se encontró la llamada.');
+  const lista=(t,arr)=>arr&&arr.length?`<div class="eyebrow">${t} · ${arr.length}</div><ul style="margin:0 0 6px 18px;line-height:1.6">${arr.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`:'';
+  const d=new Date(x.inicio);
+  const fechaL=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">NOTAS DE LLAMADA${x.jobs?.folio?' · '+esc(x.jobs.folio):''}</div>
+    <div class="disp" style="font-size:21px;line-height:1.1">📞 ${esc(x.con_quien||'Llamada')}</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(fechaL)}${x.duracion_seg?' · '+Math.round(x.duracion_seg/60)+' min':''} · anotó ${esc(x.autor||'')}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      ${x.resumen?`<div class="eyebrow">Resumen</div><p style="line-height:1.6;margin-top:0">${esc(x.resumen)}</p>`:
+        (x.con_ia?'':`<div class="ok" style="border-left-color:var(--oro)">Resumen básico (sin IA): se juntaron las frases con medidas, fechas y pendientes. La transcripción completa está abajo.</div>`)}
+      ${lista('📏 Medidas',x.medidas)}
+      ${lista('🤝 Acuerdos',x.acuerdos)}
+      ${lista('✅ Pendientes',x.pendientes)}
+      ${lista('📅 Fechas y horas',x.fechas)}
+      <div class="eyebrow">Transcripción completa</div>
+      <div style="white-space:pre-wrap;line-height:1.6;font-size:15px;background:var(--tarjeta,rgba(127,127,127,.08));padding:12px;border-radius:10px">${esc(x.transcripcion||'')}</div>
+      <div style="height:16px"></div>
+      <div class="g2 no-print">
+        <button class="btn ghost wide" id="ll_copy">Copiar</button>
+        <button class="btn ghost wide" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+      ${EDIT()?`<div style="height:10px"></div><button class="btn ghost wide no-print" id="ll_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar esta llamada</button>`:''}
+      <div style="height:10px"></div><button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=()=>{ cerrar(); if(V==='llamadas') render(); };
+  $('#ll_copy').onclick=async()=>{
+    const t=['Llamada con '+(x.con_quien||'')+' · '+fechaL, x.resumen||'',
+      (x.medidas||[]).length?'Medidas:\n- '+x.medidas.join('\n- '):'', (x.acuerdos||[]).length?'Acuerdos:\n- '+x.acuerdos.join('\n- '):'',
+      (x.pendientes||[]).length?'Pendientes:\n- '+x.pendientes.join('\n- '):'', '', 'Transcripción:', x.transcripcion||''].filter(v=>v!=='').join('\n\n');
+    try{ await navigator.clipboard.writeText(t); toast('Copiado'); }catch(e){ toast('No se pudo copiar'); }
+  };
+  const del=$('#ll_del'); if(del) del.onclick=async()=>{
+    if(!confirm('¿Borrar esta llamada? No se puede deshacer.')) return;
+    const {error}=await sb.from('llamadas').delete().eq('id',id);
+    if(error) return toast('No se pudo borrar: '+error.message);
+    cerrar(); toast('Llamada borrada'); render();
   };
 }
 
@@ -10629,6 +10768,7 @@ async function vHome(){
     <div class="eyebrow">🚀 Ir a</div>
     <div class="hm-ir">
       <button data-hk="llam"><span style="font-size:20px">📞</span>Escuchar llamada</button>
+      <button data-hk="llnotas"><span style="font-size:20px">📝</span>Notas de llamadas</button>
       <button data-hk="dia"><span>${svgIC('dia')}</span>Control del día</button>
       <button data-hk="mapa"><span>${svgIC('mapa')}</span>Mapa y rutas</button>
       <button data-hk="cobranza"><span>${svgIC('estimados')}</span>Facturación</button>
@@ -10647,6 +10787,7 @@ function engancharHome(){
             dia:'dia', mapa:'mapa', cobranza:'cobranza', schedule:'schedule'};
   document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{
     if(b.dataset.hk==='llam') return escucharLlamada();
+    if(b.dataset.hk==='llnotas'){ V='llamadas'; return render(); }
     const d=IR[b.dataset.hk]; if(!d) return;
     if(b.dataset.hk==='fac') COBTAB='facturar';
     if(b.dataset.hk==='cob') COBTAB='cobrar';
