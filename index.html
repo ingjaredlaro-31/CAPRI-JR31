@@ -3153,6 +3153,61 @@ function avisoFlotante(titulo, texto, jobId){
   setTimeout(quitar, 9000);
 }
 
+/* ==================== AVISOS DE WINDOWS (banner del sistema) ====================
+   Cuando la app está abierta en una pestaña pero estás en otra cosa (otro
+   programa, otra pestaña, minimizada), el aviso sale como banner de Windows
+   en la esquina, y el título de la pestaña muestra cuántos llegaron. */
+const TITULO_BASE = document.title;
+let AVISOS_FUERA = 0;
+function notifPuede(){ return ('Notification' in window); }
+function notifEstado(){ return notifPuede() ? Notification.permission : 'no'; }
+function notifSistema(n){
+  if(!notifPuede() || Notification.permission!=='granted') return;
+  try{
+    const no=new Notification(n.titulo||'JR31', {body:(n.texto||'').slice(0,180), tag:'jr31-'+(n.id||Date.now()), renotify:true});
+    no.onclick=()=>{
+      try{ window.focus(); }catch(e){}
+      no.close();
+      if(n.id) sb.from('notificaciones').update({leida:true}).eq('id',n.id);
+      if(n.job_id){ (U.rol==='tecnico'?verJobTecnico:abrirJob)(n.job_id); } else { V='notif'; render(); }
+    };
+  }catch(e){}
+}
+async function notifActivar(){
+  if(!notifPuede()) return toast('Este navegador no da avisos. Usa Chrome o Edge.');
+  if(Notification.permission==='denied')
+    return toast('Los avisos están bloqueados. Dale clic al candado junto a la dirección y permite Notificaciones.');
+  const r = await Notification.requestPermission();
+  if(r==='granted'){
+    toast('Avisos de Windows activados');
+    notifSistema({titulo:'JR31 · avisos activados', texto:'Así te van a llegar los reportes, iniciales y cambios del equipo.'});
+  } else toast('No se activaron los avisos.');
+  const c=document.querySelector('.avisoperm'); if(c) c.remove();
+  if(V==='notif') render();
+}
+function notifInvitar(){
+  if(!U || !notifPuede() || Notification.permission!=='default') return;
+  let ya=null; try{ ya=localStorage.getItem('jr31_avisoperm'); }catch(e){}
+  if(ya && Date.now()-Number(ya) < 3*86400000) return;   // si dijo "luego", vuelve a preguntar en 3 días
+  if(document.querySelector('.avisoperm')) return;
+  const d=document.createElement('div');
+  d.className='avisoflot on avisoperm';
+  d.innerHTML=`<div class="af-ic">${svgIC('notif')}</div>
+    <div class="af-t"><b>${ING()?'Get desktop alerts':'¿Avisos en tu pantalla?'}</b>
+    <span>${ING()?'See reports and updates even when the app is in the background.':'Te sale un banner cuando alguien manda o actualiza algo, aunque estés en otro programa.'}</span>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn sm" data-av="si">${ING()?'Turn on':'Activar'}</button>
+      <button class="btn ghost sm" data-av="no">${ING()?'Later':'Luego'}</button></div></div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-av="si"]').onclick=e=>{ e.stopPropagation(); notifActivar(); };
+  d.querySelector('[data-av="no"]').onclick=e=>{ e.stopPropagation();
+    try{ localStorage.setItem('jr31_avisoperm', String(Date.now())); }catch(err){}
+    d.remove(); };
+}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){ AVISOS_FUERA=0; document.title=TITULO_BASE; }
+});
+
 async function vigilarAvisos(){
   if(!U) return;
   try{
@@ -3166,6 +3221,12 @@ async function vigilarAvisos(){
       tono(nuevas.some(x=>/urgen|falta|sin reporte/i.test(x.titulo||''))?'urgente':'normal');
       vibrar();
       nuevas.slice(0,2).forEach((n,i)=>setTimeout(()=>avisoFlotante(n.titulo,n.texto,n.job_id), i*700));
+      // Si no estás viendo la app, también sale el banner de Windows
+      if(document.hidden || !document.hasFocus()){
+        nuevas.slice(0,4).forEach((n,i)=>setTimeout(()=>notifSistema(n), i*400));
+        AVISOS_FUERA += nuevas.length;
+        document.title = '🔔 ('+AVISOS_FUERA+') '+TITULO_BASE;
+      }
       contarNotif().then(()=>{ const b=document.querySelector('.campana'); if(b) b.classList.add('sacude'); });
     }
     if(data && data.length) ULT_NOTIF = Math.max(ULT_NOTIF, ...data.map(x=>new Date(x.created_at).getTime()));
@@ -3176,7 +3237,8 @@ async function vigilarAvisos(){
 function arrancarVigia(){
   if(VIGIA) clearInterval(VIGIA);
   vigilarAvisos();
-  VIGIA = setInterval(vigilarAvisos, 45000);
+  VIGIA = setInterval(vigilarAvisos, 30000);
+  setTimeout(notifInvitar, 2500);
 }
 
 async function contarNotif(){
@@ -3214,6 +3276,11 @@ async function vNotificaciones(){
   const N=(data||[]).filter(x=>!x.jobs || x.jobs.departamento===DEPV());
   const sinLeer=N.filter(x=>!x.leida);
   setTimeout(()=>{
+    const a=$('#nactiva'); if(a) a.onclick=notifActivar;
+    const a2=$('#nactiva2'); if(a2) a2.onclick=notifActivar;
+    const pr=$('#nprueba'); if(pr) pr.onclick=()=>notifSistema({titulo:'JR31 · prueba', texto:'Así se ve un aviso cuando alguien te manda algo.'});
+  },0);
+  setTimeout(()=>{
     const t=$('#todas'); if(t) t.onclick=async()=>{
       const ids=sinLeer.map(x=>x.id);
       if(ids.length) await sb.from('notificaciones').update({leida:true}).in('id',ids);
@@ -3225,8 +3292,18 @@ async function vNotificaciones(){
       if(n && n.job_id) abrirJob(n.job_id); else render();
     });
   },0);
-  if(!N.length) return `<div class="empty"><div class="disp">Sin notificaciones</div><p>Cuando un técnico mande su reporte te llega el aviso aquí.</p></div>`;
-  return `${sinLeer.length?`<button class="btn ghost wide no-print" id="todas" style="margin-bottom:12px">Marcar todas como leídas (${sinLeer.length})</button>`:''}
+  if(!N.length) return (notifEstado()==='default'?'<button class="btn wide no-print" id="nactiva2" style="margin-bottom:12px">🔔 Activar avisos en pantalla</button>':'')+`<div class="empty"><div class="disp">Sin notificaciones</div><p>Cuando un técnico mande su reporte te llega el aviso aquí.</p></div>`;
+  const est=notifEstado();
+  const bloqueAvisos = est==='granted'
+    ? `<div class="ok no-print" style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <span>🔔 Avisos de Windows <b>activados</b>. Deja la app abierta en una pestaña (puede estar minimizada).</span>
+        <button class="btn ghost sm" id="nprueba">Probar</button></div>`
+    : est==='no' ? ''
+    : `<div class="ok no-print" style="border-left-color:var(--oro)">
+        ${est==='denied'?'Los avisos están <b>bloqueados</b> en este navegador. Dale clic al candado junto a la dirección → Notificaciones → Permitir.'
+          :'Activa los avisos para que te salga un <b>banner en tu pantalla</b> cuando alguien mande o actualice algo.'}
+        ${est==='default'?'<div style="margin-top:8px"><button class="btn sm" id="nactiva">🔔 Activar avisos</button></div>':''}</div>`;
+  return bloqueAvisos+`${sinLeer.length?`<button class="btn ghost wide no-print" id="todas" style="margin-bottom:12px">Marcar todas como leídas (${sinLeer.length})</button>`:''}
     <div class="eyebrow">Avisos · ${sinLeer.length} sin leer</div>
     ${N.map(n=>{
       const t=new Date(n.created_at);
@@ -5033,7 +5110,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v184 · alta desde campo + sin dobles</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v185 · avisos en pantalla</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
