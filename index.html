@@ -2053,7 +2053,89 @@ async function enviarLevantamiento(){
     texto:`${U.nombre} · ${d.unidad?'Unit '+d.unidad+' · ':''}${d.tipo} · ${d.areas.join(', ')||'sin áreas'} · ${d.fotos.length} fotos`,
     de_usuario:U.nombre, para_rol:'admin'
   });
-  marcarUbicacion('inicial', data?data.id:null); cerrar(); toast('Reporte inicial enviado a oficina'); render();
+  marcarUbicacion('inicial', data?data.id:null);
+  // Si esta persona tiene permiso de dar de alta, el inicial se vuelve trabajo de una vez.
+  if(data && await puedeDarAlta()){
+    const r=await altaDirecta(data);
+    cerrar();
+    if(r.ok) toast('Trabajo dado de alta · '+r.folio);
+    else toast('Inicial enviado. No se dio de alta: '+r.msg);
+    return render();
+  }
+  cerrar(); toast('Reporte inicial enviado a oficina'); render();
+}
+
+/* ---------- Permiso para dar de alta sin esperar a oficina ----------
+   Se lee de la base cada vez, así el permiso aplica aunque la persona
+   ya tuviera la sesión abierta. Columna: usuarios.puede_alta */
+async function puedeDarAlta(){
+  if(!U) return false;
+  if(EDIT()) return false;            // oficina y gerencia ya lo hacen desde la bandeja
+  try{
+    const {data}=await sb.from('usuarios').select('*').eq('id',U.id).maybeSingle();
+    return !!(data && data.puede_alta);
+  }catch(e){ return false; }
+}
+
+// Convierte un reporte inicial en job, igual que "Crear trabajo con estos datos".
+async function altaDirecta(x){
+  let pr=null;
+  if(x.propiedad_id){
+    const {data}=await sb.from('propiedades').select('*').eq('id',x.propiedad_id).maybeSingle();
+    pr=data;
+  }
+  const direccion = x.direccion || (pr&&pr.direccion) || null;
+  if(!direccion) return {ok:false, msg:'falta la dirección. Quedó para oficina.'};
+  const folio=await nuevoFolio(x.departamento);
+  const esCln = x.departamento==='cleaning';
+  const p={
+    folio, departamento:x.departamento, tipo:x.tipo, estatus:'activo',
+    origen: x.management_id?'management':'particular',
+    management_id:x.management_id||null, propiedad_id:x.propiedad_id||null,
+    cliente: x.cliente || x.propiedad_texto || (pr&&pr.nombre) || 'Sin nombre',
+    telefono:x.contacto_tel||null, direccion,
+    ciudad: x.ciudad || (pr&&pr.ciudad) || 'San Diego', zip: x.zip || (pr&&pr.zip) || null,
+    unidad:x.unidad||null, tipo_propiedad: x.management_id?'apartamento':'casa',
+    tecnico_id:x.tecnico_id||null,
+    ocupada:x.ocupada||'vacia', areas:x.areas||[],
+    removido: esCln?[]:(x.material_removido||[]),
+    extraccion: esCln?false:!!x.agua_extraida,
+    extraccion_notas: esCln?null:(x.agua_extraida?(x.causa||null):null),
+    servicios_carpet: esCln?(x.servicios||[]):null,
+    fecha_inicio:x.fecha||hoy(), fecha_perdida:x.fecha||hoy(),
+    lat: pr?pr.lat:null, lng: pr?pr.lng:null,
+    notas: [x.causa, 'Dado de alta desde campo por '+(x.tecnico_nombre||(U&&U.nombre)||'')].filter(Boolean).join('\n')
+  };
+  const {data:job,error}=await sb.from('jobs').insert(p).select().single();
+  if(error) return {ok:false, msg:error.message};
+  const jid=job.id;
+  await sb.from('reportes').insert({
+    job_id:jid, tecnico_id:x.tecnico_id, fecha:x.fecha, tipo_reporte:'inicial',
+    hora_entrada:x.hora_entrada, hora_salida:x.hora_salida,
+    after_hours:x.after_hours, ocupada:x.ocupada, agua_extraida:x.agua_extraida,
+    wipe_down:x.wipe_down, demo:x.demo, removio_pad_base:x.removio_pad_base,
+    servicios:x.servicios, areas:x.areas, material_removido:x.material_removido,
+    sqft_plastico:x.sqft_plastico, zipper:x.zipper, packs_equipo:x.packs_equipo,
+    equipo_desc:x.equipo_desc, deshu_inst:x.deshu_inst, air_inst:x.air_inst, scrub_inst:x.scrub_inst,
+    lecturas:x.lecturas, fotos:x.fotos, trabajo_realizado:(x.servicios||[]).join(' · '),
+    siguiente_trabajo:x.siguiente_trabajo, notas:x.notas
+  });
+  if(x.tecnico_id) await sb.from('asignaciones').upsert(
+    {job_id:jid, tecnico_id:x.tecnico_id, fecha:x.fecha, hora:x.hora_entrada},
+    {onConflict:'job_id,tecnico_id,fecha'});
+  await sb.from('reportes_iniciales').update({estatus:'convertido', job_id:jid}).eq('id',x.id);
+  for(const mat of (p.removido||[]))
+    await sb.from('partidas').insert({job_id:jid,nombre:mat,
+      detalle:(x.areas||[]).length?x.areas.join(', '):null,clase:'reparacion',estatus:'pendiente'});
+  if(p.extraccion)
+    await sb.from('partidas').insert({job_id:jid,nombre:'Water extraction',
+      detalle:p.extraccion_notas,clase:'servicio',estatus:'terminada',fecha_fin:hoy()});
+  await notifIns({
+    tipo:'job',
+    titulo:'Trabajo dado de alta desde campo · '+(x.propiedad_texto||p.cliente),
+    texto:`${x.tecnico_nombre||''} abrió ${folio}${x.unidad?' · Unit '+x.unidad:''} · ${x.tipo}. Revisa el folio y el scope.`,
+    job_id:jid, de_usuario:x.tecnico_nombre||'', para_rol:'admin'});
+  return {ok:true, folio, id:jid};
 }
 
 /* ---------- ADMIN: bandeja de reportes iniciales ---------- */
@@ -4912,7 +4994,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v182 · escuchar llamada con IA</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v183 · alta desde campo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -14512,6 +14594,7 @@ async function formUsuario(id){
       <label>Departamento</label><select id="u_dep">${['restoration','cleaning','ambos'].map(d=>`<option ${u.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       <label>Contraseña ${id?'(dejar vacío para no cambiarla)':''}</label><input id="u_pass" type="password">
       <label><input type="checkbox" id="u_act" ${u.activo?'checked':''} style="width:auto"> Activo</label>
+      <label style="margin-top:10px"><input type="checkbox" id="u_alta" ${u.puede_alta?'checked':''} style="width:auto"> Puede dar de alta sus reportes iniciales como trabajo (sin esperar a oficina)</label>
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
       ${id?`
       <div class="eyebrow">Dar de baja</div>
@@ -14523,12 +14606,16 @@ async function formUsuario(id){
   $('#sv').onclick=async()=>{
     const p={nombre:$('#u_nombre').value.trim(),username:$('#u_username').value.trim().toLowerCase(),
       telefono:$('#u_tel').value.trim()||null,rol:$('#u_rol').value,departamento:$('#u_dep').value,activo:$('#u_act').checked};
+    // Solo se manda si se usa, para no romper si la columna aún no existe en la base
+    if($('#u_alta').checked || ('puede_alta' in u)) p.puede_alta=$('#u_alta').checked;
     if(!p.nombre||!p.username) return toast('Faltan nombre y usuario.');
     const pw=$('#u_pass').value;
     if(pw) p.password_hash=await sha256(pw);
     if(!id && !pw) return toast('Ponle una contraseña.');
     const q=id?sb.from('usuarios').update(p).eq('id',id):sb.from('usuarios').insert(p);
-    const {error}=await q; if(error) return toast('No se guardó: '+error.message);
+    const {error}=await q;
+    if(error && /puede_alta/.test(error.message)) return toast('Falta activar el permiso en la base (Supabase). Pídele a Jared el paso del SQL.');
+    if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Personal guardado'); render();
   };
 
