@@ -5110,7 +5110,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v185 · avisos en pantalla</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v186 · terminado pasa a facturar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5592,6 +5592,7 @@ async function formReporte(jobId,fecha,tecOverride){
     }
     const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se guardó: '+error.message);
+    await revisarCierre(jobId, p);
     try{ await avisarReporte(j, !prev, SERV, fecha); }catch(e){}
 
     if(MATS.length){
@@ -6524,6 +6525,7 @@ async function enviarGuiado(){
   const yaHabia=G.prev;
   const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
+  await revisarCierre(jobId, p);
 
   // El scope que escribió el técnico pasa al trabajo, para que admin y oficina lo vean
   if((d.scope_texto||'').trim()){
@@ -6549,6 +6551,45 @@ async function enviarGuiado(){
     await sb.from('jobs').update({areas:nuevas, ocupada:d.ocupada}).eq('id',jobId);
   }
   borrarBorrador(); marcarUbicacion('reporte', G.job?G.job.id:null); cerrar(); toast(ING()?'Report sent':'Reporte enviado'); render();
+}
+
+
+/* ==================== CIERRE AUTOMÁTICO → FALTA FACTURAR ====================
+   Cuando el técnico marca "Trabajo terminado" en su reporte (o lo escribe en
+   "lo que sigue" / notas), el job pasa solo a TERMINADO y aparece en
+   "Falta facturar". A oficina le llega el aviso con lo que haya que revisar. */
+function reporteDiceTerminado(p){
+  if(!p || p.asistio===false) return false;
+  if((p.proximo_paso||[]).some(x=>/^(trabajo terminado|job complete)$/i.test(String(x).trim()))) return true;
+  const t=[p.siguiente_trabajo,p.notas].filter(Boolean).join(' \n ').toLowerCase();
+  if(!t) return false;
+  if(/\b(no|not|a[uú]n no|todav[ií]a no|not yet|falta)\b[^.\n]{0,25}(termin|complet|finish|done|listo)/i.test(t)) return false;
+  return /(trabajo|job|work)\s+(terminad[oa]|complete[d]?|finished|done)|se termin[oó] el trabajo|terminamos el trabajo|listo para facturar|ready to (bill|invoice)/i.test(t);
+}
+async function revisarCierre(jobId, p){
+  try{
+    if(!reporteDiceTerminado(p)) return;
+    const {data:j}=await sb.from('jobs').select('id,folio,cliente,unidad,estatus,fecha_cierre,invoice_num').eq('id',jobId).maybeSingle();
+    if(!j || ['terminado','facturado'].includes(j.estatus)) return;
+    const [{data:reps},{data:parts}] = await Promise.all([
+      sb.from('reportes').select('deshu_inst,air_inst,scrub_inst,deshu_ret,air_ret,scrub_ret').eq('job_id',jobId),
+      sb.from('partidas').select('nombre,estatus').eq('job_id',jobId)
+    ]);
+    const sum=(k)=>(reps||[]).reduce((a,r)=>a+(Number(r[k])||0),0);
+    const equipoFuera = (sum('deshu_inst')+sum('air_inst')+sum('scrub_inst')) - (sum('deshu_ret')+sum('air_ret')+sum('scrub_ret'));
+    const pend=(parts||[]).filter(x=>!['terminada','cancelada'].includes(x.estatus));
+    const {error}=await sb.from('jobs').update({estatus:'terminado', fecha_cierre:j.fecha_cierre||hoy()}).eq('id',jobId);
+    if(error) return;
+    const ojo=[ equipoFuera>0 ? equipoFuera+' equipo(s) sin recoger según los reportes' : '',
+                pend.length ? pend.length+' partida(s) sin terminar: '+pend.slice(0,3).map(x=>x.nombre).join(', ') : '' ].filter(Boolean);
+    await notifIns({
+      tipo:'job',
+      titulo:'Listo para facturar · '+(j.folio||'')+(j.unidad?' · Unit '+j.unidad:''),
+      texto:(U&&U.nombre?U.nombre:'El técnico')+' marcó el trabajo como terminado ('+fmt(p.fecha||hoy())+'). '
+        +(ojo.length?'Revisa: '+ojo.join(' · ')+'.':'Ya está en "Falta facturar".'),
+      job_id:jobId, de_usuario:U?U.nombre:'', para_rol:'admin'});
+    toast(ING()?'Job marked complete · sent to billing':'Trabajo terminado · pasó a facturar');
+  }catch(e){}
 }
 
 /* ==================== REPORTE EN FORMATO DE CAMPO ==================== */
