@@ -1993,7 +1993,14 @@ const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','
 const DSEM=['lun','mar','mié','jue','vie','sáb','dom'];
 
 /* ==================== ENVÍO Y REVISIÓN DEL LEVANTAMIENTO ==================== */
+// Evita que un doble toque en "Enviar" mande el mismo inicial dos veces.
+let ENVIANDO_LEV=false;
 async function enviarLevantamiento(){
+  if(ENVIANDO_LEV) return;
+  ENVIANDO_LEV=true;
+  try{ await enviarLevantamiento_(); } finally { ENVIANDO_LEV=false; }
+}
+async function enviarLevantamiento_(){
   const d=G.d;
 
   // No puede haber dos veces la misma unidad de la misma propiedad.
@@ -2075,6 +2082,38 @@ async function puedeDarAlta(){
     const {data}=await sb.from('usuarios').select('*').eq('id',U.id).maybeSingle();
     return !!(data && data.puede_alta);
   }catch(e){ return false; }
+}
+
+/* Si la persona tiene permiso, sus iniciales que se quedaron pendientes
+   (por ejemplo, de antes de tener el permiso) se dan de alta solos al abrir la app.
+   Si mandó la misma unidad dos veces, se da de alta una y la otra se descarta. */
+let ALTA_REVISADA=0;
+async function altaPendientes(){
+  if(!U || U.rol!=='tecnico') return;
+  if(Date.now()-ALTA_REVISADA < 90000) return;
+  ALTA_REVISADA=Date.now();
+  if(!await puedeDarAlta()) return;
+  const {data:pend}=await sb.from('reportes_iniciales').select('*')
+    .eq('tecnico_id',U.id).eq('estatus','pendiente').order('created_at',{ascending:true});
+  if(!pend||!pend.length) return;
+  const vistos={}; let hechos=[], dup=0;
+  for(const x of pend){
+    const k=(x.propiedad_id||String(x.propiedad_texto||'').trim().toLowerCase())+'|'+String(x.unidad||'').trim().toLowerCase();
+    if(x.unidad && vistos[k]){
+      await sb.from('reportes_iniciales').update({estatus:'descartado'}).eq('id',x.id); dup++; continue;
+    }
+    vistos[k]=true;
+    // Si ya hay trabajo abierto en esa unidad, se deja para que oficina decida.
+    if(x.unidad && x.propiedad_id){
+      const {data:ya}=await sb.from('jobs').select('id,unidad').eq('propiedad_id',x.propiedad_id)
+        .not('estatus','in','("facturado")');
+      if((ya||[]).some(j=>String(j.unidad||'').trim().toLowerCase()===String(x.unidad).trim().toLowerCase())) continue;
+    }
+    const r=await altaDirecta(x);
+    if(r.ok) hechos.push(r.folio);
+  }
+  if(hechos.length) toast((ING()?'Jobs created: ':'Trabajos dados de alta: ')+hechos.join(', '));
+  else if(dup) toast(ING()?'Duplicate initial reports removed':'Se quitaron iniciales repetidos');
 }
 
 // Convierte un reporte inicial en job, igual que "Crear trabajo con estos datos".
@@ -4994,7 +5033,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v183 · alta desde campo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v184 · alta desde campo + sin dobles</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5101,6 +5140,7 @@ async function render(){
   shell('<div class="empty">Cargando…</div>');
   try{
     if(U.rol==='tecnico'){
+      try{ await altaPendientes(); }catch(e){}
       if(U.rol==='contratista'){
         if(V==='cpartes') return shell(await vContraPartes());
         if(V==='choras')  return shell(await vContraHoras());
