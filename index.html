@@ -2072,6 +2072,26 @@ async function enviarLevantamiento_(){
   cerrar(); toast('Reporte inicial enviado a oficina'); render();
 }
 
+
+/* Crea una propiedad desde campo (técnico) o desde el alta automática.
+   Si ya existe una con la misma dirección en ese management, usa esa.
+   Siempre avisa a oficina para que la revise. */
+async function crearPropiedadCampo(mgId, nombre, direccion, ciudad, zip, quien){
+  const n=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const {data:existentes}=await sb.from('propiedades').select('*').eq('management_id',mgId);
+  const ya=(existentes||[]).find(p=>n(p.direccion)&&n(p.direccion)===n(direccion) || n(p.nombre)===n(nombre));
+  if(ya) return ya;
+  const {data,error}=await sb.from('propiedades').insert({
+    nombre:String(nombre).trim().toUpperCase(), management_id:mgId,
+    direccion, ciudad:ciudad||'San Diego', zip:zip||null}).select().single();
+  if(error){ toast('No se pudo crear la propiedad: '+error.message); return null; }
+  const {data:mg}=await sb.from('managements').select('nombre').eq('id',mgId).maybeSingle();
+  await notifIns({tipo:'propiedad',
+    titulo:'Propiedad nueva · '+data.nombre+(mg?' ('+mg.nombre+')':''),
+    texto:(quien||(U&&U.nombre)||'Un técnico')+' la creó desde campo: '+[direccion,ciudad,zip].filter(Boolean).join(', ')+'. Revisa que el nombre y la dirección estén bien.',
+    de_usuario:quien||(U?U.nombre:''), para_rol:'admin'});
+  return data;
+}
 /* ---------- Permiso para dar de alta sin esperar a oficina ----------
    Se lee de la base cada vez, así el permiso aplica aunque la persona
    ya tuviera la sesión abierta. Columna: usuarios.puede_alta */
@@ -2126,21 +2146,19 @@ async function altaDirecta(x){
   const direccion = x.direccion || (pr&&pr.direccion) || null;
   if(!direccion) return {ok:false, msg:'falta la dirección. Quedó para oficina.'};
   // Si escribió el nombre de un management como "lugar" (sin escoger propiedad),
-  // no se da de alta como particular: se queda para que oficina ponga la propiedad.
+  // se crea la propiedad dentro de ese management y se sigue. Oficina la revisa después.
   if(!x.management_id){
     const {data:mgs}=await sb.from('managements').select('id,nombre');
     const n=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
     const txt=n(x.propiedad_texto)+' '+n(x.cliente);
     const mg=(mgs||[]).find(m=>{ const k=n(m.nombre).replace(/\b(management|mgmt|company|inc|llc)\b/g,'').trim(); return k.length>=4 && txt.includes(k); });
     if(mg){
-      const tit='Inicial por revisar · parece de '+mg.nombre+(x.unidad?' · Unit '+x.unidad:'');
-      // avisar una sola vez por inicial (la app reintenta al abrir)
-      const {data:ya}=await sb.from('notificaciones').select('id').eq('titulo',tit).gte('created_at',(x.created_at||hoy())).limit(1);
-      if(!(ya&&ya.length)) await notifIns({tipo:'levantamiento',
-        titulo:tit,
-        texto:(x.tecnico_nombre||'')+' lo mandó como particular ("'+(x.propiedad_texto||x.cliente||'')+'", '+direccion+'). Escoge la propiedad de '+mg.nombre+' y créalo.',
-        de_usuario:x.tecnico_nombre||'', para_rol:'admin', departamento:x.departamento});
-      return {ok:false, msg:'parece de '+mg.nombre+'. Oficina le pone la propiedad.'};
+      const propNom = n(x.propiedad_texto).includes(n(mg.nombre).replace(/\b(management|mgmt|company|inc|llc)\b/g,'').trim()) ? direccion : x.propiedad_texto;
+      const np=await crearPropiedadCampo(mg.id, propNom, direccion, x.ciudad, x.zip, x.tecnico_nombre);
+      if(np){
+        x.management_id=mg.id; x.propiedad_id=np.id; x.propiedad_texto=np.nombre; pr=np;
+        await sb.from('reportes_iniciales').update({management_id:mg.id, propiedad_id:np.id, propiedad_texto:np.nombre}).eq('id',x.id);
+      }
     }
   }
   const folio=await nuevoFolio(x.departamento);
@@ -3199,6 +3217,7 @@ async function notifActivar(){
   if(r==='granted'){
     toast('Avisos de Windows activados');
     notifSistema({titulo:'JR31 · avisos activados', texto:'Así te van a llegar los reportes, iniciales y cambios del equipo.'});
+    hablar('Avisos activados. Así te voy a decir lo que llegue.');
   } else toast('No se activaron los avisos.');
   const c=document.querySelector('.avisoperm'); if(c) c.remove();
   if(V==='notif') render();
@@ -3226,22 +3245,78 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden){ AVISOS_FUERA=0; document.title=TITULO_BASE; }
 });
 
+
+/* ==================== VOZ: dice qué llegó y quién lo manda ====================
+   "Reporte recibido de Jesús Lozoya, Avino". Usa la voz en español de Windows
+   / Chrome. Se silencia con el mismo botón de sonido (♪). */
+function vozFrase(n){
+  const t=String(n.titulo||''), tipo=n.tipo||'';
+  let que='Actualización recibida';
+  if(tipo==='levantamiento' || /^reporte inicial nuevo/i.test(t)) que='Inicial recibido';
+  else if(tipo==='reporte'){
+    if(/corregido/i.test(t)) que='Reporte actualizado';
+    else if(/inicial/i.test(t)) que='Reporte inicial recibido';
+    else que='Reporte recibido';
+  }
+  else if(tipo==='nota') que='Comentario recibido';
+  else if(tipo==='propiedad') que='Propiedad nueva creada';
+  else if(tipo==='nofui') que='Visita no realizada';
+  else if(tipo==='parte') que='Parte de trabajo recibido';
+  else if(tipo==='checada') que=/sal/i.test(t)?'Salida registrada':'Entrada registrada';
+  else if(tipo==='recordatorio') que='Recordatorio';
+  else if(tipo==='job'){
+    if(/facturar/i.test(t)) que='Trabajo listo para facturar';
+    else if(/nuevo|alta/i.test(t)) que='Trabajo nuevo';
+    else que='Trabajo actualizado';
+  }
+  let quien=String(n.de_usuario||'').trim();
+  if(!quien){ const m=String(n.texto||'').match(/^([^·]+?)\s*·/); if(m && m[1].length<40) quien=m[1].trim(); }
+  let lugar = (t.split(' · ')[1]||'').replace(/\bCAP-\d+\b/i,'').replace(/\(.*?\)/g,'').trim();
+  // En minúsculas para que la voz no lo deletree (AVINO → Avino)
+  lugar = lugar.toLowerCase().replace(/(^|\s)\S/g, c=>c.toUpperCase());
+  return que + (quien?(tipo==='propiedad'?' por ':' de ')+quien:'') + (lugar && lugar.length<40 ? ', '+lugar : '') + '.';
+}
+let VOZ_ES=null;
+function vozElegir(){
+  try{
+    const vs=speechSynthesis.getVoices()||[];
+    VOZ_ES = vs.find(v=>/es-MX/i.test(v.lang)) || vs.find(v=>/es-US/i.test(v.lang)) || vs.find(v=>/^es/i.test(v.lang)) || null;
+  }catch(e){}
+}
+if('speechSynthesis' in window){ vozElegir(); try{ speechSynthesis.onvoiceschanged=vozElegir; }catch(e){} }
+function hablar(texto){
+  if(!SONIDO || !('speechSynthesis' in window)) return false;
+  try{
+    const u=new SpeechSynthesisUtterance(texto);
+    if(!VOZ_ES) vozElegir();
+    if(VOZ_ES) u.voice=VOZ_ES;
+    u.lang = VOZ_ES ? VOZ_ES.lang : 'es-MX';
+    u.rate=1; u.pitch=1; u.volume=1;
+    speechSynthesis.speak(u);
+    return true;
+  }catch(e){ return false; }
+}
+
 async function vigilarAvisos(){
   if(!U) return;
   try{
-    let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at')
+    let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at,de_usuario')
       .eq('leida',false).order('created_at',{ascending:false}).limit(4);
     q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
     q=q.eq('departamento',DEPV());
     const {data}=await q;
     const nuevas=(data||[]).filter(x=>new Date(x.created_at).getTime() > ULT_NOTIF);
     if(ULT_NOTIF && nuevas.length){
-      tono(nuevas.some(x=>/urgen|falta|sin reporte/i.test(x.titulo||''))?'urgente':'normal');
+      // Voz: "Reporte recibido de Jesús Lozoya, Avino". Si no hay voz, el tono de antes.
+      const dichas = nuevas.slice(0,3).map(vozFrase);
+      if(nuevas.length>3) dichas.push('y '+(nuevas.length-3)+' avisos más.');
+      const hablo = dichas.map(hablar).some(Boolean);
+      if(!hablo) tono(nuevas.some(x=>/urgen|falta|sin reporte/i.test(x.titulo||''))?'urgente':'normal');
       vibrar();
       nuevas.slice(0,2).forEach((n,i)=>setTimeout(()=>avisoFlotante(n.titulo,n.texto,n.job_id), i*700));
-      // Si no estás viendo la app, también sale el banner de Windows
+      // Banner de Windows siempre (si diste permiso), estés o no viendo la app
+      nuevas.slice(0,4).forEach((n,i)=>setTimeout(()=>notifSistema(n), i*400));
       if(document.hidden || !document.hasFocus()){
-        nuevas.slice(0,4).forEach((n,i)=>setTimeout(()=>notifSistema(n), i*400));
         AVISOS_FUERA += nuevas.length;
         document.title = '🔔 ('+AVISOS_FUERA+') '+TITULO_BASE;
       }
@@ -3296,7 +3371,7 @@ async function vNotificaciones(){
   setTimeout(()=>{
     const a=$('#nactiva'); if(a) a.onclick=notifActivar;
     const a2=$('#nactiva2'); if(a2) a2.onclick=notifActivar;
-    const pr=$('#nprueba'); if(pr) pr.onclick=()=>notifSistema({titulo:'JR31 · prueba', texto:'Así se ve un aviso cuando alguien te manda algo.'});
+    const pr=$('#nprueba'); if(pr) pr.onclick=()=>{ notifSistema({titulo:'JR31 · prueba', texto:'Así se ve un aviso cuando alguien te manda algo.'}); hablar('Reporte recibido de Jesús Lozoya, Avino.'); };
   },0);
   setTimeout(()=>{
     const t=$('#todas'); if(t) t.onclick=async()=>{
@@ -5128,7 +5203,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v187 · managements no como particular</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v189 · avisos con voz</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -6099,7 +6174,18 @@ function pintaGuiado(){
     ${d.mg_id?`<label>Propiedad</label>
     <select id="g_pr"><option value="">— escoge la propiedad —</option>
       ${lista.map(x=>`<option value="${x.id}" ${d.prop_id===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>
-    <div class="sub" id="g_av" style="margin-top:5px"></div>`:`
+    <div class="sub" id="g_av" style="margin-top:5px"></div>
+    ${G.nuevaProp?`<div class="ok" style="margin-top:12px">
+        <b>${ING()?'New property for ':'Propiedad nueva de '}${esc((G.MG.find(m=>m.id===d.mg_id)||{}).nombre||'')}</b>
+        <div class="sub" style="margin-top:4px">${ING()?'The office will review it later. Keep going with your report.':'Oficina la revisa después. Tú sigue con tu reporte.'}</div>
+        <label>${ING()?'Property name':'Nombre de la propiedad'}</label><input id="np_nom" placeholder="Mission Village Apartments">
+        <label>${ING()?'Address':'Dirección'}</label><input id="np_dir" placeholder="2696 Mission Village Dr">
+        <div class="g2"><div><label>${ING()?'City':'Ciudad'}</label><input id="np_ciu" value="San Diego"></div>
+        <div><label>ZIP</label><input id="np_zip" inputmode="numeric"></div></div>
+        <div class="row" style="margin-top:10px;gap:8px">
+          <button type="button" class="btn" style="flex:2" id="np_ok">${ING()?'Save property':'Guardar propiedad'}</button>
+          <button type="button" class="btn ghost" style="flex:1" id="np_x">${ING()?'Cancel':'Cancelar'}</button></div>
+      </div>`:`<button type="button" class="btn ghost wide" id="np_abre" style="margin-top:10px">${ING()?'+ Property not listed · add it':'+ No está la propiedad · crearla'}</button>`}`:`
     <label>Nombre del lugar</label><input id="g_pt" value="${esc(d.propiedad_texto)}" placeholder="Hernández Residence">
     <label>Dirección</label><input id="g_dir" value="${esc(d.direccion)}" placeholder="3421 Newton Ave">
     <div class="g2"><div><label>Ciudad</label><input id="g_ciu" value="${esc(d.ciudad)}"></div>
@@ -6344,7 +6430,7 @@ function pintaGuiado(){
   }
 
   if(p.tipo==='ubicacion'){
-    q1('#g_mg').onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
+    q1('#g_mg').onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; G.nuevaProp=false; pintaGuiado(); };
     const pr=q1('#g_pr');
     if(pr){
       const av=()=>{ const x=G.PR.find(y=>y.id===pr.value);
@@ -6360,10 +6446,25 @@ function pintaGuiado(){
 
   // chips genéricos (áreas, servicios, materiales)
 
-  // ubicación del levantamiento
+  // ubicación del levantamiento · crear propiedad desde campo
+  const npA=q1('#np_abre'); if(npA) npA.onclick=()=>{ G.nuevaProp=true; pintaGuiado(); };
+  const npX=q1('#np_x');    if(npX) npX.onclick=()=>{ G.nuevaProp=false; pintaGuiado(); };
+  const npO=q1('#np_ok');
+  if(npO) npO.onclick=async()=>{
+    const nom=(q1('#np_nom').value||'').trim(), dir=(q1('#np_dir').value||'').trim();
+    if(!nom && !dir) return toast(ING()?'Enter the property name or address.':'Pon el nombre o la dirección de la propiedad.');
+    if(!dir) return toast(ING()?'Enter the address.':'Pon la dirección.');
+    npO.disabled=true;
+    const r=await crearPropiedadCampo(G.d.mg_id, nom||dir, dir, (q1('#np_ciu').value||'').trim()||'San Diego', (q1('#np_zip').value||'').trim()||null);
+    npO.disabled=false;
+    if(!r) return;
+    if(!G.PR.find(x=>x.id===r.id)) G.PR.push(r);
+    G.d.prop_id=r.id; G.d.propiedad_texto=r.nombre; G.d.direccion=r.direccion||''; G.d.ciudad=r.ciudad||'San Diego'; G.d.zip=r.zip||'';
+    G.nuevaProp=false; toast(ING()?'Property added · keep going':'Propiedad creada · sigue con tu reporte'); pintaGuiado();
+  };
   const selMg=q1('#g_mg');
   if(selMg){
-    selMg.onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; pintaGuiado(); };
+    selMg.onchange=e=>{ G.d.mg_id=e.target.value; G.d.prop_id=''; G.nuevaProp=false; pintaGuiado(); };
     const pr=q1('#g_pr');
     if(pr){
       const av=()=>{ const x=G.PR.find(y=>y.id===pr.value);
