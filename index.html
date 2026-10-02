@@ -8,6 +8,13 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Capri JR31">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>
   // Aplica el tema antes de pintar, para que no salga el destello blanco
   (function(){
@@ -3191,6 +3198,42 @@ function avisoFlotante(titulo, texto, jobId){
   setTimeout(quitar, 9000);
 }
 
+
+/* ==================== APP INSTALABLE (PWA) ====================
+   Con manifest + service worker la app se instala con su ícono y abre sin
+   la barra del navegador, en PC, Android y iPhone. */
+let SW_REG=null, INSTALAR=null;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').then(r=>{ SW_REG=r; }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message', ev=>{
+    const m=ev.data||{}; if(m.tipo!=='abrir' || !U) return;
+    if(m.notif_id) sb.from('notificaciones').update({leida:true}).eq('id',m.notif_id);
+    if(m.job_id){ (U.rol==='tecnico'?verJobTecnico:abrirJob)(m.job_id); } else { V='notif'; render(); }
+  });
+}
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); INSTALAR=e; pintarBotonInstalar(); });
+window.addEventListener('appinstalled', ()=>{ INSTALAR=null; const b=document.getElementById('btn_instalar'); if(b) b.remove(); toast('App instalada'); });
+function enApp(){ return window.matchMedia && (matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true; }
+function esIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+function pintarBotonInstalar(){
+  if(enApp() || document.getElementById('btn_instalar')) return;
+  if(!INSTALAR && !esIOS()) return;
+  const b=document.createElement('button');
+  b.id='btn_instalar'; b.className='btn sm no-print';
+  b.style.cssText='position:fixed;left:14px;bottom:14px;z-index:70;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+  b.textContent='📲 Instalar app';
+  b.onclick=async()=>{
+    if(INSTALAR){ INSTALAR.prompt(); const r=await INSTALAR.userChoice; if(r&&r.outcome==='accepted') b.remove(); INSTALAR=null; return; }
+    // iPhone: Apple no deja instalar con botón; se hace desde Compartir
+    alert('En iPhone:\n1. Abre esta página en Safari.\n2. Toca el botón Compartir (cuadro con flecha).\n3. Escoge "Agregar a pantalla de inicio".\n\nQueda el ícono de Capri JR31 como una app.');
+  };
+  document.body.appendChild(b);
+}
+setTimeout(pintarBotonInstalar, 3000);
+// Abrir directo un trabajo cuando se entra desde un aviso (?job=...)
+setTimeout(()=>{ try{ const id=new URLSearchParams(location.search).get('job');
+  if(id && U){ (U.rol==='tecnico'?verJobTecnico:abrirJob)(id); } }catch(e){} }, 2500);
+
 /* ==================== AVISOS DE WINDOWS (banner del sistema) ====================
    Cuando la app está abierta en una pestaña pero estás en otra cosa (otro
    programa, otra pestaña, minimizada), el aviso sale como banner de Windows
@@ -3201,6 +3244,15 @@ function notifPuede(){ return ('Notification' in window); }
 function notifEstado(){ return notifPuede() ? Notification.permission : 'no'; }
 function notifSistema(n){
   if(!notifPuede() || Notification.permission!=='granted') return;
+  // En celulares (y en la app instalada) el aviso lo muestra el service worker
+  if(SW_REG){
+    try{
+      SW_REG.showNotification(n.titulo||'Capri JR31', {body:(n.texto||'').slice(0,180),
+        tag:'jr31-'+(n.id||Date.now()), renotify:true, icon:'/icon-192.png', badge:'/icon-192.png',
+        data:{job_id:n.job_id||null, notif_id:n.id||null}});
+      return;
+    }catch(e){}
+  }
   try{
     const no=new Notification(n.titulo||'JR31', {body:(n.texto||'').slice(0,180), tag:'jr31-'+(n.id||Date.now()), renotify:true});
     no.onclick=()=>{
@@ -3283,7 +3335,12 @@ let VOZ_ES=null;
 function vozElegir(){
   try{
     const vs=speechSynthesis.getVoices()||[];
-    VOZ_ES = vs.find(v=>/es-MX/i.test(v.lang)) || vs.find(v=>/es-US/i.test(v.lang)) || vs.find(v=>/^es/i.test(v.lang)) || null;
+    // Voz de mujer en español. Nombres de voces femeninas en Windows, Android, iPhone y Mac.
+    const MUJER=/sabina|paulina|helena|laura|m[oó]nica|elvira|dalia|marisol|lupe|paloma|ximena|renata|valeria|camila|francisca|angelica|ang[eé]lica|soledad|esperanza|female|mujer|woman|google español/i;
+    const HOMBRE=/ra[uú]l|jorge|pablo|diego|juan|carlos|alvaro|[aá]lvaro|enrique|male\b|hombre|man\b/i;
+    const es=vs.filter(v=>/^es/i.test(v.lang));
+    const rank=v=>(MUJER.test(v.name)?0:HOMBRE.test(v.name)?3:1)*10 + (/es-MX/i.test(v.lang)?0:/es-US/i.test(v.lang)?1:2) + (v.localService?0:0.5);
+    VOZ_ES = es.sort((a,b)=>rank(a)-rank(b))[0] || null;
   }catch(e){}
 }
 if('speechSynthesis' in window){ vozElegir(); try{ speechSynthesis.onvoiceschanged=vozElegir; }catch(e){} }
@@ -3294,7 +3351,9 @@ function hablar(texto){
     if(!VOZ_ES) vozElegir();
     if(VOZ_ES) u.voice=VOZ_ES;
     u.lang = VOZ_ES ? VOZ_ES.lang : 'es-MX';
-    u.rate=1; u.pitch=1; u.volume=1;
+    u.rate=1; u.volume=1;
+    // Si el aparato no tiene voz de mujer, se sube el tono para que suene más femenina
+    u.pitch = (VOZ_ES && /ra[uú]l|jorge|pablo|diego|juan|carlos|[aá]lvaro|enrique|male\b/i.test(VOZ_ES.name)) ? 1.45 : 1.1;
     speechSynthesis.speak(u);
     return true;
   }catch(e){ return false; }
@@ -5229,7 +5288,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v193 · recordatorio Carpet + voz facturas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v195 · notas desde capturas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5300,7 +5359,7 @@ function shell(html){
       ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="llam">📞 Escuchar llamada</button>
-      <button data-q="llnot">📝 Notas de llamada (Julio)</button>
+      <button data-q="llnot">📸 Nota desde capturas (Julio)</button>
       <button data-q="est">+ Nuevo estimado</button>
       <button data-q="asig">+ Asignar trabajo</button>
       <button data-q="pers">+ Agregar personal</button>
@@ -5312,7 +5371,7 @@ function shell(html){
       if(q==='esp')  return formTrabajoEspecial();
       if(q==='job')  return formJob();
       if(q==='llam') return escucharLlamada();
-      if(q==='llnot') return escucharLlamada('notas');
+      if(q==='llnot') return notaDesdeCapturas();
       if(q==='est')  return formEstimado();
       if(q==='pers') return formUsuario();
       if(q==='asig'){
@@ -9343,13 +9402,13 @@ function llamResumenLocal(texto){
   const frases = texto.split(/(?<=[.!?])\s+|\n+/).map(x=>x.trim()).filter(Boolean);
   const reMed = /\b\d+(?:[.,]\d+)?\s*(?:x\s*\d+(?:[.,]\d+)?\s*)?(?:ft|feet|foot|pies?|pulgadas?|inch(?:es)?|in\b|sq\s?ft|sqft|sf|lf|linear|metros?|m2|galones?|gallons?|yardas?)\b|\b\d+\s*x\s*\d+\b|\b\d+'\s*\d*"?/i;
   const reFecha = /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|ma[nñ]ana|hoy|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b|\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\b\d{1,2}\/\d{1,2}\b/i;
-  const rePend = /\b(hay que|tienes que|tenemos que|falta|pendiente|no se te olvide|acu[eé]rdate|necesito|necesitamos|manda|env[ií]a|compra|llama|habla con|need to|have to|don't forget|remember)\b/i;
+  const rePend = /\b(hay que|tienes que|tenemos que|falta|pendiente|no se te olvide|acu[eé]rdate|necesito|necesitamos|mand[ae]r?|env[ií]a|enviar|compra|comprar|llama|llamar|habla con|pedir|pide|recoger|recoge|cobrar|facturar|revisar|revisa|ir a|programar|agendar|need to|have to|don't forget|remember|send|call|pick up)\b/i;
   const medidas=frases.filter(f=>reMed.test(f)).slice(0,25);
   const fechas=frases.filter(f=>reFecha.test(f) && !medidas.includes(f)).slice(0,15);
   const pendientes=frases.filter(f=>rePend.test(f) && !medidas.includes(f)).slice(0,20);
   return {resumen:null, medidas, acuerdos:[], pendientes, fechas, unidades:[]};
 }
-async function guardarNotasLlamada(texto, inicio, conQuien, jobId){
+async function guardarNotasLlamada(texto, inicio, conQuien, jobId, fotos){
   const en=(typeof ING==='function'&&ING()); const T=(es,i)=>en?i:es;
   let d=null, conIA=true;
   try{
@@ -9367,7 +9426,13 @@ async function guardarNotasLlamada(texto, inicio, conQuien, jobId){
     medidas:d.medidas||[], acuerdos:d.acuerdos||[], pendientes:d.pendientes||[], fechas:d.fechas||[],
     con_ia:conIA
   };
-  const {data,error}=await sb.from('llamadas').insert(fila).select().single();
+  if(fotos && fotos.length) fila.fotos=fotos;
+  let {data,error}=await sb.from('llamadas').insert(fila).select().single();
+  if(error && fila.fotos && /fotos/.test(error.message)){
+    // Si aún no existe la columna de fotos, se guarda la nota sin ellas
+    delete fila.fotos; fila.transcripcion += '\n\n[Capturas: '+fotos.join(' , ')+']';
+    ({data,error}=await sb.from('llamadas').insert(fila).select().single());
+  }
   if(error){
     if(/llamadas/.test(error.message)) toast(T('Falta crear la tabla de llamadas en Supabase (llamadas.sql). El texto sigue en pantalla.','Calls table missing in Supabase.'));
     else toast(T('No se guardó: ','Not saved: ')+error.message);
@@ -9382,15 +9447,114 @@ async function guardarNotasLlamada(texto, inicio, conQuien, jobId){
   toast(conIA?T('Llamada guardada con resumen','Call saved with summary'):T('Llamada guardada · resumen básico (IA no conectada)','Call saved · basic summary'));
   return data.id;
 }
+
+/* ==================== NOTA DESDE CAPTURAS DE PANTALLA ====================
+   Pegas (Ctrl+V) o escoges capturas de lo que anotaste o te mandaron.
+   La app lee el texto de las imágenes (OCR, en el mismo navegador),
+   tú lo revisas y se guarda como nota con fecha, hora, resumen y las capturas. */
+let TESS_CARGA=null;
+function cargarTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(TESS_CARGA) return TESS_CARGA;
+  TESS_CARGA=new Promise((ok,mal)=>{ const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    sc.onload=()=>ok(); sc.onerror=()=>{ TESS_CARGA=null; mal(new Error('no cargó el lector')); };
+    document.head.appendChild(sc); });
+  return TESS_CARGA;
+}
+async function leerImagen(file, avisar){
+  await cargarTesseract();
+  const r=await Tesseract.recognize(file,'spa+eng',{logger:m=>{ if(m.status==='recognizing text' && avisar) avisar(Math.round((m.progress||0)*100)); }});
+  return ((r&&r.data&&r.data.text)||'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+async function notaDesdeCapturas(){
+  const CAP={fotos:[], leyendo:0};
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div class="disp" style="font-size:21px">📸 Nota desde capturas</div><button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <div class="ok"><b>Pega</b> las capturas aquí con <b>Ctrl + V</b>, o escógelas con el botón. La app lee el texto, tú lo revisas y se guarda con fecha y hora.</div>
+      <div class="g2">
+        <div><label>¿Con quién fue?</label><input id="cp_con" value="Julio"></div>
+        <div><label>¿De qué trabajo? (opcional)</label><select id="cp_job"><option value="">— ninguno / varios —</option></select></div>
+      </div>
+      <label>Capturas</label>
+      <div id="cp_zona" tabindex="0" style="border:2px dashed var(--gris,#888);border-radius:12px;padding:18px;text-align:center;cursor:pointer">
+        <div style="font-size:30px">📋</div>
+        <div><b>Ctrl + V</b> para pegar · o toca aquí para escoger</div>
+        <div class="sub">Puedes poner varias</div>
+      </div>
+      <input id="cp_file" type="file" accept="image/*" multiple style="display:none">
+      <div id="cp_th" class="chips" style="margin-top:10px"></div>
+      <div id="cp_est" class="sub" style="margin-top:6px"></div>
+      <label>Lo que dice (revísalo y corrige si algo salió mal)</label>
+      <textarea id="cp_txt" style="min-height:220px;line-height:1.6" placeholder="Aquí aparece el texto de las capturas. También puedes escribir."></textarea>
+      <div style="height:12px"></div>
+      <button class="btn wide" id="cp_ok">💾 Guardar nota y resumen</button>
+      <div style="height:10px"></div><button class="btn ghost wide" id="c2">Cancelar</button>
+    </div></div>`;
+  sb.from('jobs').select('id,folio,cliente,unidad').not('estatus','in','("facturado")').order('created_at',{ascending:false}).limit(150)
+    .then(({data})=>{ const sel=$('#cp_job'); if(!sel||!data) return;
+      sel.innerHTML += data.map(j=>`<option value="${j.id}">${esc(j.folio||'')} · ${esc(j.cliente||'')}${j.unidad&&!(j.cliente||'').includes(j.unidad)?' · Unit '+esc(j.unidad):''}</option>`).join(''); });
+  const est=m=>{ const e=$('#cp_est'); if(e) e.textContent=m; };
+  const pintaTh=()=>{ const t=$('#cp_th'); if(t) t.innerHTML=CAP.fotos.map(f=>`<img src="${esc(f.url||f.local)}" style="width:84px;height:84px;object-fit:cover;border-radius:8px;${f.url?'':'opacity:.6'}">`).join(''); };
+  const agregar=async(files)=>{
+    const imgs=[...files].filter(f=>/^image\//.test(f.type));
+    if(!imgs.length) return toast('Eso no es una imagen.');
+    for(const f of imgs){
+      const item={local:URL.createObjectURL(f), url:null}; CAP.fotos.push(item); pintaTh();
+      // se sube la captura (queda como evidencia) y se lee el texto
+      const n=`notas/${hoy()}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.png`;
+      sb.storage.from('capri').upload(n,f,{contentType:f.type||'image/png'}).then(({error})=>{
+        if(!error){ item.url=sb.storage.from('capri').getPublicUrl(n).data.publicUrl; pintaTh(); } });
+      CAP.leyendo++;
+      try{
+        est('Leyendo captura '+CAP.fotos.length+'…');
+        const txt=await leerImagen(f, p=>est('Leyendo captura '+CAP.fotos.length+'… '+p+'%'));
+        const ta=$('#cp_txt'); if(ta && txt){ ta.value += (ta.value?'\n\n':'')+txt; }
+        est(txt?'Listo. Revisa el texto abajo.':'No se encontró texto en esa captura.');
+      }catch(e){ est('No se pudo leer la captura: '+e.message+'. Puedes escribir el texto a mano.'); }
+      CAP.leyendo--;
+    }
+  };
+  const pegar=e=>{
+    if(!$('#cp_zona')){ document.removeEventListener('paste',pegar); return; }
+    const items=[...((e.clipboardData&&e.clipboardData.items)||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);
+    if(items.length){ e.preventDefault(); agregar(items); }
+  };
+  document.addEventListener('paste',pegar);
+  const salir=()=>{ document.removeEventListener('paste',pegar); cerrar(); };
+  $('#cp_zona').onclick=()=>$('#cp_file').click();
+  $('#cp_zona').ondragover=e=>e.preventDefault();
+  $('#cp_zona').ondrop=e=>{ e.preventDefault(); agregar(e.dataTransfer.files); };
+  $('#cp_file').onchange=e=>{ agregar(e.target.files); e.target.value=''; };
+  $('#c1').onclick=$('#c2').onclick=()=>{
+    if(($('#cp_txt').value||'').trim() && !confirm('¿Salir sin guardar la nota?')) return; salir(); };
+  $('#cp_ok').onclick=async()=>{
+    if(CAP.leyendo) return toast('Espera, todavía se están leyendo las capturas.');
+    const texto=($('#cp_txt').value||'').trim();
+    if(texto.length<5) return toast('No hay texto. Pega una captura o escribe la nota.');
+    const b=$('#cp_ok'); b.disabled=true; b.textContent='Guardando…';
+    const urls=CAP.fotos.map(f=>f.url).filter(Boolean);
+    const id=await guardarNotasLlamada(texto, new Date(), ($('#cp_con').value||'').trim(), $('#cp_job').value||null, urls);
+    if(id){ document.removeEventListener('paste',pegar); abrirLlamada(id); }
+    else { b.disabled=false; b.textContent='💾 Guardar nota y resumen'; }
+  };
+  setTimeout(()=>{ const z=$('#cp_zona'); if(z) z.focus(); },50);
+}
+
 async function vLlamadas(){
   const {data,error}=await sb.from('llamadas').select('*, jobs(folio,cliente)').order('inicio',{ascending:false}).limit(150);
   setTimeout(()=>{
     const n=$('#ll_nueva'); if(n) n.onclick=()=>escucharLlamada('notas');
+    const c=$('#ll_cap'); if(c) c.onclick=()=>notaDesdeCapturas();
     const q=$('#ll_q'); if(q) q.oninput=()=>{ const t=q.value.toLowerCase();
       document.querySelectorAll('[data-ll]').forEach(f=>f.style.display=f.dataset.txt.includes(t)?'':'none'); };
     document.querySelectorAll('[data-ll]').forEach(f=>f.onclick=()=>abrirLlamada(f.dataset.ll));
   },0);
-  const cab=`<button class="btn wide no-print" id="ll_nueva">📞 Nueva llamada · escuchar y anotar</button>
+  const cab=`<button class="btn wide no-print" id="ll_cap">📸 Nota desde capturas de pantalla</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost wide no-print" id="ll_nueva">📞 Nueva llamada · escuchar y anotar</button>
     <input id="ll_q" placeholder="Buscar: Julio, medidas, Avino, drywall…" style="margin:12px 0">`;
   if(error) return cab+`<div class="empty"><div class="disp">Falta un paso</div><p>Crea la tabla de llamadas en Supabase con el archivo <b>llamadas.sql</b> que te mandó Claude.</p></div>`;
   const L=data||[];
@@ -9424,7 +9588,8 @@ async function abrirLlamada(id){
       ${lista('🤝 Acuerdos',x.acuerdos)}
       ${lista('✅ Pendientes',x.pendientes)}
       ${lista('📅 Fechas y horas',x.fechas)}
-      <div class="eyebrow">Transcripción completa</div>
+      ${(x.fotos||[]).length?`<div class="eyebrow">📸 Capturas · ${x.fotos.length}</div><div class="chips">${x.fotos.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" style="width:110px;height:110px;object-fit:cover;border-radius:10px"></a>`).join('')}</div>`:''}
+      <div class="eyebrow">${(x.fotos||[]).length?'Texto leído de las capturas':'Transcripción completa'}</div>
       <div style="white-space:pre-wrap;line-height:1.6;font-size:15px;background:var(--tarjeta,rgba(127,127,127,.08));padding:12px;border-radius:10px">${esc(x.transcripcion||'')}</div>
       <div style="height:16px"></div>
       <div class="g2 no-print">
