@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.caprirestoration.jr31",
+      "sha256_cert_fingerprints": [
+        "7B:0C:D1:EE:B6:A9:12:0B:B9:13:67:D4:AF:CA:74:93:05:C8:40:D7:B9:91:20:D3:42:68:AD:B0:A9:21:56:9E"
+      ]
+    }
+  }
+]
