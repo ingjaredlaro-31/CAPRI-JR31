@@ -1,0 +1,9 @@
+# Archivos del repositorio que NO se publican en la app
+worker.js
+wrangler.jsonc
+*.sql
+README.md
+index - *.html
+.git
+.github
+node_modules
