@@ -1896,7 +1896,7 @@ const SERV_CLEAN = ['Carpet cleaning','Carpet spot treatment','Carpet deodorizin
   'Pet odor treatment','Stain removal','Move out deep clean','Post construction clean',
   'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning'];
 // Carpet Department dado de baja. Poner en true lo revive completo.
-const CARPET_ON = false;
+const CARPET_ON = true;   // reactivado: Gabriela factura Carpet
 
 const ORIGENES = ['management','aseguranza','particular'];
 /* ============ CARPET DEPARTMENT · catálogos del cuestionario ============ */
@@ -1953,6 +1953,8 @@ const EDIT      = () => U && ['admin','gerente','oficina'].includes(U.rol);
 // Quién puede facturar: Jared y Julio (admin) y Carlos (gerente).
 // Los técnicos de Carpet NO facturan, solo dejan su reporte.
 const FACTURA   = () => U && ['admin','gerente'].includes(U.rol);
+// Facturar Carpet: administración y oficina (Gabriela)
+const FACT_CARPET = () => U && ['admin','gerente','oficina'].includes(U.rol);
 const BORRAR    = () => ES_ADMIN();
 const VE_DINERO = () => U && ['admin','gerente'].includes(U.rol);
 // Los gerentes de un área solo ven su área
@@ -3264,6 +3266,7 @@ function vozFrase(n){
   else if(tipo==='parte') que='Parte de trabajo recibido';
   else if(tipo==='checada') que=/sal/i.test(t)?'Salida registrada':'Entrada registrada';
   else if(tipo==='recordatorio') que='Recordatorio';
+  else if(tipo==='invoice') que='Factura de Carpet recibida';
   else if(tipo==='job'){
     if(/facturar/i.test(t)) que='Trabajo listo para facturar';
     else if(/nuevo|alta/i.test(t)) que='Trabajo nuevo';
@@ -3303,7 +3306,8 @@ async function vigilarAvisos(){
     let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at,de_usuario')
       .eq('leida',false).order('created_at',{ascending:false}).limit(4);
     q = U.rol==='tecnico' ? q.eq('para_usuario',U.id) : q.neq('para_rol','tecnico');
-    q=q.eq('departamento',DEPV());
+    // Administración oye todo (Restoration y Carpet) sin importar la pestaña
+    if(!ES_ADMIN()) q=q.eq('departamento',DEPV());
     const {data}=await q;
     const nuevas=(data||[]).filter(x=>new Date(x.created_at).getTime() > ULT_NOTIF);
     if(ULT_NOTIF && nuevas.length){
@@ -3325,6 +3329,28 @@ async function vigilarAvisos(){
     if(data && data.length) ULT_NOTIF = Math.max(ULT_NOTIF, ...data.map(x=>new Date(x.created_at).getTime()));
     else if(!ULT_NOTIF) ULT_NOTIF = Date.now();
   }catch(e){}
+  try{ await recordarCarpetDelDia(); }catch(e){}
+}
+
+/* Recordatorio a oficina (Gabi): a partir de las 4 pm, si hoy no se ha
+   capturado ningún trabajo de Carpet, le sale el aviso con voz. Una vez al día. */
+let REC_CARPET_DIA='';
+async function recordarCarpetDelDia(){
+  if(!U || U.rol!=='oficina' || !CARPET_ON) return;
+  if(new Date().getHours() < 16) return;
+  const h=hoy();
+  let ya=REC_CARPET_DIA; try{ ya = localStorage.getItem('jr31_reccarpet') || ya; }catch(e){}
+  if(ya===h) return;
+  const inicio=new Date(); inicio.setHours(0,0,0,0);
+  const {count}=await sb.from('jobs').select('id',{count:'exact',head:true})
+    .eq('departamento','cleaning').gte('created_at',inicio.toISOString());
+  REC_CARPET_DIA=h; try{ localStorage.setItem('jr31_reccarpet',h); }catch(e){}
+  if(count) return;
+  const nom=(U.nombre||'').split(' ')[0];
+  const t='Carpet de hoy sin capturar', x='Todavía no hay trabajos de Carpet de hoy. Captura los reportes y factura lo que se hizo.';
+  avisoFlotante(t, x, null);
+  notifSistema({titulo:t, texto:x});
+  if(!hablar((nom&&nom!=='Oficina'?nom+', ':'')+'todavía no has capturado los trabajos de Carpet de hoy.')) tono('urgente');
 }
 
 function arrancarVigia(){
@@ -5203,7 +5229,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v190 · notas de llamadas</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v193 · recordatorio Carpet + voz facturas</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5270,7 +5296,7 @@ function shell(html){
     if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
     fab.textContent='×'; 
     m.innerHTML=`<div class="fabm">
-      ${(CARPET_ON&&DEP==='cleaning'&&FACTURA())?'<button data-q="fac">+ Nueva factura</button>':''}
+      ${(CARPET_ON&&DEP==='cleaning'&&FACT_CARPET())?'<button data-q="fac">+ Nueva factura</button>':''}
       ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
       <button data-q="job">+ Nuevo job</button>
       <button data-q="llam">📞 Escuchar llamada</button>
@@ -10919,7 +10945,7 @@ function engancharHoyCarpet(){
     reporteGuiado ? reporteGuiado(id) : abrirJob(id);
   });
   document.querySelectorAll('[data-cpfac]').forEach(b=>b.onclick=()=>{
-    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    if(!FACT_CARPET()) return toast('No tienes permiso para facturar.');
     formInvoiceCarpet(b.dataset.cpfac);
   });
   document.querySelectorAll('[data-cpver]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.cpver));
@@ -10932,7 +10958,7 @@ function engancharHoyCarpet(){
    en el historial y en los reportes. */
 
 async function nuevaFacturaCarpet(){
-  if(!FACTURA()) return toast('Solo administración y el gerente pueden facturar.');
+  if(!FACT_CARPET()) return toast('Solo administración y oficina pueden facturar Carpet.');
 
   const [{data:mgs},{data:props}] = await Promise.all([
     sb.from('managements').select('id,nombre').eq('activo',true).order('nombre'),
@@ -10940,6 +10966,7 @@ async function nuevaFacturaCarpet(){
   ]);
   const MG=mgs||[], PR=props||[];
   let mgSel='';
+  const FCP={tec:'', trab:'', fotos:[], subiendo:false};
 
   const pinta=()=>{
     const lista = mgSel ? PR.filter(p=>p.management_id===mgSel) : [];
@@ -10971,6 +10998,17 @@ async function nuevaFacturaCarpet(){
         <select id="f_tp">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
         <label>PO number</label>
         <input id="f_po" placeholder="opcional">
+
+        <div class="eyebrow">Lo que mandó el técnico</div>
+        <label>Técnico</label>
+        <input id="f_tec" placeholder="Nombre del técnico" value="${esc(FCP.tec)}">
+        <label>Trabajo que se hizo</label>
+        <textarea id="f_trab" style="min-height:120px" placeholder="Pega aquí lo que mandó por WhatsApp: cuartos, escalones, manchas, tratamiento, etc.">${esc(FCP.trab)}</textarea>
+        <label>Fotos</label>
+        <input id="f_fot" type="file" accept="image/*" multiple>
+        <div id="f_th" class="chips" style="margin-top:8px">${FCP.fotos.map(u=>`<img src="${esc(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px">`).join('')}</div>
+        <div class="sub">${FCP.fotos.length?FCP.fotos.length+' foto(s) listas':'Puedes escoger varias a la vez.'}</div>
+
         <div style="height:16px"></div>
         <button class="btn wide" id="f_ok">Seguir a los renglones ›</button>
         <div style="height:8px"></div>
@@ -10978,7 +11016,26 @@ async function nuevaFacturaCarpet(){
       </div></div>`;
 
     $('#c1').onclick=$('#c2').onclick=cerrar;
-    $('#f_mg').onchange=e=>{ mgSel=e.target.value; pinta(); };
+    // Si se repinta (cambio de management), no se pierde lo ya escrito
+    const CAMPOS=['f_pr','f_cli','f_dir','f_ciu','f_un','f_fe','f_tp','f_po'];
+    if(FCP.v) CAMPOS.forEach(k=>{ const el=$('#'+k); if(el && FCP.v[k]!=null && FCP.v[k]!=='') el.value=FCP.v[k]; });
+    const guarda=()=>{ FCP.v={}; CAMPOS.forEach(k=>{ const el=$('#'+k); if(el) FCP.v[k]=el.value; }); };
+    $('#f_tec').oninput=e=>FCP.tec=e.target.value;
+    $('#f_trab').oninput=e=>FCP.trab=e.target.value;
+    $('#f_mg').onchange=e=>{ guarda(); if(FCP.v) FCP.v.f_pr=''; mgSel=e.target.value; pinta(); };
+    $('#f_fot').onchange=async e=>{
+      const fs=[...e.target.files]; if(!fs.length) return;
+      FCP.subiendo=true; toast('Subiendo '+fs.length+' foto(s)…');
+      for(const f of fs){
+        const n=`carpet/${hoy()}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+        const {error}=await sb.storage.from('capri').upload(n,f,{contentType:f.type||'image/jpeg'});
+        if(error){ toast('No se pudo subir una foto'); continue; }
+        FCP.fotos.push(sb.storage.from('capri').getPublicUrl(n).data.publicUrl);
+      }
+      FCP.subiendo=false; toast('Fotos listas');
+      $('#f_th').innerHTML=FCP.fotos.map(u=>`<img src="${esc(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px">`).join('');
+      e.target.value='';
+    };
 
     $('#f_ok').onclick=async()=>{
       const fecha=$('#f_fe').value||hoy();
@@ -11010,8 +11067,20 @@ async function nuevaFacturaCarpet(){
         trabajo_especial:true, tecnico_id:null,
         lat: pr?pr.lat:null, lng: pr?pr.lng:null};
 
+      if(FCP.subiendo) return toast('Espera, todavía se están subiendo las fotos.');
+      FCP.tec=$('#f_tec').value.trim(); FCP.trab=$('#f_trab').value.trim();
+      if(FCP.trab) p.scope=FCP.trab;
+      p.notas=['Capturado por '+(U?U.nombre:'')+(FCP.tec?' · técnico: '+FCP.tec:'')].join('');
       const {data,error}=await sb.from('jobs').insert(p).select().single();
       if(error) return toast('No se pudo crear: '+error.message);
+      // Lo que mandó el técnico + fotos quedan como el reporte del servicio
+      if(FCP.trab || FCP.fotos.length){
+        const {error:er}=await sb.from('reportes').insert({
+          job_id:data.id, tecnico_id:null, tecnico_nombre:FCP.tec||null, fecha, tipo_reporte:'inicial',
+          trabajo_realizado:FCP.trab||null, notas:FCP.trab||null, fotos:FCP.fotos,
+          servicios:[p.tipo], areas:[], material_removido:[], lecturas:[]});
+        if(er) toast('Factura creada, pero no se guardaron las fotos: '+er.message);
+      }
       toast(folio+' creado · ahora los renglones');
       formInvoiceCarpet(data.id);     // pasa directo al armador
     };
@@ -11195,32 +11264,32 @@ async function vInvoicesCarpet(){
       <span class="qb-fo">${esc(x.folio||'')}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}</span></div>
     <div class="qb-f">${x.invoice_fecha?fmt(x.invoice_fecha):'—'}
       <span>${x.invoice_num?'vence '+fmt(vence(x)):'sin facturar'}</span></div>
-    <div class="qb-m">${VE_DINERO()&&M(x)?cf(M(x)):'—'}</div>
+    <div class="qb-m">${FACT_CARPET()&&M(x)?cf(M(x)):'—'}</div>
     <div class="qb-s">${chip(x)}</div>
     <div class="qb-a">
       ${!x.invoice_num
-        ? (FACTURA()?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`:'')
+        ? (FACT_CARPET()?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`:'')
         : `${ES_ADMIN()?`<button class="btn mini" data-qbr="${x.id}">REVISAR</button>`:''}
-           ${(FACTURA()&&!x.invoice_pagado)?`<button class="btn mini" data-qbp="${x.id}">COBRADA</button>`:''}`}
+           ${(FACT_CARPET()&&!x.invoice_pagado)?`<button class="btn mini" data-qbp="${x.id}">COBRADA</button>`:''}`}
     </div>
   </div>`;
 
   return `
     <div class="eyebrow">🧾 Invoices · Carpet Department</div>
-    ${FACTURA()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Hacer invoice</button>`:''}
+    ${FACT_CARPET()?`<button class="btn wide no-print" id="qb_new" style="margin-bottom:14px">+ Hacer invoice</button>`:''}
 
     <div class="qb-cards">
       <div class="qb-k"><span>POR FACTURAR</span>
-        <b>${VE_DINERO()?cf(tBorr):borrador.length}</b><i>${borrador.length} trabajos</i></div>
+        <b>${FACT_CARPET()?cf(tBorr):borrador.length}</b><i>${borrador.length} trabajos</i></div>
       <div class="qb-k abi"><span>ABIERTAS</span>
-        <b>${VE_DINERO()?cf(tAbier):abiertas.length}</b><i>${abiertas.length} facturas</i></div>
+        <b>${FACT_CARPET()?cf(tAbier):abiertas.length}</b><i>${abiertas.length} facturas</i></div>
       <div class="qb-k ven"><span>VENCIDAS</span>
-        <b>${VE_DINERO()?cf(tVenc):vencidas.length}</b><i>${vencidas.length} facturas</i></div>
+        <b>${FACT_CARPET()?cf(tVenc):vencidas.length}</b><i>${vencidas.length} facturas</i></div>
       <div class="qb-k pag"><span>COBRADO</span>
-        <b>${VE_DINERO()?cf(pagadas.reduce((a,x)=>a+M(x),0)):pagadas.length}</b><i>${pagadas.length} pagadas</i></div>
+        <b>${FACT_CARPET()?cf(pagadas.reduce((a,x)=>a+M(x),0)):pagadas.length}</b><i>${pagadas.length} pagadas</i></div>
     </div>
 
-    ${(abiertas.length&&VE_DINERO())?`
+    ${(abiertas.length&&FACT_CARPET())?`
     <div class="eyebrow">⏳ Antigüedad del saldo</div>
     <div class="qb-age">
       ${Object.entries(AG).map(([k,v])=>`<div class="${v&&k!=='corriente'?'hay':''}">
@@ -11246,7 +11315,7 @@ async function vInvoicesCarpet(){
          : T.length?'Cambia de pestaña para ver las demás.'
          : 'Dale a <b>+ Nueva factura</b> para hacer la primera. También aparecen aquí solas los trabajos de Carpet que se terminen.'}</p></div>`}
 
-    ${!FACTURA()?'<div class="sub" style="margin-top:14px">Solo administración y el gerente pueden facturar. Tú puedes consultar.</div>':''}`;
+    ${!FACT_CARPET()?'<div class="sub" style="margin-top:14px">Solo administración y oficina pueden facturar Carpet. Tú puedes consultar.</div>':''}`;
 }
 
 function engancharInvoicesCarpet(){
@@ -11258,7 +11327,7 @@ function engancharInvoicesCarpet(){
   });
   document.querySelectorAll('[data-qbf]').forEach(b=>b.onclick=e=>{
     e.stopPropagation();
-    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    if(!FACT_CARPET()) return toast('No tienes permiso para facturar.');
     formInvoiceCarpet(b.dataset.qbf);
   });
   document.querySelectorAll('[data-qbr]').forEach(b=>b.onclick=e=>{
@@ -11266,7 +11335,7 @@ function engancharInvoicesCarpet(){
   });
   document.querySelectorAll('[data-qbp]').forEach(b=>b.onclick=async e=>{
     e.stopPropagation();
-    if(!FACTURA()) return toast('No tienes permiso para facturar.');
+    if(!FACT_CARPET()) return toast('No tienes permiso para facturar.');
     marcarPagada(b.dataset.qbp);
   });
 }
@@ -11295,7 +11364,7 @@ async function formInvoiceCarpet(jobId){
   ]);
   if(!j) return toast('No se encontró el trabajo.');
   if(!MIO_DEP(j.departamento)) return sinAcceso();
-  if(!FACTURA()){ cerrar(); return toast('Solo administración y el gerente pueden facturar.'); }
+  if(!FACT_CARPET()){ cerrar(); return toast('Solo administración y oficina pueden facturar Carpet.'); }
 
   // Lista de precios de esta propiedad. Si la propiedad tiene precio
   // especial para un concepto, ese manda sobre el general.
@@ -15008,7 +15077,8 @@ async function formUsuario(id){
       <label>Nombre</label><input id="u_nombre" value="${esc(u.nombre||'')}">
       <label>Usuario para entrar</label><input id="u_username" autocapitalize="none" value="${esc(u.username||'')}">
       <label>Teléfono (para WhatsApp)</label><input id="u_tel" type="tel" placeholder="16195550148" value="${esc(u.telefono||'')}">
-      <label>Rol</label><select id="u_rol">${['admin','oficina','tecnico'].map(r=>`<option ${u.rol===r?'selected':''}>${r}</option>`).join('')}</select>
+      <label>Rol</label><select id="u_rol">${['admin','gerente','oficina','tecnico'].map(r=>`<option ${u.rol===r?'selected':''}>${r}</option>`).join('')}</select>
+      <div class="sub" style="margin-top:4px"><b>oficina</b> = Gabriela: captura y factura Carpet. <b>tecnico</b> = campo. <b>admin</b> = todo.</div>
       <label>Departamento</label><select id="u_dep">${['restoration','cleaning','ambos'].map(d=>`<option ${u.departamento===d?'selected':''}>${d}</option>`).join('')}</select>
       <label>Contraseña ${id?'(dejar vacío para no cambiarla)':''}</label><input id="u_pass" type="password">
       <label><input type="checkbox" id="u_act" ${u.activo?'checked':''} style="width:auto"> Activo</label>
