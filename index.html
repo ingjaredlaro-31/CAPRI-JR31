@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="201">
+<meta name="app-version" content="202">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -5393,7 +5393,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v201 · Carpet sin etapas de flood</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v202 · Carpet día a día</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -7537,7 +7537,7 @@ async function abrirPropiedad(id){
 
 /* ==================== MAPA Y RUTAS ==================== */
 let MODO_MAPA='hoy', OPTIMIZAR=false, RUTA_PTS=[];
-const VERSION='181';
+const VERSION=String(APP_VER||'202');
 let POST=null;
 let OSCURO=false;
 try{ OSCURO = localStorage.getItem('jr31_tema') !== 'claro'; }catch(e){ OSCURO=true; }
@@ -11141,116 +11141,112 @@ function engancharHome(){
    botón grande en cada uno. Nada de decidir entre cinco cosas:
    el trabajo te dice qué sigue. */
 
+/* ==================== CARPET · DÍA A DÍA ====================
+   Lo que se hizo cada día (por fecha del servicio): propiedad, unidad,
+   trabajo hecho, técnico, estado de la factura y cuánto sale. */
+let CPDIA = null;
 async function vHoyCarpet(){
-  const h=hoy();
-  const [{data:asig},{data:reps},{data:jobs}] = await Promise.all([
-    sb.from('asignaciones')
-      .select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,estatus,departamento,direccion,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,precio_carpet, propiedades(nombre)), usuarios(nombre)')
-      .eq('fecha',h).order('hora'),
-    sb.from('reportes').select('job_id,fecha,tecnico_id').gte('fecha',hace(45)),
+  const h = CPDIA || hoy();
+  const [{data:jobs},{data:pend}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,fecha_cierre,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,precio_carpet, propiedades(nombre)')
-      .eq('departamento','cleaning')
-      .or('estatus.in.(activo,terminado),invoice_num.not.is.null')
-      .order('fecha_inicio',{ascending:false}).limit(120)
+      .select('id,folio,cliente,unidad,tipo,estatus,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,servicios_carpet, propiedades(nombre), managements(nombre)')
+      .eq('departamento','cleaning').eq('fecha_inicio',h).order('created_at',{ascending:true}),
+    sb.from('jobs')
+      .select('id,folio,cliente,unidad,tipo,fecha_inicio,invoice_num,invoice_revision, propiedades(nombre)')
+      .eq('departamento','cleaning').is('invoice_num',null).lt('fecha_inicio',h)
+      .order('fecha_inicio',{ascending:false}).limit(40)
   ]);
-
-  const conRep = new Set((reps||[]).map(r=>r.job_id));
-  const repHoy = new Set((reps||[]).filter(r=>r.fecha===h).map(r=>r.job_id));
-
-  // Lo de hoy: lo agendado + lo que se terminó hoy
-  const A = (asig||[]).filter(a=>a.jobs && a.jobs.departamento==='cleaning');
-  const idsHoy = new Set(A.map(a=>a.job_id));
   const J = jobs||[];
+  const ids = J.map(x=>x.id);
+  let REP = [];
+  if(ids.length){ const {data}=await sb.from('reportes').select('job_id,tecnico_nombre,servicios').in('job_id',ids); REP=data||[]; }
+  const repDe = id => REP.find(r=>r.job_id===id) || {};
+  const ver = FACT_CARPET() || VE_DINERO();
 
-  // Lo que quedó colgado de días pasados
-  const atras = J.filter(x=>!idsHoy.has(x.id) &&
-    ((x.estatus==='terminado' && !x.invoice_num) || (x.estatus==='activo' && !conRep.has(x.id))));
+  const total = J.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
+  const fact  = J.filter(x=>x.invoice_num);
+  const falta = J.filter(x=>!x.invoice_num);
+  const cobrado = J.filter(x=>x.invoice_pagado).reduce((a,x)=>a+Number(x.invoice_monto||0),0);
 
-  const facHoy = J.filter(x=>x.invoice_num && (x.fecha_cierre===h));
-  const totHoy = facHoy.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
-
-  // Qué sigue para este trabajo · esto decide el botón
-  const paso = x=>{
-    if(x.invoice_revision==='corregir') return {k:'corregir', t:'HAY QUE CORREGIRLA', c:'r'};
-    if(x.invoice_pagado) return {k:'pagado', t:'PAGADO', c:'v'};
-    if(x.invoice_num)    return {k:'listo',  t:x.invoice_revision==='aprobada'?'APROBADA':'FACTURADO', c:'v'};
-    if(x.estatus==='terminado' || conRep.has(x.id))
-      return {k:'facturar', t:'FALTA EL INVOICE', c:'r'};
-    return {k:'reporte', t:'FALTA EL REPORTE', c:'m'};
-  };
-
-  const tarjeta = (x, hora, tec)=>{
-    const p=paso(x);
-    const puedeFac = FACTURA();
-    let btn='';
-    if(p.k==='corregir')      btn=`<button class="cp-b cor" data-cpfac="${x.id}">Corregir la factura</button>`;
-    else if(p.k==='reporte')  btn=`<button class="cp-b rep" data-cprep="${x.id}">Dejar reporte</button>`;
-    else if(p.k==='facturar') btn= puedeFac
-        ? `<button class="cp-b fac" data-cpfac="${x.id}">Hacer invoice</button>`
-        : `<button class="cp-b esp" disabled>Esperando factura</button>`;
-    else                      btn=`<button class="cp-b ver" data-cpver="${x.id}">Ver la factura</button>`;
-
-    return `<div class="cp-card ${p.c}">
-      <div class="cp-top">
-        ${hora?`<span class="cp-h">${esc(hora)}</span>`:''}
-        <span class="cp-est ${p.c}">${p.t}</span>
-      </div>
-      <div class="cp-nom">${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}</div>
-      <div class="cp-sub">${x.unidad?'Unidad '+esc(x.unidad):'sin unidad'} · ${esc(x.tipo||'')}</div>
-      ${x.invoice_revision==='corregir'&&x.invoice_revision_nota?`<div class="cp-nota">${esc(x.invoice_revision_nota)}</div>`:''}
-      <div class="cp-pie">${esc(x.folio||'')}${tec?' · '+esc(tec):''}${
-        x.invoice_num?' · inv '+esc(x.invoice_num)+(VE_DINERO()&&x.invoice_monto?' · '+cf(x.invoice_monto):''):''}</div>
-      ${btn}
-    </div>`;
+  const estado = x => x.invoice_revision==='corregir' ? ['CORREGIR','r']
+                    : x.invoice_pagado ? ['PAGADO','v']
+                    : x.invoice_num ? ['FACTURADO','v'] : ['FALTA PRECIO','r'];
+  const fila = x => {
+    const r=repDe(x.id), e=estado(x);
+    const serv=(r.servicios&&r.servicios.length?r.servicios:(x.servicios_carpet||[x.tipo])).join(' · ');
+    return `<div class="fila ${e[1]==='r'?'r':'a'}" data-cpver="${x.id}" style="cursor:pointer">
+      <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · Unit '+esc(x.unidad):''}</b>
+      <span class="sub">${esc(serv)}</span>
+      <span class="meta">${esc(x.folio||'')}${r.tecnico_nombre?' · '+esc(r.tecnico_nombre):''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+      <div style="text-align:right">
+        ${ver&&x.invoice_num?`<div class="disp" style="font-size:18px">${cf(x.invoice_monto)}</div>`:''}
+        <span class="chip ${e[1]==='r'?'rojo':'azul'}">${e[0]}</span>
+        ${!x.invoice_num&&FACT_CARPET()?`<div style="margin-top:6px"><button class="btn mini" data-cpfac="${x.id}">PONER PRECIO</button></div>`:''}
+      </div></div>`;
   };
 
   const F=new Date(h+'T12:00:00');
-  const dia=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  const dia=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const esHoy = h===hoy();
 
   return `
     ${selectorDep()}
     <div class="cp-hoy">
-      <div class="cp-fecha">${dia}</div>
+      <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap">
+        <div class="cp-fecha">${esHoy?'Hoy · ':''}${esc(dia)}</div>
+        <div style="display:flex;gap:6px;align-items:center" class="no-print">
+          <button class="btn ghost sm" id="cp_ant">◀</button>
+          <input type="date" id="cp_fecha" value="${h}" style="width:auto;margin:0">
+          <button class="btn ghost sm" id="cp_sig" ${esHoy?'disabled':''}>▶</button>
+          ${esHoy?'':'<button class="btn ghost sm" id="cp_hoy">Hoy</button>'}
+        </div>
+      </div>
       <div class="cp-nums">
-        <div><b>${A.length}</b><span>hoy</span></div>
-        <div><b>${facHoy.length}</b><span>facturados</span></div>
-        ${VE_DINERO()?`<div><b>${cf(totHoy)}</b><span>del día</span></div>`:''}
+        <div><b>${J.length}</b><span>trabajos</span></div>
+        <div><b>${fact.length}</b><span>facturados</span></div>
+        <div><b style="color:${falta.length?'var(--rojo)':''}">${falta.length}</b><span>falta precio</span></div>
+        ${ver?`<div><b>${cf(total)}</b><span>total del día</span></div>`:''}
+        ${ver&&cobrado?`<div><b>${cf(cobrado)}</b><span>cobrado</span></div>`:''}
       </div>
     </div>
 
-    ${FACTURA()?`<button class="btn wide" id="cp_new" style="margin-bottom:16px">+ Hacer invoice nuevo</button>`:''}
+    ${FACT_CARPET()?`<button class="btn wide no-print" id="cp_new" style="margin-bottom:16px">🧽 + Reporte de Carpet nuevo</button>`:''}
 
-    <div class="eyebrow">🧹 Tus trabajos de hoy</div>
-    ${A.length
-      ? `<div class="cp-grid">${A.map(a=>tarjeta(a.jobs, a.hora, a.usuarios?.nombre)).join('')}</div>`
-      : `<div class="ok"><div class="t">Hoy no tienes trabajos agendados.</div>
-         <div class="sub">Cuando administración te asigne uno, aparece aquí.</div></div>`}
+    <div class="eyebrow">🧹 Trabajos del día · ${J.length}</div>
+    ${J.length ? J.map(fila).join('')
+      : `<div class="ok"><div class="t">No hay trabajos de Carpet capturados ${esHoy?'hoy':'ese día'}.</div>
+         <div class="sub">Cuando oficina capture un reporte con esta fecha de servicio, aparece aquí con su precio.</div></div>`}
 
-    ${atras.length?`
-      <div class="eyebrow">Se quedaron pendientes · ${atras.length}</div>
-      <div class="sub" style="margin-bottom:10px">De días pasados. Ciérralos para que no se acumulen.</div>
-      <div class="cp-grid">${atras.slice(0,12).map(x=>tarjeta(x,null,null)).join('')}</div>
-      ${atras.length>12?`<div class="sub">y ${atras.length-12} más en Jobs</div>`:''}`:''}
+    ${(pend||[]).length?`
+      <div class="eyebrow">Días anteriores sin precio · ${pend.length}</div>
+      ${(pend||[]).slice(0,15).map(x=>`<div class="fila r" data-cpver="${x.id}" style="cursor:pointer">
+        <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'')}${x.unidad?' · Unit '+esc(x.unidad):''}</b>
+        <span class="meta">${fmt(x.fecha_inicio)} · ${esc(x.folio||'')}</span></div>
+        ${FACT_CARPET()?`<button class="btn mini" data-cpfac="${x.id}">PONER PRECIO</button>`:''}</div>`).join('')}`:''}
 
     <div style="height:14px"></div>
-    <button class="btn ghost wide" id="cp_todas">Ver todas las facturas de Carpet</button>`;
+    <button class="btn ghost wide no-print" id="cp_todas">Ver todas las facturas de Carpet</button>`;
 }
 
 function engancharHoyCarpet(){
   engancharDep();
   const n=$('#cp_new');   if(n) n.onclick=()=>nuevaFacturaCarpet();
   const t=$('#cp_todas'); if(t) t.onclick=()=>{ V='cobranza'; render(); };
-  document.querySelectorAll('[data-cprep]').forEach(b=>b.onclick=()=>{
-    const id=b.dataset.cprep;
-    // Al técnico lo mandamos directo a su reporte de ese trabajo
-    reporteGuiado ? reporteGuiado(id) : abrirJob(id);
-  });
-  document.querySelectorAll('[data-cpfac]').forEach(b=>b.onclick=()=>{
+  const mueve=d=>{ const x=new Date((CPDIA||hoy())+'T12:00:00'); x.setDate(x.getDate()+d);
+    const v=x.toLocaleDateString('en-CA'); CPDIA = v>=hoy()?null:v; render(); };
+  const a=$('#cp_ant'); if(a) a.onclick=()=>mueve(-1);
+  const sg=$('#cp_sig'); if(sg) sg.onclick=()=>mueve(1);
+  const hy=$('#cp_hoy'); if(hy) hy.onclick=()=>{ CPDIA=null; render(); };
+  const fe=$('#cp_fecha'); if(fe) fe.onchange=()=>{ CPDIA = fe.value && fe.value<hoy() ? fe.value : null; render(); };
+  document.querySelectorAll('[data-cpfac]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
     if(!FACT_CARPET()) return toast('No tienes permiso para facturar.');
     formInvoiceCarpet(b.dataset.cpfac);
   });
-  document.querySelectorAll('[data-cpver]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.cpver));
+  document.querySelectorAll('[data-cpver]').forEach(b=>b.onclick=e=>{
+    if(e.target.closest('[data-cpfac]')) return;
+    abrirReporteCarpet(b.dataset.cpver);
+  });
 }
 
 /* ============ NUEVA FACTURA DESDE CERO · Carpet ============
