@@ -8,6 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
+<meta name="app-version" content="198">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -3267,6 +3268,40 @@ setTimeout(pintarBotonInstalar, 3000);
 setTimeout(()=>{ try{ const id=new URLSearchParams(location.search).get('job');
   if(id && U){ (U.rol==='tecnico'?verJobTecnico:abrirJob)(id); } }catch(e){} }, 2500);
 
+
+/* ==================== AVISO DE VERSIÓN NUEVA ====================
+   Cada 2 minutos (y al volver a la app) revisa si en el servidor hay una
+   versión más nueva. Si la hay, sale un aviso con botón para actualizar. */
+const APP_VER = Number((document.querySelector('meta[name="app-version"]')||{}).content||0);
+let VER_AVISADA = 0;
+async function revisarVersion(){
+  try{
+    const html = await (await fetch('/?ver='+Date.now(), {cache:'no-store'})).text();
+    const m = html.match(/<meta name="app-version" content="(\d+)">/);
+    const nueva = m ? Number(m[1]) : 0;
+    if(!nueva || nueva <= APP_VER || nueva === VER_AVISADA) return;
+    VER_AVISADA = nueva;
+    if(document.getElementById('aviso_ver')) return;
+    const d=document.createElement('div');
+    d.id='aviso_ver'; d.className='avisoflot on no-print';
+    d.style.cssText='bottom:16px;top:auto';
+    d.innerHTML=`<div class="af-ic" style="font-size:22px">🔄</div>
+      <div class="af-t"><b>${ING()?'New version available':'Hay una versión nueva'} (v${nueva})</b>
+      <span>${ING()?'Update to get the latest changes.':'Actualiza para ver los cambios más recientes.'}</span>
+      <div style="margin-top:8px"><button class="btn sm" id="ver_ok">${ING()?'Update now':'Actualizar ahora'}</button></div></div>
+      <button class="af-x" id="ver_x">✕</button>`;
+    document.body.appendChild(d);
+    document.getElementById('ver_ok').onclick=async()=>{
+      try{ if(SW_REG) await SW_REG.update(); }catch(e){}
+      location.reload();
+    };
+    document.getElementById('ver_x').onclick=()=>d.remove();
+  }catch(e){}
+}
+setInterval(revisarVersion, 120000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) revisarVersion(); });
+setTimeout(revisarVersion, 15000);
+
 /* ==================== AVISOS DE WINDOWS (banner del sistema) ====================
    Cuando la app está abierta en una pestaña pero estás en otra cosa (otro
    programa, otra pestaña, minimizada), el aviso sale como banner de Windows
@@ -5323,7 +5358,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v196 · IA + notificaciones push</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v198 · Carpet simplificado</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5386,12 +5421,17 @@ function shell(html){
   if(POST){ const f=POST; POST=null; setTimeout(f,40); }
   const fab=$('#fab');
   if(fab) fab.onclick=()=>{
+    // En Carpet el + abre directo el reporte (no hay más opciones ahí)
+    if(CARPET_ON && DEP==='cleaning' && FACT_CARPET()) return nuevaFacturaCarpet();
     const m=$('#fabm');
     if(m.innerHTML){ m.innerHTML=''; fab.textContent='+'; fab.style.transform=''; return; }
     fab.textContent='×'; 
-    m.innerHTML=`<div class="fabm">
-      ${(CARPET_ON&&DEP==='cleaning'&&FACT_CARPET())?'<button data-q="fac">+ Nueva factura</button>':''}
-      ${(CARPET_ON&&DEP==='cleaning')?'<button data-q="esp">+ Trabajo especial · con precio</button>':''}
+    // En Carpet solo se captura el reporte del técnico; lo demás es de Restoration
+    if(CARPET_ON && DEP==='cleaning'){
+      m.innerHTML = FACT_CARPET()
+        ? `<div class="fabm"><button data-q="fac">🧽 + Reporte de Carpet Cleaning</button></div>`
+        : `<div class="fabm"><button data-q="x" disabled>Solo oficina captura Carpet</button></div>`;
+    } else m.innerHTML=`<div class="fabm">
       <button data-q="job">+ Nuevo job</button>
       <button data-q="llam">📞 Escuchar llamada</button>
       <button data-q="llnot">📸 Nota desde capturas (Julio)</button>
@@ -11192,17 +11232,19 @@ async function nuevaFacturaCarpet(){
   ]);
   const MG=mgs||[], PR=props||[];
   let mgSel='';
-  const FCP={tec:'', trab:'', fotos:[], subiendo:false};
+  const FCP={tec:'', trab:'', fotos:[], subiendo:false, serv:[]};
 
   const pinta=()=>{
     const lista = mgSel ? PR.filter(p=>p.management_id===mgSel) : [];
     $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
       <div><div class="mono" style="font-size:11px;color:#C3D6F7">CARPET DEPARTMENT</div>
-      <div class="disp" style="font-size:21px;line-height:1">Nueva factura</div>
-      <div style="font-size:13px;color:#C3D6F7">Paso 1 de 2 · ¿a quién le facturas?</div></div>
+      <div class="disp" style="font-size:21px;line-height:1">Reporte de Carpet Cleaning</div>
+      <div style="font-size:13px;color:#C3D6F7">Paso 1 de 2 · propiedad, unidad y trabajo hecho</div></div>
       <button class="x" id="c1">✕</button></div>
       <div class="franja split"><i></i><i></i></div>
       <div class="sheet-body">
+        <label>Técnico que hizo el trabajo</label>
+        <input id="f_tec" placeholder="Nombre del técnico" value="${esc(FCP.tec)}">
         <label>Management</label>
         <select id="f_mg"><option value="">— particular, sin management —</option>
           ${MG.map(m=>`<option value="${m.id}" ${mgSel===m.id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select>
@@ -11220,15 +11262,11 @@ async function nuevaFacturaCarpet(){
           <div><label>Unidad</label><input id="f_un" placeholder="208"></div>
           <div><label>Fecha del servicio</label><input id="f_fe" type="date" value="${hoy()}"></div>
         </div>
-        <label>Servicio</label>
-        <select id="f_tp">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
-        <label>PO number</label>
-        <input id="f_po" placeholder="opcional">
-
-        <div class="eyebrow">Lo que mandó el técnico</div>
-        <label>Técnico</label>
-        <input id="f_tec" placeholder="Nombre del técnico" value="${esc(FCP.tec)}">
-        <label>Trabajo que se hizo</label>
+        <label>¿Qué trabajo se hizo? Marca todo lo que aplique</label>
+        <div class="chips" id="f_sv">${SERV_CLEAN.map(x=>`<button type="button" data-sv="${esc(x)}" class="${FCP.serv.includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>
+        <select id="f_tp" style="display:none">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+        <div class="eyebrow">Lo que mandó el técnico (opcional)</div>
+        <label>Notas del trabajo</label>
         <textarea id="f_trab" style="min-height:120px" placeholder="Pega aquí lo que mandó por WhatsApp: cuartos, escalones, manchas, tratamiento, etc.">${esc(FCP.trab)}</textarea>
         <label>Fotos</label>
         <input id="f_fot" type="file" accept="image/*" multiple>
@@ -11236,17 +11274,22 @@ async function nuevaFacturaCarpet(){
         <div class="sub">${FCP.fotos.length?FCP.fotos.length+' foto(s) listas':'Puedes escoger varias a la vez.'}</div>
 
         <div style="height:16px"></div>
-        <button class="btn wide" id="f_ok">Seguir a los renglones ›</button>
+        <button class="btn wide" id="f_ok">Guardar reporte y poner precio ›</button>
         <div style="height:8px"></div>
         <button class="btn ghost wide" id="c2">Cancelar</button>
       </div></div>`;
 
     $('#c1').onclick=$('#c2').onclick=cerrar;
     // Si se repinta (cambio de management), no se pierde lo ya escrito
-    const CAMPOS=['f_pr','f_cli','f_dir','f_ciu','f_un','f_fe','f_tp','f_po'];
+    const CAMPOS=['f_pr','f_cli','f_dir','f_ciu','f_un','f_fe','f_tp'];
     if(FCP.v) CAMPOS.forEach(k=>{ const el=$('#'+k); if(el && FCP.v[k]!=null && FCP.v[k]!=='') el.value=FCP.v[k]; });
     const guarda=()=>{ FCP.v={}; CAMPOS.forEach(k=>{ const el=$('#'+k); if(el) FCP.v[k]=el.value; }); };
     $('#f_tec').oninput=e=>FCP.tec=e.target.value;
+    document.querySelectorAll('#f_sv [data-sv]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.sv; const i=FCP.serv.indexOf(v);
+      if(i>=0) FCP.serv.splice(i,1); else FCP.serv.push(v);
+      b.className = FCP.serv.includes(v)?'on':'';
+    });
     $('#f_trab').oninput=e=>FCP.trab=e.target.value;
     $('#f_mg').onchange=e=>{ guarda(); if(FCP.v) FCP.v.f_pr=''; mgSel=e.target.value; pinta(); };
     $('#f_fot').onchange=async e=>{
@@ -11289,22 +11332,24 @@ async function nuevaFacturaCarpet(){
         unidad:$('#f_un').value.trim()||null,
         tipo_propiedad: mgSel?'apartamento':'casa',
         fecha_inicio:fecha, fecha_cierre:fecha,
-        po_number:$('#f_po').value.trim()||null,
         trabajo_especial:true, tecnico_id:null,
         lat: pr?pr.lat:null, lng: pr?pr.lng:null};
 
       if(FCP.subiendo) return toast('Espera, todavía se están subiendo las fotos.');
+      if(!FCP.serv.length) return toast('Marca qué trabajo de Carpet se hizo.');
+      const tipoCln = TIPOS.cleaning.find(t=>t.toLowerCase()===String(FCP.serv[0]).toLowerCase()) || 'carpet cleaning';
+      p.tipo = tipoCln; p.servicios_carpet = FCP.serv.slice();
       FCP.tec=$('#f_tec').value.trim(); FCP.trab=$('#f_trab').value.trim();
       if(FCP.trab) p.scope=FCP.trab;
       p.notas=['Capturado por '+(U?U.nombre:'')+(FCP.tec?' · técnico: '+FCP.tec:'')].join('');
       const {data,error}=await sb.from('jobs').insert(p).select().single();
       if(error) return toast('No se pudo crear: '+error.message);
       // Lo que mandó el técnico + fotos quedan como el reporte del servicio
-      if(FCP.trab || FCP.fotos.length){
+      if(FCP.trab || FCP.fotos.length || FCP.serv.length){
         const {error:er}=await sb.from('reportes').insert({
           job_id:data.id, tecnico_id:null, tecnico_nombre:FCP.tec||null, fecha, tipo_reporte:'inicial',
           trabajo_realizado:FCP.trab||null, notas:FCP.trab||null, fotos:FCP.fotos,
-          servicios:[p.tipo], areas:[], material_removido:[], lecturas:[]});
+          servicios:FCP.serv.slice(), areas:[], material_removido:[], lecturas:[]});
         if(er) toast('Factura creada, pero no se guardaron las fotos: '+er.message);
       }
       toast(folio+' creado · ahora los renglones');
