@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="200">
+<meta name="app-version" content="201">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -5393,7 +5393,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v200 · Carpet: reporte + factura</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v201 · Carpet sin etapas de flood</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -13189,7 +13189,75 @@ function dato(etiqueta, valor, clase){
     <b class="${clase||''}">${hay?esc(valor):'sin capturar'}</b></div>`;
 }
 
+/* ==================== CARPET: VISTA DE REPORTE + FACTURA ====================
+   Carpet no lleva etapas de flood ni nada de Restoration: solo el reporte
+   del técnico (trabajo hecho, notas, fotos) y su factura. */
+async function abrirReporteCarpet(id){
+  const [{data:j},{data:reps}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre), propiedades(nombre,direccion)').eq('id',id).single(),
+    sb.from('reportes').select('*').eq('job_id',id).order('fecha')
+  ]);
+  if(!j) return toast('No se encontró.');
+  const R=reps||[];
+  const r0=R[0]||{};
+  const serv=[...new Set(R.flatMap(r=>r.servicios||[]))];
+  const fotos=R.flatMap(r=>r.fotos||[]);
+  const notas=R.map(r=>r.notas).filter(Boolean);
+  const tec=(R.map(r=>r.tecnico_nombre).filter(Boolean)[0])||((j.notas||'').match(/técnico: ([^\n·]+)/)||[])[1]||'—';
+  const lugar=(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'');
+  const est = j.invoice_revision==='corregir' ? ['HAY QUE CORREGIR LA FACTURA','rojo']
+            : j.invoice_pagado ? ['PAGADA','verde']
+            : j.invoice_num ? ['FACTURADA · #'+j.invoice_num,'azul']
+            : ['FALTA PONER PRECIO','rojo'];
+  const RG=Array.isArray(j.invoice_renglones)?j.invoice_renglones:[];
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">CARPET CLEANING · ${esc(j.folio||'')}</div>
+    <div class="disp" style="font-size:21px;line-height:1.1">${esc(lugar)}</div>
+    <div style="font-size:13px;color:#C3D6F7">${esc(j.managements?.nombre||'Particular')} · ${fmt((j.fecha_inicio||'').slice(0,10))}</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="franja split"><i></i><i></i></div>
+    <div class="sheet-body">
+      <span class="chip ${est[1]}" style="font-size:13px">${esc(est[0])}</span>
+      ${j.invoice_revision==='corregir'&&j.invoice_revision_nota?`<div class="ok" style="margin-top:10px;border-left-color:var(--rojo)">${esc(j.invoice_revision_nota)}</div>`:''}
+
+      <div class="eyebrow">Reporte del técnico</div>
+      <table class="frm">
+        <tr><td class="k">TÉCNICO</td><td class="v">${esc(tec)}</td></tr>
+        <tr><td class="k">FECHA</td><td class="v">${fmt((r0.fecha||j.fecha_inicio||'').slice(0,10))}</td></tr>
+        <tr><td class="k">DIRECCIÓN</td><td class="v">${esc([j.direccion,j.ciudad,j.zip].filter(Boolean).join(', ')||'—')}</td></tr>
+      </table>
+      <div class="eyebrow">Trabajo que se hizo</div>
+      ${serv.length?`<ul style="margin:0 0 6px 18px;line-height:1.7">${serv.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<div class="sub">—</div>'}
+      ${notas.length?`<div class="eyebrow">Notas</div><p style="white-space:pre-wrap;line-height:1.6;margin-top:0">${esc(notas.join('\n\n'))}</p>`:''}
+      ${fotos.length?`<div class="eyebrow">Fotos · ${fotos.length}</div>${galeriaHTML(fotos)}`:''}
+
+      <div class="eyebrow">Factura</div>
+      ${j.invoice_num?`<table class="frm">
+          <tr><td class="k">INVOICE</td><td class="v">#${esc(j.invoice_num)} · ${fmt((j.invoice_fecha||'').slice(0,10))}</td></tr>
+          ${RG.map(g=>`<tr><td class="k">${esc(g.concepto||'')}</td><td class="v">${esc(String(g.cantidad||''))} × ${cf(g.precio)} = ${cf(Number(g.cantidad||0)*Number(g.precio||0))}</td></tr>`).join('')}
+          <tr><td class="k"><b>TOTAL</b></td><td class="v"><b>${cf(j.invoice_monto)}</b></td></tr>
+        </table>`:'<div class="sub">Todavía no tiene precio.</div>'}
+      <div style="height:12px"></div>
+      ${FACT_CARPET()?`<button class="btn wide no-print" id="rc_fac">${j.invoice_num?'Editar factura':'💲 Poner precio y facturar'}</button>`:''}
+      ${j.invoice_num?`<div style="height:10px"></div><div class="g2 no-print">
+        <button class="btn ghost wide" id="rc_pdf">PDF de la factura</button>
+        ${FACT_CARPET()&&!j.invoice_pagado?`<button class="btn ghost wide" id="rc_pag">Marcar cobrada</button>`:'<span></span>'}
+      </div>`:''}
+      ${ES_ADMIN()&&j.invoice_num?`<div style="height:10px"></div><button class="btn ghost wide no-print" id="rc_rev">Revisar factura</button>`:''}
+      <div style="height:10px"></div><button class="btn ghost wide no-print" id="c2">Cerrar</button>
+    </div></div>`;
+  $('#c1').onclick=$('#c2').onclick=cerrar;
+  const f=$('#rc_fac'); if(f) f.onclick=()=>formInvoiceCarpet(id);
+  const pd=$('#rc_pdf'); if(pd) pd.onclick=()=>facturaPDF(j,{num:j.invoice_num, fecha:j.invoice_fecha, po:j.po_number, tax:j.invoice_tax||0, notas:j.invoice_notas||'', renglones:RG});
+  const pg=$('#rc_pag'); if(pg) pg.onclick=async()=>{ await marcarPagada(id); abrirReporteCarpet(id); };
+  const rv=$('#rc_rev'); if(rv) rv.onclick=()=>revisarInvoice(id);
+}
+
 async function abrirJob(id){
+  if(CARPET_ON){
+    const {data:dj}=await sb.from('jobs').select('departamento').eq('id',id).maybeSingle();
+    if(dj && dj.departamento==='cleaning') return abrirReporteCarpet(id);
+  }
   const [{data:j},{data:part},{data:reps},{data:nts},{data:rec},{data:cons}] = await Promise.all([
     sb.from('jobs').select('*, managements(nombre,telefono), propiedades(nombre,direccion,notas), usuarios(nombre,telefono)').eq('id',id).single(),
     sb.from('partidas').select('*, contratistas(nombre)').eq('job_id',id).order('created_at'),
