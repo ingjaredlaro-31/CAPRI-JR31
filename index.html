@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="202">
+<meta name="app-version" content="203">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -5393,7 +5393,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v202 · Carpet día a día</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v203 · Carpet: QuickBooks, fotos y precios que aprende</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11149,7 +11149,7 @@ async function vHoyCarpet(){
   const h = CPDIA || hoy();
   const [{data:jobs},{data:pend}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,servicios_carpet, propiedades(nombre), managements(nombre)')
+      .select('id,folio,cliente,unidad,tipo,estatus,notas,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,servicios_carpet, propiedades(nombre), managements(nombre)')
       .eq('departamento','cleaning').eq('fecha_inicio',h).order('created_at',{ascending:true}),
     sb.from('jobs')
       .select('id,folio,cliente,unidad,tipo,fecha_inicio,invoice_num,invoice_revision, propiedades(nombre)')
@@ -11159,8 +11159,9 @@ async function vHoyCarpet(){
   const J = jobs||[];
   const ids = J.map(x=>x.id);
   let REP = [];
-  if(ids.length){ const {data}=await sb.from('reportes').select('job_id,tecnico_nombre,servicios').in('job_id',ids); REP=data||[]; }
+  if(ids.length){ const {data}=await sb.from('reportes').select('job_id,servicios,fotos').in('job_id',ids); REP=data||[]; }
   const repDe = id => REP.find(r=>r.job_id===id) || {};
+  const tecDe = x => (((x.notas||'').match(/técnico: ([^\n·]+)/)||[])[1]||'').trim();
   const ver = FACT_CARPET() || VE_DINERO();
 
   const total = J.reduce((a,x)=>a+Number(x.invoice_monto||0),0);
@@ -11177,7 +11178,7 @@ async function vHoyCarpet(){
     return `<div class="fila ${e[1]==='r'?'r':'a'}" data-cpver="${x.id}" style="cursor:pointer">
       <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · Unit '+esc(x.unidad):''}</b>
       <span class="sub">${esc(serv)}</span>
-      <span class="meta">${esc(x.folio||'')}${r.tecnico_nombre?' · '+esc(r.tecnico_nombre):''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+      <span class="meta">${esc(x.folio||'')}${tecDe(x)?' · '+esc(tecDe(x)):''}${(r.fotos||[]).length?' · 📷 '+r.fotos.length:''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
       <div style="text-align:right">
         ${ver&&x.invoice_num?`<div class="disp" style="font-size:18px">${cf(x.invoice_monto)}</div>`:''}
         <span class="chip ${e[1]==='r'?'rojo':'azul'}">${e[0]}</span>
@@ -11397,11 +11398,12 @@ async function nuevaFacturaCarpet(){
       if(error) return toast('No se pudo crear: '+error.message);
       // Lo que mandó el técnico + fotos quedan como el reporte del servicio
       if(FCP.trab || FCP.fotos.length || FCP.serv.length){
-        const {error:er}=await sb.from('reportes').insert({
-          job_id:data.id, tecnico_id:null, tecnico_nombre:FCP.tec||null, fecha, tipo_reporte:'inicial',
+        const base={job_id:data.id, tecnico_id:null, fecha, tipo_reporte:'inicial',
           trabajo_realizado:servTxt.join(' · '), notas:FCP.trab||null, fotos:FCP.fotos,
-          servicios:servTxt, areas:[], material_removido:[], lecturas:[]});
-        if(er) toast('Se guardó, pero no las fotos: '+er.message);
+          servicios:servTxt};
+        let {error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]});
+        if(er){ ({error:er}=await sb.from('reportes').insert(base)); }
+        if(er){ alert('OJO: el trabajo se guardó pero las FOTOS y el reporte NO.\n\n'+er.message+'\n\nAvísale a Jared.'); }
       }
       toast('Reporte '+folio+' guardado · ahora el precio');
       formInvoiceCarpet(data.id);     // pasa directo al armador
@@ -11697,8 +11699,44 @@ async function formInvoiceCarpet(jobId){
   INVR = Array.isArray(j.invoice_renglones) && j.invoice_renglones.length
          ? JSON.parse(JSON.stringify(j.invoice_renglones))
          : [];
-  const numSug = j.invoice_num || await siguienteInvoice();
   const nom = j.propiedades?.nombre || j.cliente || 'Sin nombre';
+  // Lo de arriba del invoice se guarda aquí para que NO se borre cuando
+  // se agrega un renglón (antes se repintaba y regresaba al número sugerido).
+  const HD = { n: j.invoice_num||'', f: j.invoice_fecha||j.fecha_inicio||hoy(), po: j.po_number||'',
+               term: j.invoice_terminos||'net30', tax: j.invoice_tax!=null?j.invoice_tax:0,
+               nt: j.invoice_notas||'', pg: !!j.invoice_pagado };
+
+  // ── Lo que la app va aprendiendo de facturas anteriores ──
+  const {data:hist} = await sb.from('jobs')
+    .select('id,propiedad_id,management_id,servicios_carpet,invoice_renglones,invoice_fecha,created_at')
+    .eq('departamento','cleaning').not('invoice_renglones','is',null)
+    .order('created_at',{ascending:false}).limit(400);
+  const H = (hist||[]).filter(x=>x.id!==j.id && Array.isArray(x.invoice_renglones) && x.invoice_renglones.length);
+  const llaveServ = a => (a||[]).map(s=>String(s).split(':')[0].trim().toLowerCase()).filter(Boolean).sort().join('|');
+  const rango = x => x.propiedad_id && x.propiedad_id===j.propiedad_id ? 0
+                   : x.management_id && x.management_id===j.management_id ? 1 : 2;
+  const mejor = lista => lista.slice().sort((a,b)=>rango(a)-rango(b))[0];
+  const copiaR = rs => rs.map(r=>({concepto:r.concepto, cantidad:Number(r.cantidad)||1, unidad:r.unidad||'trabajo',
+                                   precio:Number(r.precio)||'', especial:false, aprendido:true}));
+  // Conceptos usados antes, con el último precio (de esta propiedad si hay)
+  const APR = (()=>{ const m=new Map();
+    H.slice().sort((a,b)=>rango(a)-rango(b)).forEach(x=>x.invoice_renglones.forEach(r=>{
+      const k=String(r.concepto||'').trim().toLowerCase(); if(!k) return;
+      const e=m.get(k); if(e){ e.veces++; return; }
+      m.set(k,{concepto:String(r.concepto).trim(), unidad:r.unidad||'trabajo', precio:Number(r.precio)||0, veces:1});
+    }));
+    return [...m.values()].sort((a,b)=>b.veces-a.veces).slice(0,16); })();
+  let AUTO = '';
+  if(!INVR.length && H.length){
+    const S = j.servicios_carpet || [];
+    const k = llaveServ(S);
+    const igual = k ? H.filter(x=>llaveServ(x.servicios_carpet)===k) : [];
+    if(igual.length){ INVR = copiaR(mejor(igual).invoice_renglones); }
+    else { S.forEach(s=>{ const ks=llaveServ([s]);
+      const uno=H.filter(x=>llaveServ(x.servicios_carpet)===ks);
+      if(uno.length) INVR = INVR.concat(copiaR(mejor(uno).invoice_renglones)); }); }
+    if(INVR.length) AUTO = 'Puse los conceptos y precios de la última vez que se hizo este trabajo. Revísalos y ajusta si cambia algo.';
+  }
 
   const pinta=()=>{
     const sub = INVR.reduce((a,r)=>a+(Number(r.cantidad||0)*Number(r.precio||0)),0);
@@ -11712,23 +11750,24 @@ async function formInvoiceCarpet(jobId){
       <div class="sheet-body">
 
         <div class="g2">
-          <div><label>Número de invoice</label><input id="iv_n" class="mono" value="${esc(numSug)}"></div>
-          <div><label>Fecha</label><input id="iv_f" type="date" value="${esc(j.invoice_fecha||hoy())}"></div>
+          <div><label>Número de invoice (QuickBooks)</label><input id="iv_n" class="mono" value="${esc(HD.n)}" placeholder="El que da QuickBooks" autocomplete="off"></div>
+          <div><label>Fecha</label><input id="iv_f" type="date" value="${esc(HD.f)}"></div>
         </div>
         <div class="g2">
-          <div><label>PO number</label><input id="iv_po" value="${esc(j.po_number||'')}" placeholder="opcional"></div>
+          <div><label>PO number</label><input id="iv_po" value="${esc(HD.po)}" placeholder="opcional"></div>
           <div><label>Términos de pago</label><select id="iv_term">
-            ${Object.keys(TERMINOS).map(t=>`<option value="${t}" ${(j.invoice_terminos||'net30')===t?'selected':''}>${
+            ${Object.keys(TERMINOS).map(t=>`<option value="${t}" ${HD.term===t?'selected':''}>${
               t==='inmediato'?'Pago inmediato':'Net '+TERMINOS[t]+' días'}</option>`).join('')}
           </select></div>
         </div>
 
+        ${AUTO?`<div class="ok" style="margin-top:10px">🧠 ${esc(AUTO)}</div>`:''}
         <div class="eyebrow">Renglones · ${INVR.length}</div>
         ${INVR.length?`<div class="inv-tab">
           ${INVR.map((r,i)=>`<div class="inv-r">
             <div class="inv-c">
               <input class="inv-desc" data-f="concepto" data-i="${i}" value="${esc(r.concepto||'')}" placeholder="Concepto">
-              ${r.especial?'<span class="chip ambar">ESPECIAL</span>':''}
+              ${r.especial?'<span class="chip ambar">ESPECIAL</span>':''}${r.aprendido?'<span class="chip azul">DE LA VEZ PASADA</span>':''}
             </div>
             <input class="num inv-q" data-f="cantidad" data-i="${i}" inputmode="decimal" value="${esc(r.cantidad)}">
             <span class="inv-u">${esc(r.unidad||'')}</span>
@@ -11742,20 +11781,22 @@ async function formInvoiceCarpet(jobId){
           <button class="btn ghost sm" style="flex:1" id="iv_cat">+ Del catálogo</button>
           <button class="btn ghost sm" style="flex:1" id="iv_esp">+ Renglón especial</button>
         </div>
+        ${APR.length?`<label>Usados antes · toca para agregar</label>
+        <div class="chips" id="iv_apr">${APR.map((a,i)=>`<button type="button" data-apr="${i}">${esc(a.concepto)} · ${cf(a.precio)}</button>`).join('')}</div>`:''}
 
         <div class="inv-tot">
           <div><span>Subtotal</span><b>${cf(sub)}</b></div>
           <div><span>Impuesto
             <input class="num" id="iv_tax" inputmode="decimal" style="width:62px;display:inline-block;padding:4px 6px"
-              value="${esc(j.invoice_tax!=null?j.invoice_tax:0)}">%</span><b>${cf(imp)}</b></div>
+              value="${esc(HD.tax)}">%</span><b>${cf(imp)}</b></div>
           <div class="gr"><span>Total</span><b>${cf(sub+imp)}</b></div>
         </div>
 
         <label>Notas para el cliente</label>
-        <textarea id="iv_nt" placeholder="Lo que quieres que aparezca en la factura">${esc(j.invoice_notas||'')}</textarea>
+        <textarea id="iv_nt" placeholder="Lo que quieres que aparezca en la factura">${esc(HD.nt)}</textarea>
 
         <label style="display:flex;align-items:center;gap:9px;margin-top:10px">
-          <input type="checkbox" id="iv_pg" style="width:auto" ${j.invoice_pagado?'checked':''}>
+          <input type="checkbox" id="iv_pg" style="width:auto" ${HD.pg?'checked':''}>
           <span>Ya me la pagaron</span></label>
 
         <div style="height:14px"></div>
@@ -11767,6 +11808,15 @@ async function formInvoiceCarpet(jobId){
       </div></div>`;
 
     $('#c1').onclick=$('#c2').onclick=cerrar;
+    // Guardar lo de arriba en cuanto se escribe
+    [['iv_n','n'],['iv_f','f'],['iv_po','po'],['iv_term','term'],['iv_tax','tax'],['iv_nt','nt']].forEach(([id,k])=>{
+      const el=$('#'+id); if(el){ el.addEventListener('input',()=>HD[k]=el.value); el.addEventListener('change',()=>HD[k]=el.value); } });
+    $('#iv_pg').onchange=e=>HD.pg=e.target.checked;
+    document.querySelectorAll('[data-apr]').forEach(b=>b.onclick=()=>{
+      const a=APR[+b.dataset.apr];
+      INVR.push({concepto:a.concepto, cantidad:1, unidad:a.unidad, precio:a.precio||'', especial:false, aprendido:true});
+      pinta();
+    });
 
     document.querySelectorAll('[data-f]').forEach(el=>{
       el.oninput=()=>{
@@ -11796,7 +11846,11 @@ async function formInvoiceCarpet(jobId){
 
     $('#iv_ok').onclick=async()=>{
       const num=$('#iv_n').value.trim();
-      if(!num) return toast('Pon el número de invoice.');
+      if(!num) return toast('Pon el número de invoice que dio QuickBooks.');
+      if(num!==(j.invoice_num||'')){
+        const {data:dup}=await sb.from('jobs').select('folio').eq('invoice_num',num).neq('id',jobId).limit(1);
+        if(dup&&dup.length&&!confirm('El invoice '+num+' ya está en '+dup[0].folio+'. ¿Guardarlo de todos modos?')) return;
+      }
       if(!INVR.length) return toast('Agrega al menos un renglón.');
       const malos=INVR.filter(r=>!String(r.concepto||'').trim() || !Number(r.precio));
       if(malos.length) return toast('Hay renglones sin concepto o sin precio.');
@@ -11806,7 +11860,7 @@ async function formInvoiceCarpet(jobId){
       const up={
         invoice_num:num,
         invoice_fecha:$('#iv_f').value||hoy(),
-        invoice_renglones:INVR,
+        invoice_renglones:INVR.map(r=>{ const {aprendido,...o}=r; return o; }),
         invoice_tax:t,
         invoice_monto: Math.round((s + s*t/100)*100)/100,
         invoice_pagado:$('#iv_pg').checked,
