@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="203">
+<meta name="app-version" content="204">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -4970,7 +4970,7 @@ const PT = (en, es) => IDIOMA_PORTADA==='es' ? es : en;
 const PUERTAS = {
   admin:      {t:'Administration',    s:'Jared and Julio · full control',     c:'var(--azul)'},
   restoration:{t:'Restoration',       s:'Water, mold and reconstruction crew',c:'var(--rojo)'},
-  carpet:     {t:'Carpet Department', s:'Carlos and the cleaning crew',       c:'#2E9E7E'},
+  carpet:     {t:'Carpet Department', s:'Office and the cleaning crew',       c:'#2E9E7E'},
   oficina:    {t:'Office',            s:'Scheduling and follow up',           c:'#0B0D11'},
   contratista:{t:'Contractor',        s:'Clock in and report your work',      c:'var(--oro)'}
 };
@@ -5393,7 +5393,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v203 · Carpet: QuickBooks, fotos y precios que aprende</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v204 · Carpet avisa a Oficina</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11464,13 +11464,13 @@ async function revisarInvoice(id){
         <button data-rv="corregir" class="${decision==='corregir'?'on mal':''}">Hay que corregirla</button>
       </div>
 
-      <label>Nota para Carlos</label>
+      <label>Nota para Oficina (Gabriela)</label>
       <textarea id="rv_n" placeholder="Qué está mal, qué falta, o simplemente que quedó bien">${esc(j.invoice_revision_nota||'')}</textarea>
 
       <div style="height:14px"></div>
-      <button class="btn wide" id="rv_ok">Guardar y avisarle a Carlos</button>
+      <button class="btn wide" id="rv_ok">Guardar y avisarle a Oficina</button>
       <div style="height:8px"></div>
-      <div class="sub" style="margin:14px 0 6px">Si la factura está mal de raíz y prefieres que Carlos la haga de nuevo, bórrala. El trabajo no se toca.</div>
+      <div class="sub" style="margin:14px 0 6px">Si la factura está mal de raíz y prefieres que Oficina la haga de nuevo, bórrala. El trabajo no se toca.</div>
       <button class="btn ghost wide" id="rv_del" style="color:var(--rojo);border-color:var(--rojo)">Borrar solo el invoice ${esc(j.invoice_num)}</button>
       <div style="height:8px"></div>
       <button class="btn ghost wide" id="c2">Cancelar</button>
@@ -11497,14 +11497,14 @@ async function revisarInvoice(id){
         : 'Invoice '+j.invoice_num+' necesita corrección',
       texto: nom+(j.unidad?' · Unit '+j.unidad:'')+' · '+cf(j.invoice_monto||0)
              +(nota?' — '+nota:''),
-      job_id:id, de_usuario:U.nombre, para_rol:'gerente'});
+      job_id:id, de_usuario:U.nombre, para_rol:'oficina'});
     cerrar();
-    toast(decision==='aprobada'?'Aprobada · Carlos ya tiene el aviso':'Se le avisó a Carlos que la corrija');
+    toast(decision==='aprobada'?'Aprobada · Oficina ya tiene el aviso':'Se le avisó a Oficina que la corrija');
     render();
   };
 
   $('#rv_del').onclick=async()=>{
-    if(!confirm('Se borra SOLO la factura '+j.invoice_num+' de '+cf(j.invoice_monto||0)+'.\n\nEl trabajo, sus reportes y sus fotos NO se tocan. El job regresa a "terminado" y vuelve a salir en Por facturar para que Carlos la rehaga.\n\n¿Le seguimos?')) return;
+    if(!confirm('Se borra SOLO la factura '+j.invoice_num+' de '+cf(j.invoice_monto||0)+'.\n\nEl trabajo, sus reportes y sus fotos NO se tocan. El job regresa a "terminado" y vuelve a salir en Por facturar para que Oficina la rehaga.\n\n¿Le seguimos?')) return;
     const up={invoice_num:null, invoice_fecha:null, invoice_monto:null,
       invoice_renglones:null, invoice_tax:0, invoice_pagado:false, invoice_pago_fecha:null,
       invoice_vence:null, invoice_notas:null,
@@ -11517,7 +11517,7 @@ async function revisarInvoice(id){
     await notifIns({tipo:'invoice', departamento:'cleaning',
       titulo:'Se borró el invoice '+j.invoice_num,
       texto:nom+' · '+U.nombre+' lo eliminó. Hay que volver a facturar el trabajo.',
-      job_id:id, de_usuario:U.nombre, para_rol:'gerente'});
+      job_id:id, de_usuario:U.nombre, para_rol:'oficina'});
     cerrar(); toast('Invoice borrado · el trabajo regresó a Por facturar'); render();
   };
 }
