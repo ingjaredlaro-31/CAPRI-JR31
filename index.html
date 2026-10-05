@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="199">
+<meta name="app-version" content="200">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1902,7 +1902,26 @@ const SERV_CLEAN = ['Carpet cleaning','Carpet spot treatment','Carpet deodorizin
   'Upholstery cleaning','Sofa / loveseat cleaning','Mattress cleaning','Tile and grout cleaning',
   'Grout sealing','Hardwood floor cleaning','Vinyl / laminate cleaning','Area rug cleaning',
   'Pet odor treatment','Stain removal','Move out deep clean','Post construction clean',
-  'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning'];
+  'Window cleaning','Pressure washing','Air duct cleaning','Dryer vent cleaning',
+  'Pet scan (UV)','Pet urine treatment','Enzyme treatment','Odor neutralizer','Stairs cleaning',
+  'Hallway cleaning','Carpet stretching','Carpet repair / patch','Pad replacement','Carpet water extraction',
+  'Red dye / rust removal','Gum / wax removal','Furniture moving','Rug pickup & delivery'];
+// Servicios de Carpet que piden un dato extra del técnico al marcarlos
+const SERV_CLEAN_DET = {
+  'Pet scan (UV)':'Resultado del pet scan (qué encontró el técnico y en qué cuartos)',
+  'Pet urine treatment':'¿En qué áreas se trató?',
+  'Stain removal':'¿Qué manchas y dónde?',
+  'Stairs cleaning':'¿Cuántos escalones?',
+  'Hallway cleaning':'¿Cuántos pasillos?',
+  'Carpet repair / patch':'Medida y lugar del parche',
+  'Carpet stretching':'¿Qué cuartos?',
+  'Pad replacement':'Medida / sqft',
+  'Area rug cleaning':'¿Cuántos tapetes y medida?',
+  'Sofa / loveseat cleaning':'¿Cuántas piezas?',
+  'Mattress cleaning':'¿Cuántos colchones y tamaño?',
+  'Red dye / rust removal':'¿Dónde?',
+  'Carpet water extraction':'Áreas y galones aprox.'
+};
 // Carpet Department dado de baja. Poner en true lo revive completo.
 const CARPET_ON = true;   // reactivado: Gabriela factura Carpet
 
@@ -5291,7 +5310,10 @@ function shell(html){
       : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['llamadas','Notas de llamadas'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
-      .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'));
+      .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'))
+      // En Carpet solo hay reportes y facturas: se esconde lo que es de Restoration
+      .filter(t => !(CARPET_ON && DEPV()==='cleaning' && U.rol!=='tecnico' &&
+        ['dia','inicial','llamadas','mapa','jobs','schedule','construccion','rastro'].includes(t[0])));
   // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
   const GRUPO_DE = {
     dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA', llamadas:'DÍA A DÍA',
@@ -5371,7 +5393,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v199 · voz por persona</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v200 · Carpet: reporte + factura</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5508,6 +5530,7 @@ async function render(){
     if(U.rol==='tecnico' && V==='notif') return shell(await vNotificaciones());
     if(V==='inicial')   return shell(await vLevantamientos());
     if(V==='llamadas')  return shell(await vLlamadas());
+    if(CARPET_ON && DEPV()==='cleaning' && ['dia','inicial','llamadas','mapa','jobs','schedule','construccion','rastro'].includes(V)){ V='resumen'; }
     if(CARPET_ON && V==='resumen' && DEPV()==='cleaning'){
       shell(await vHoyCarpet()); return engancharHoyCarpet();
     }
@@ -11276,7 +11299,8 @@ async function nuevaFacturaCarpet(){
           <div><label>Fecha del servicio</label><input id="f_fe" type="date" value="${hoy()}"></div>
         </div>
         <label>¿Qué trabajo se hizo? Marca todo lo que aplique</label>
-        <div class="chips" id="f_sv">${SERV_CLEAN.map(x=>`<button type="button" data-sv="${esc(x)}" class="${FCP.serv.includes(x)?'on':''}">${esc(x)}</button>`).join('')}</div>
+        <div class="chips" id="f_sv">${[...new Set(SERV_CLEAN.concat(FCP.serv))].map(x=>`<button type="button" data-sv="${esc(x)}" class="${FCP.serv.includes(x)?'on':''}">${esc(x)}</button>`).join('')}<button type="button" class="add" id="f_svx">+ otro</button></div>
+        <div id="f_det"></div>
         <select id="f_tp" style="display:none">${TIPOS.cleaning.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
         <div class="eyebrow">Lo que mandó el técnico (opcional)</div>
         <label>Notas del trabajo</label>
@@ -11298,11 +11322,26 @@ async function nuevaFacturaCarpet(){
     if(FCP.v) CAMPOS.forEach(k=>{ const el=$('#'+k); if(el && FCP.v[k]!=null && FCP.v[k]!=='') el.value=FCP.v[k]; });
     const guarda=()=>{ FCP.v={}; CAMPOS.forEach(k=>{ const el=$('#'+k); if(el) FCP.v[k]=el.value; }); };
     $('#f_tec').oninput=e=>FCP.tec=e.target.value;
+    FCP.det = FCP.det || {};
+    // Datos extra de los servicios que lo piden (ej. resultado del pet scan)
+    const pintaDet=()=>{
+      const box=$('#f_det'); if(!box) return;
+      const pide=FCP.serv.filter(x=>SERV_CLEAN_DET[x]);
+      box.innerHTML = pide.map(x=>`<label>${esc(x)} · ${esc(SERV_CLEAN_DET[x])}</label>
+        <input data-det="${esc(x)}" value="${esc(FCP.det[x]||'')}" placeholder="Lo que reportó el técnico">`).join('');
+      box.querySelectorAll('[data-det]').forEach(i=>i.oninput=()=>{ FCP.det[i.dataset.det]=i.value; });
+    };
     document.querySelectorAll('#f_sv [data-sv]').forEach(b=>b.onclick=()=>{
       const v=b.dataset.sv; const i=FCP.serv.indexOf(v);
       if(i>=0) FCP.serv.splice(i,1); else FCP.serv.push(v);
       b.className = FCP.serv.includes(v)?'on':'';
+      pintaDet();
     });
+    $('#f_svx').onclick=()=>{
+      const n=prompt('¿Qué otro trabajo se hizo?'); if(!n||!n.trim()) return;
+      guarda(); if(!FCP.serv.includes(n.trim())) FCP.serv.push(n.trim()); pinta();
+    };
+    pintaDet();
     $('#f_trab').oninput=e=>FCP.trab=e.target.value;
     $('#f_mg').onchange=e=>{ guarda(); if(FCP.v) FCP.v.f_pr=''; mgSel=e.target.value; pinta(); };
     $('#f_fot').onchange=async e=>{
@@ -11350,10 +11389,13 @@ async function nuevaFacturaCarpet(){
 
       if(FCP.subiendo) return toast('Espera, todavía se están subiendo las fotos.');
       if(!FCP.serv.length) return toast('Marca qué trabajo de Carpet se hizo.');
+      const faltaDet=FCP.serv.find(x=>x==='Pet scan (UV)' && !(FCP.det&&String(FCP.det[x]||'').trim()));
+      if(faltaDet) return toast('Pon el resultado del pet scan que dio el técnico.');
+      const servTxt=FCP.serv.map(x=>{ const d=FCP.det&&String(FCP.det[x]||'').trim(); return d? x+': '+d : x; });
       const tipoCln = TIPOS.cleaning.find(t=>t.toLowerCase()===String(FCP.serv[0]).toLowerCase()) || 'carpet cleaning';
       p.tipo = tipoCln; p.servicios_carpet = FCP.serv.slice();
       FCP.tec=$('#f_tec').value.trim(); FCP.trab=$('#f_trab').value.trim();
-      if(FCP.trab) p.scope=FCP.trab;
+      p.scope=[servTxt.join('\n'), FCP.trab].filter(Boolean).join('\n\n');
       p.notas=['Capturado por '+(U?U.nombre:'')+(FCP.tec?' · técnico: '+FCP.tec:'')].join('');
       const {data,error}=await sb.from('jobs').insert(p).select().single();
       if(error) return toast('No se pudo crear: '+error.message);
@@ -11361,11 +11403,11 @@ async function nuevaFacturaCarpet(){
       if(FCP.trab || FCP.fotos.length || FCP.serv.length){
         const {error:er}=await sb.from('reportes').insert({
           job_id:data.id, tecnico_id:null, tecnico_nombre:FCP.tec||null, fecha, tipo_reporte:'inicial',
-          trabajo_realizado:FCP.trab||null, notas:FCP.trab||null, fotos:FCP.fotos,
-          servicios:FCP.serv.slice(), areas:[], material_removido:[], lecturas:[]});
-        if(er) toast('Factura creada, pero no se guardaron las fotos: '+er.message);
+          trabajo_realizado:servTxt.join(' · '), notas:FCP.trab||null, fotos:FCP.fotos,
+          servicios:servTxt, areas:[], material_removido:[], lecturas:[]});
+        if(er) toast('Se guardó, pero no las fotos: '+er.message);
       }
-      toast(folio+' creado · ahora los renglones');
+      toast('Reporte '+folio+' guardado · ahora el precio');
       formInvoiceCarpet(data.id);     // pasa directo al armador
     };
   };
