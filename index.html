@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="204">
+<meta name="app-version" content="205">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1038,13 +1038,16 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .qb-age span{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--gris)}
 .qb-age b{font-family:var(--mono);font-size:13.5px}
 .qb-age div.hay b{color:var(--rojo)}
-.qb-h,.qb-r{display:grid;grid-template-columns:78px 1fr 118px 104px 118px 104px;
+.qb-h,.qb-r{display:grid;grid-template-columns:minmax(90px,170px) 1fr 118px 90px 150px 170px;
   gap:10px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--linea)}
 .qb-h{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:var(--gris);
   border-bottom:1.5px solid var(--tinta);padding:7px 8px}
 .qb-r{cursor:pointer}
 .qb-r:hover{background:var(--sup2)}
-.qb-n{font-family:var(--mono);font-size:13.5px;font-weight:600}
+.qb-n{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere;min-width:0}
+.qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
+.qb-e.sr{color:#E0A526;border-color:#E0A526}
+.qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
 .qb-cl{min-width:0}
 .qb-cl b{display:block;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qb-cl span{display:block;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -5393,7 +5396,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v204 · Carpet avisa a Oficina</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v205 · Invoices: revisada bien / mal</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11566,19 +11569,21 @@ async function vInvoicesCarpet(){
   const AG={corriente:0,'1-30':0,'31-60':0,'61-90':0,'90+':0};
   abiertas.forEach(x=>{ AG[bucket(x)] += M(x); });
 
-  const LISTA = QBTAB==='borrador'? borrador
+  const sinRev = T.filter(x=>x.invoice_num && !x.invoice_revision);
+  const malas  = T.filter(x=>x.invoice_num && x.invoice_revision==='corregir');
+  const LISTA = QBTAB==='sinrev'? sinRev : QBTAB==='malas'? malas
+              : QBTAB==='borrador'? borrador
               : QBTAB==='abiertas'? abiertas
               : QBTAB==='vencidas'? vencidas
               : QBTAB==='pagadas' ? pagadas : T;
 
+  // Lo que importa aquí: si Jared ya la revisó y si está bien o mal
   const chip = x=>{
-    if(x.invoice_pagado) return '<span class="qb-e pag">PAGADA</span>'
-      + (x.invoice_revision==='aprobada'?' <span class="qb-e pag">✓ REVISADA</span>':'');
-    if(!x.invoice_num)   return '<span class="qb-e bor">POR FACTURAR</span>';
-    if(x.invoice_revision==='corregir') return '<span class="qb-e ven">CORREGIR</span>';
-    const d=diasV(x);
-    if(d>0) return `<span class="qb-e ven">VENCIDA ${d}d</span>`;
-    return `<span class="qb-e abi">ABIERTA</span>`;
+    if(!x.invoice_num) return '<span class="qb-e bor">POR FACTURAR</span>';
+    if(x.invoice_revision==='aprobada') return '<span class="qb-e bien">✓ REVISADA · BIEN</span>';
+    if(x.invoice_revision==='corregir') return '<span class="qb-e ven">✗ MAL · CORREGIR</span>'
+      + (x.invoice_revision_nota?`<span class="qb-nota">${esc(x.invoice_revision_nota)}</span>`:'');
+    return '<span class="qb-e sr">SIN REVISAR</span>';
   };
 
   const fila = x=>`<div class="qb-r" data-qb="${x.id}">
@@ -11593,8 +11598,12 @@ async function vInvoicesCarpet(){
     <div class="qb-a">
       ${!x.invoice_num
         ? (FACT_CARPET()?`<button class="btn mini" data-qbf="${x.id}">FACTURAR</button>`:'')
-        : `${ES_ADMIN()?`<button class="btn mini" data-qbr="${x.id}">REVISAR</button>`:''}
-           ${(FACT_CARPET()&&!x.invoice_pagado)?`<button class="btn mini" data-qbp="${x.id}">COBRADA</button>`:''}`}
+        : (ES_ADMIN()
+            ? (x.invoice_revision==='aprobada'
+                ? `<button class="btn mini ghost" data-qbr="${x.id}">CAMBIAR</button>`
+                : `<button class="btn mini" data-qbok="${x.id}">✓ BIEN</button>
+                   <button class="btn mini" style="background:var(--rojo);color:#fff" data-qbr="${x.id}">✗ MAL</button>`)
+            : (x.invoice_revision==='corregir'&&FACT_CARPET()?`<button class="btn mini" data-qbf="${x.id}">CORREGIR</button>`:''))}
     </div>
   </div>`;
 
@@ -11625,13 +11634,14 @@ async function vInvoicesCarpet(){
       <button data-qt="borrador" class="${QBTAB==='borrador'?'on':''}">Por facturar · ${borrador.length}</button>
       <button data-qt="abiertas" class="${QBTAB==='abiertas'?'on':''}">Abiertas · ${abiertas.length}</button>
       <button data-qt="vencidas" class="${QBTAB==='vencidas'?'on':''}">Vencidas · ${vencidas.length}</button>
-      <button data-qt="pagadas" class="${QBTAB==='pagadas'?'on':''}">Pagadas · ${pagadas.length}</button>
+      <button data-qt="sinrev" class="${QBTAB==='sinrev'?'on':''}">Sin revisar · ${sinRev.length}</button>
+      <button data-qt="malas" class="${QBTAB==='malas'?'on':''}">Mal · ${malas.length}</button>
     </div>
 
     ${LISTA.length?`
       <div class="qb-h">
         <div>INVOICE</div><div>CLIENTE</div><div>FECHA</div>
-        <div style="text-align:right">IMPORTE</div><div>ESTADO</div><div></div>
+        <div style="text-align:right">IMPORTE</div><div>REVISIÓN</div><div></div>
       </div>
       ${LISTA.map(fila).join('')}`
     : `<div class="empty"><div class="disp">${T.length?'Nada en esta vista':'Todavía no hay facturas'}</div>
@@ -11646,7 +11656,7 @@ function engancharInvoicesCarpet(){
   const nb=$('#qb_new'); if(nb) nb.onclick=()=>nuevaFacturaCarpet();
   document.querySelectorAll('[data-qt]').forEach(b=>b.onclick=()=>{ QBTAB=b.dataset.qt; render(); });
   document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=e=>{
-    if(e.target.closest('[data-qbf],[data-qbp],[data-qbr]')) return;
+    if(e.target.closest('[data-qbf],[data-qbp],[data-qbr],[data-qbok]')) return;
     abrirJob(b.dataset.qb);
   });
   document.querySelectorAll('[data-qbf]').forEach(b=>b.onclick=e=>{
@@ -11656,6 +11666,19 @@ function engancharInvoicesCarpet(){
   });
   document.querySelectorAll('[data-qbr]').forEach(b=>b.onclick=e=>{
     e.stopPropagation(); revisarInvoice(b.dataset.qbr);
+  });
+  document.querySelectorAll('[data-qbok]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation(); if(!ES_ADMIN()) return;
+    const id=b.dataset.qbok; b.disabled=true;
+    const {data:j}=await sb.from('jobs').select('invoice_num,invoice_monto,unidad,cliente, propiedades(nombre)').eq('id',id).maybeSingle();
+    const {error}=await sb.from('jobs').update({invoice_revision:'aprobada', invoice_revision_nota:null,
+      invoice_revisado_por:U.nombre, invoice_revisado_fecha:hoy()}).eq('id',id);
+    if(error){ b.disabled=false; return toast('No se guardó: '+error.message); }
+    if(j) await notifIns({tipo:'invoice', departamento:'cleaning',
+      titulo:'Invoice '+j.invoice_num+' revisado · está bien',
+      texto:(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · Unit '+j.unidad:'')+' · '+cf(j.invoice_monto||0),
+      job_id:id, de_usuario:U.nombre, para_rol:'oficina'});
+    toast('✓ Revisada · está bien'); render();
   });
   document.querySelectorAll('[data-qbp]').forEach(b=>b.onclick=async e=>{
     e.stopPropagation();
@@ -11872,6 +11895,7 @@ async function formInvoiceCarpet(jobId){
         estatus:'facturado',
         fecha_cierre: j.fecha_cierre || $('#iv_f').value || hoy()
       };
+      if(j.invoice_revision==='corregir'){ up.invoice_revision=null; }
       let docs=(j.docs||[]).filter(x=>x!=='-invoice');
       if(!docs.includes('invoice')) docs.push('invoice');
       up.docs=docs;
