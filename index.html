@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="205">
+<meta name="app-version" content="206">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1045,6 +1045,31 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .qb-r{cursor:pointer}
 .qb-r:hover{background:var(--sup2)}
 .qb-n{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere;min-width:0}
+.chat-lista{display:flex;flex-direction:column;gap:6px}
+.chat-p{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--sup);border:1px solid var(--linea);
+  border-radius:12px;padding:11px 12px;color:inherit;cursor:pointer;font:inherit}
+.chat-p:hover{background:var(--sup2)}
+.chat-av{position:relative;flex:0 0 42px;height:42px;border-radius:50%;background:var(--sup2);display:grid;place-items:center;
+  font-weight:800;font-size:17px;border:1px solid var(--linea)}
+.chat-av i{position:absolute;right:-1px;bottom:-1px;width:13px;height:13px;border-radius:50%;background:#56606E;border:2px solid var(--fondo,#0B0F16)}
+.chat-av.vivo i{background:#2FD38A}
+.chat-pt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chat-pt b{font-size:15px}
+.chat-pt em{font-style:normal;font-size:12px;color:var(--gris)}
+.chat-pt small{font-size:12.5px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-on{color:#2FD38A;font-weight:700}
+.chat-n{background:var(--rojo);color:#fff;border-radius:20px;min-width:22px;height:22px;padding:0 7px;display:grid;place-items:center;font-size:12px;font-weight:800}
+.chat-box{max-height:48vh;min-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;
+  background:var(--sup);border:1px solid var(--linea);border-radius:12px}
+.chat-m{max-width:80%;align-self:flex-start;background:var(--sup2);border:1px solid var(--linea);border-radius:14px 14px 14px 4px;padding:8px 11px}
+.chat-m div{white-space:pre-wrap;line-height:1.45;font-size:15px}
+.chat-m span{display:block;font-size:10.5px;color:var(--gris);margin-top:3px}
+.chat-m.mio{align-self:flex-end;background:rgba(27,86,211,.28);border-color:rgba(27,86,211,.6);border-radius:14px 14px 4px 14px}
+.chat-vz{display:flex !important;align-items:center;gap:9px;margin-top:10px;text-transform:none !important;letter-spacing:normal !important;font-family:inherit !important;font-size:14px !important;color:inherit !important}
+.chat-in{display:flex;gap:8px;align-items:stretch}
+.chat-in textarea{flex:1;min-height:52px;margin:0}
+.chat-bts{display:flex;flex-direction:column;gap:6px}
+.chat-bts .btn.rojo{background:var(--rojo);color:#fff}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -3516,7 +3541,231 @@ async function recordarCarpetDelDia(){
   if(VOZ_PERMITIDA && !hablar((nom&&nom!=='Oficina'?nom+', ':'')+'todavía no has capturado los trabajos de Carpet de hoy.')) tono('urgente');
 }
 
+
+/* ==================== CHAT DEL EQUIPO ====================
+   Mensajes de persona a persona dentro de la app. Se ve quién está en
+   línea (la app manda un "latido" cada minuto). Un mensaje puede ir
+   "con voz": al que lo recibe, la app se lo lee en voz alta.
+   Tablas: mensajes + usuarios.ultimo_visto (chat.sql). */
+let CHAT_ULT = 0, CHAT_TIM = null, CHAT_LATIDO = null, CHAT_CON = null, CHAT_SIN = 0, CHAT_OK = true, CHAT_PRIMERA = true;
+let CHAT_VOZ = true; try{ CHAT_VOZ = localStorage.getItem('jr31_chatvoz') !== 'off'; }catch(e){}
+const CHAT_RAPIDOS = ['Favor de enviar el reporte de hoy','Mándame fotos del trabajo','Llámame cuando puedas','¿Ya terminaste?','¿Dónde vas?','Recibido 👍'];
+const chatEnLinea = u => !!(u && u.ultimo_visto && (Date.now()-new Date(u.ultimo_visto).getTime() < 150000));
+const chatNom = n => String(n||'').trim().split(/\s+/)[0] || '';
+function chatHace(ts){
+  if(!ts) return 'nunca ha entrado';
+  const m=Math.round((Date.now()-new Date(ts).getTime())/60000);
+  if(m<60) return 'visto hace '+Math.max(m,1)+' min';
+  if(m<24*60) return 'visto hace '+Math.round(m/60)+' h';
+  return 'visto el '+fmt(new Date(ts).toISOString().slice(0,10));
+}
+const chatHora = ts => { const d=new Date(ts); const h=d.toISOString().slice(0,10)===new Date().toISOString().slice(0,10);
+  return (h?'':fmt(d.toISOString().slice(0,10))+' · ')+d.toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'}); };
+const chatEtiqueta = () => 'Chat'+(CHAT_SIN?' ('+CHAT_SIN+')':'');
+
+// Un mensaje con voz se lee aunque los avisos automáticos de esa persona estén callados
+function hablarChat(texto){
+  if(!SONIDO || !('speechSynthesis' in window)) return false;
+  const antes=VOZ_PERMITIDA; VOZ_PERMITIDA=true;
+  try{ return hablar(texto); } finally { VOZ_PERMITIDA=antes; }
+}
+
+async function chatLatido(){
+  if(!U || document.hidden || !CHAT_OK) return;
+  try{
+    const {error}=await sb.from('usuarios').update({ultimo_visto:new Date().toISOString()}).eq('id',U.id);
+    if(error && /ultimo_visto/i.test(error.message||'')) CHAT_OK=false;
+  }catch(e){}
+}
+
+function chatArrancar(){
+  if(CHAT_TIM) clearInterval(CHAT_TIM);
+  if(CHAT_LATIDO) clearInterval(CHAT_LATIDO);
+  chatLatido(); chatRevisar();
+  CHAT_LATIDO = setInterval(chatLatido, 60000);
+  CHAT_TIM = setInterval(chatRevisar, 8000);
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && U){ chatLatido(); chatRevisar(); } });
+
+function pintarChatBadge(){
+  document.querySelectorAll('[data-v="chat"] span').forEach(s=>s.textContent=chatEtiqueta());
+  document.querySelectorAll('.chat-fab').forEach(b=>{ b.dataset.n=CHAT_SIN||''; b.classList.toggle('hay',!!CHAT_SIN); });
+}
+
+function avisoChat(m){
+  const d=document.createElement('div');
+  d.className='avisoflot';
+  d.innerHTML=`<div class="af-ic">${svgIC('chat')}</div>
+    <div class="af-t"><b>💬 ${esc(m.de_nombre||'Mensaje')}${m.voz?' · 🔊':''}</b><span>${esc((m.texto||'').slice(0,110))}</span></div>
+    <button class="af-x">✕</button>`;
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.classList.add('on'));
+  const quitar=()=>{ d.classList.remove('on'); setTimeout(()=>d.remove(),350); };
+  d.querySelector('.af-x').onclick=e=>{ e.stopPropagation(); quitar(); };
+  d.onclick=()=>{ quitar(); abrirChat(m.de_id); };
+  setTimeout(quitar, 12000);
+}
+
+async function chatRevisar(){
+  if(!U || !CHAT_OK) return;
+  try{
+    const {data,error}=await sb.from('mensajes').select('*').eq('para_id',U.id).eq('leido',false)
+      .order('created_at',{ascending:true}).limit(60);
+    if(error){ if(/mensajes|relation|does not exist/i.test(error.message||'')) CHAT_OK=false; return; }
+    const D=data||[];
+    CHAT_SIN=D.length; pintarChatBadge();
+    if(CHAT_PRIMERA){
+      CHAT_PRIMERA=false;
+      if(D.length){ const ult=D[D.length-1];
+        avisoChat(D.length===1?ult:{...ult, texto:'Tienes '+D.length+' mensajes sin leer. El último: '+ult.texto}); }
+    } else {
+      const nuevos=D.filter(m=>new Date(m.created_at).getTime()>CHAT_ULT);
+      if(nuevos.length){
+        nuevos.forEach(m=>{ if(!(CHAT_CON && CHAT_CON.id===m.de_id && $('#ch_box'))) avisoChat(m); });
+        const conVoz=nuevos.filter(m=>m.voz);
+        const hablo=conVoz.map(m=>hablarChat('Mensaje de '+chatNom(m.de_nombre)+'. '+m.texto)).some(Boolean);
+        if(!hablo && VOZ_PERMITIDA) tono('normal');
+        vibrar();
+        if(!PUSH_OK && (document.hidden || !document.hasFocus()))
+          nuevos.slice(0,3).forEach(m=>notifSistema({titulo:'💬 '+(m.de_nombre||'Mensaje'), texto:m.texto}));
+      }
+    }
+    if(D.length) CHAT_ULT=Math.max(CHAT_ULT,...D.map(m=>new Date(m.created_at).getTime()));
+    if(!CHAT_ULT) CHAT_ULT=Date.now();
+    if(CHAT_CON && $('#ch_box')) chatPintarConv();
+    else CHAT_CON=null;
+  }catch(e){}
+}
+
+async function chatGente(){
+  let r=await sb.from('usuarios').select('id,nombre,rol,departamento,activo,ultimo_visto').order('nombre');
+  if(r.error){ CHAT_OK=false; r=await sb.from('usuarios').select('id,nombre,rol,departamento,activo').order('nombre'); }
+  return (r.data||[]).filter(u=>u.id!==U.id && u.activo!==false);
+}
+
+async function vChat(){
+  const G=await chatGente();
+  const {data:ms,error}=await sb.from('mensajes').select('de_id,para_id,texto,created_at,leido,voz')
+    .or(`de_id.eq.${U.id},para_id.eq.${U.id}`).order('created_at',{ascending:false}).limit(400);
+  if(error || !CHAT_OK) return `<div class="empty"><div class="disp">Falta activar el chat</div>
+    <p>Hay que correr <b>chat.sql</b> en Supabase (SQL Editor → Run) una sola vez.</p></div>`;
+  const M=ms||[];
+  const ult={}, sin={};
+  M.forEach(m=>{ const o=m.de_id===U.id?m.para_id:m.de_id; if(!ult[o]) ult[o]=m;
+    if(m.para_id===U.id && !m.leido) sin[o]=(sin[o]||0)+1; });
+  const ROL={admin:'Administración',gerente:'Gerencia',oficina:'Oficina',tecnico:'Técnico',contratista:'Contratista'};
+  G.sort((a,b)=>((sin[b.id]?1:0)-(sin[a.id]?1:0)) || ((chatEnLinea(b)?1:0)-(chatEnLinea(a)?1:0))
+    || ((ult[b.id]?new Date(ult[b.id].created_at).getTime():0)-(ult[a.id]?new Date(ult[a.id].created_at).getTime():0))
+    || String(a.nombre).localeCompare(String(b.nombre)));
+  const on=G.filter(chatEnLinea).length;
+  return `<div class="eyebrow">💬 Chat del equipo · ${on} en línea</div>
+    <div class="chat-lista">
+    ${G.map(u=>{ const l=ult[u.id], vivo=chatEnLinea(u);
+      return `<button class="chat-p" data-chat="${u.id}">
+        <span class="chat-av ${vivo?'vivo':''}">${esc(chatNom(u.nombre).slice(0,1).toUpperCase())}<i></i></span>
+        <span class="chat-pt"><b>${esc(u.nombre)}</b>
+          <em>${vivo?'<span class="chat-on">En línea</span>':esc(chatHace(u.ultimo_visto))} · ${esc(ROL[u.rol]||u.rol||'')}</em>
+          ${l?`<small>${l.de_id===U.id?'Tú: ':''}${l.voz?'🔊 ':''}${esc(String(l.texto).slice(0,70))}</small>`:''}</span>
+        ${sin[u.id]?`<span class="chat-n">${sin[u.id]}</span>`:''}
+      </button>`; }).join('') || '<div class="sub">No hay más personas dadas de alta.</div>'}
+    </div>`;
+}
+function engancharChat(){
+  document.querySelectorAll('[data-chat]').forEach(b=>b.onclick=()=>abrirChat(b.dataset.chat));
+}
+
+async function abrirChat(uid){
+  const G=await chatGente();
+  const p=G.find(x=>x.id===uid);
+  if(!p) return toast('No se encontró a esa persona.');
+  CHAT_CON={id:p.id, nombre:p.nombre, persona:p};
+  const vivo=chatEnLinea(p);
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+      <div><div class="mono" style="font-size:11px;color:#C3D6F7">CHAT</div>
+      <div class="disp" style="font-size:21px;line-height:1.1">${esc(p.nombre)}</div>
+      <div style="font-size:13px;color:${vivo?'#5BE0A8':'#C3D6F7'}">${vivo?'● En línea':esc(chatHace(p.ultimo_visto))}</div></div>
+      <button class="x" id="c1">✕</button></div>
+    <div class="sheet-body">
+      <div id="ch_box" class="chat-box"><div class="sub">Cargando…</div></div>
+      <div class="chips" id="ch_rap" style="margin:10px 0 6px">${CHAT_RAPIDOS.map((t,i)=>`<button type="button" data-rap="${i}">${esc(t)}</button>`).join('')}</div>
+      <div class="chat-in">
+        <textarea id="ch_t" rows="2" placeholder="Escribe o dicta el mensaje…"></textarea>
+        <div class="chat-bts">
+          <button class="btn ghost sm" id="ch_mic" title="Dictar">🎤</button>
+          <button class="btn sm" id="ch_env">Enviar</button>
+        </div>
+      </div>
+      <label class="chat-vz">
+        <input type="checkbox" id="ch_voz" style="width:auto" ${CHAT_VOZ?'checked':''}>
+        <span>🔊 Que se escuche en voz alta en el teléfono de ${esc(chatNom(p.nombre))}</span></label>
+    </div></div>`;
+  $('#c1').onclick=()=>{ CHAT_CON=null; cerrar(); if(V==='chat') render(); };
+  const t=$('#ch_t');
+  $('#ch_voz').onchange=e=>{ CHAT_VOZ=e.target.checked; try{ localStorage.setItem('jr31_chatvoz',CHAT_VOZ?'on':'off'); }catch(err){} };
+  $('#ch_env').onclick=()=>chatEnviar(t.value, $('#ch_voz').checked);
+  t.onkeydown=e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); chatEnviar(t.value, $('#ch_voz').checked); } };
+  document.querySelectorAll('[data-rap]').forEach(b=>b.onclick=()=>chatEnviar(CHAT_RAPIDOS[+b.dataset.rap], $('#ch_voz').checked));
+  chatDictado($('#ch_mic'), t);
+  await chatPintarConv();
+  setTimeout(()=>{ try{ t.focus(); }catch(e){} },60);
+}
+
+async function chatPintarConv(){
+  if(!CHAT_CON) return;
+  const o=CHAT_CON.id;
+  const {data}=await sb.from('mensajes').select('*')
+    .or(`and(de_id.eq.${U.id},para_id.eq.${o}),and(de_id.eq.${o},para_id.eq.${U.id})`)
+    .order('created_at',{ascending:false}).limit(120);
+  const M=(data||[]).slice().reverse();
+  const box=$('#ch_box'); if(!box) return;
+  const abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.innerHTML = M.length ? M.map(m=>{ const mio=m.de_id===U.id;
+    return `<div class="chat-m ${mio?'mio':''}"><div>${esc(m.texto)}</div>
+      <span>${m.voz?'🔊 ':''}${chatHora(m.created_at)}${mio?(m.leido?' · ✓✓ visto':' · ✓ enviado'):''}</span></div>`; }).join('')
+    : `<div class="sub" style="text-align:center;padding:24px 0">Todavía no hay mensajes con ${esc(chatNom(CHAT_CON.nombre))}.</div>`;
+  if(abajo || box.dataset.listo!=='1'){ box.scrollTop=box.scrollHeight; box.dataset.listo='1'; }
+  const sinLeer=M.filter(m=>m.para_id===U.id && !m.leido).map(m=>m.id);
+  if(sinLeer.length){
+    await sb.from('mensajes').update({leido:true}).in('id',sinLeer);
+    CHAT_SIN=Math.max(0,CHAT_SIN-sinLeer.length); pintarChatBadge();
+  }
+}
+
+async function chatEnviar(texto, voz){
+  texto=String(texto||'').trim();
+  if(!texto || !CHAT_CON) return;
+  const b=$('#ch_env'); if(b) b.disabled=true;
+  const m={de_id:U.id, de_nombre:U.nombre, para_id:CHAT_CON.id, para_nombre:CHAT_CON.nombre, texto, voz:!!voz};
+  const {error}=await sb.from('mensajes').insert(m);
+  if(b) b.disabled=false;
+  if(error) return toast('No se envió: '+error.message);
+  const t=$('#ch_t'); if(t) t.value='';
+  try{
+    if(SERVIDOR.push) fetch('/api/push',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({titulo:'💬 '+U.nombre+(voz?' 🔊':''), texto, tipo:'chat',
+        para_usuario:CHAT_CON.id, de_usuario:U.nombre, de_usuario_id:U.id})}).catch(()=>{});
+  }catch(e){}
+  chatPintarConv();
+}
+
+function chatDictado(btn, campo){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ btn.onclick=()=>toast('Este aparato no deja dictar. Usa el micrófono del teclado.'); return; }
+  let rec=null, base='';
+  btn.onclick=()=>{
+    if(rec){ try{ rec.stop(); }catch(e){} return; }
+    rec=new SR(); rec.lang='es-MX'; rec.interimResults=true; rec.continuous=false;
+    base=campo.value ? campo.value.trim()+' ' : '';
+    rec.onresult=e=>{ let s=''; for(let i=0;i<e.results.length;i++) s+=e.results[i][0].transcript; campo.value=base+s; };
+    rec.onend=()=>{ rec=null; btn.textContent='🎤'; btn.classList.remove('rojo'); };
+    rec.onerror=()=>{ toast('No se escuchó. Intenta otra vez.'); };
+    btn.textContent='⏹'; btn.classList.add('rojo');
+    try{ rec.start(); }catch(e){ rec=null; btn.textContent='🎤'; }
+  };
+}
+
 function arrancarVigia(){
+  chatArrancar();
   if(VIGIA) clearInterval(VIGIA);
   vigilarAvisos();
   VIGIA = setInterval(vigilarAvisos, 30000);
@@ -5190,6 +5439,7 @@ const IRA_ALIAS = {
   historial:'archivo historial pasado meses estado de cuenta mensual',
   construccion:'construccion contratistas miguel saul daniel manuel drywall pisos bitacora',
   precios:'precios catalogo lista de precios tarifas costos',
+  chat:'chat mensajes mensaje platicar escribir en linea',
   buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
 };
 
@@ -5307,10 +5557,10 @@ function shell(html){
   const tabs = U.rol==='tecnico'
     ? (U.rol==='contratista'
        ? [['dia','Inicio'],['cpartes','Mis partes'],['choras','Mis horas']]
-       : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')]])
+       : [['dia',T('Inicio')],['trabajos',T('Trabajos')],['reporte',T('Reporte')],['buscar',ING()?'Search':'Buscar'],['schedule',T('Agenda')],['hist',T('Historial')],['chat',chatEtiqueta()]])
     : (U.rol==='admin'
-      ? [['resumen',BI('Resumen','Home')],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['llamadas',BI('Notas de llamadas','Call notes')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
-      : [['resumen','Resumen'],['dia','Control'],['inicial','Reportes iniciales'],['llamadas','Notas de llamadas'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
+      ? [['resumen',BI('Resumen','Home')],['chat',chatEtiqueta()],['dia',BI('Control','Daily control')],['inicial',BI('Reportes iniciales','Initial reports')],['llamadas',BI('Notas de llamadas','Call notes')],['mapa',BI('Mapa y rutas','Map & routes')],['jobs',BI('Jobs','Jobs')],['buscar',BI('Buscar','Search')],['mgmt',BI('Managements','Managements')],['schedule',BI('Schedule','Schedule')],['cobranza',BI('Facturación','Billing')],['historial',BI('Historial','Archive')],['construccion',BI('Construcción','Construction')],['rastro',BI('Rastro','Trail')]].concat((ES_ADMIN()||(ES_GEREN()&&U.departamento==='ambos'))?[['equipo',BI('Equipo','Team')],['import',BI('Importar calendario','Import calendar')]]:[])
+      : [['resumen','Resumen'],['chat',chatEtiqueta()],['dia','Control'],['inicial','Reportes iniciales'],['llamadas','Notas de llamadas'],['mapa','Mapa y rutas'],['jobs','Jobs'],['mgmt','Managements'],['schedule','Schedule'],['cobranza','Facturación'],['historial','Historial'],['construccion','Construcción'],['rastro','Rastro']])
       .filter(t => !(U.rol==='tecnico' && ['cobranza','precios','historial'].includes(t[0])))
       // Carpet no levanta reportes iniciales: entran al trabajo asignado y dejan su reporte.
       .filter(t => !(CANDADO()==='cleaning' && t[0]==='inicial'))
@@ -5319,7 +5569,7 @@ function shell(html){
         ['dia','inicial','llamadas','mapa','jobs','schedule','construccion','rastro'].includes(t[0])));
   // El menú se agrupa para que no sean 14 botones sueltos con el mismo peso.
   const GRUPO_DE = {
-    dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA', llamadas:'DÍA A DÍA',
+    chat:'DÍA A DÍA', dia:'DÍA A DÍA', mapa:'DÍA A DÍA', schedule:'DÍA A DÍA', llamadas:'DÍA A DÍA',
     jobs:'TRABAJOS', inicial:'TRABAJOS', trabajos:'TRABAJOS', reporte:'TRABAJOS', hist:'TRABAJOS',
     cobranza:'DINERO', cpartes:'DINERO', choras:'DINERO',
     mgmt:'DIRECTORIO', equipo:'DIRECTORIO',
@@ -5396,7 +5646,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v205 · Invoices: revisada bien / mal</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v206 · Chat del equipo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5509,6 +5759,7 @@ async function render(){
   await contarNotif();
   shell('<div class="empty">Cargando…</div>');
   try{
+    if(V==='chat'){ shell(await vChat()); return engancharChat(); }
     if(U.rol==='tecnico'){
       try{ await altaPendientes(); }catch(e){}
       if(U.rol==='contratista'){
@@ -7322,7 +7573,8 @@ const IC={
   trabajos:'<path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
   reporte:'<path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h4"/>',
   hist:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  notif:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'
+  notif:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
 };
 const svgIC=k=>IC[k]?`<svg viewBox="0 0 24 24">${IC[k]}</svg>`:'';
 
