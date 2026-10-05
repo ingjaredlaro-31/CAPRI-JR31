@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="198">
+<meta name="app-version" content="199">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -3414,7 +3414,7 @@ function vozElegir(){
 }
 if('speechSynthesis' in window){ vozElegir(); try{ speechSynthesis.onvoiceschanged=vozElegir; }catch(e){} }
 function hablar(texto){
-  if(!SONIDO || !('speechSynthesis' in window)) return false;
+  if(!SONIDO || !VOZ_PERMITIDA || !('speechSynthesis' in window)) return false;
   try{
     const u=new SpeechSynthesisUtterance(texto);
     if(!VOZ_ES) vozElegir();
@@ -3428,8 +3428,18 @@ function hablar(texto){
   }catch(e){ return false; }
 }
 
+/* Voz por persona: administración la prende o apaga en Personal (columna usuarios.voz).
+   Se vuelve a leer cada pocos minutos para que el cambio llegue sin cerrar sesión. */
+let VOZ_PERMITIDA = true, VOZ_LEIDA = 0;
+async function leerVozPermitida(){
+  if(!U || Date.now()-VOZ_LEIDA < 180000) return;
+  VOZ_LEIDA = Date.now();
+  try{ const {data}=await sb.from('usuarios').select('*').eq('id',U.id).maybeSingle();
+    if(data && ('voz' in data)) VOZ_PERMITIDA = data.voz!==false; }catch(e){}
+}
 async function vigilarAvisos(){
   if(!U) return;
+  await leerVozPermitida();
   try{
     let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at,de_usuario')
       .eq('leida',false).order('created_at',{ascending:false}).limit(4);
@@ -3442,8 +3452,11 @@ async function vigilarAvisos(){
       // Voz: "Reporte recibido de Jesús Lozoya, Avino". Si no hay voz, el tono de antes.
       const dichas = nuevas.slice(0,3).map(vozFrase);
       if(nuevas.length>3) dichas.push('y '+(nuevas.length-3)+' avisos más.');
-      const hablo = dichas.map(hablar).some(Boolean);
-      if(!hablo) tono(nuevas.some(x=>/urgen|falta|sin reporte/i.test(x.titulo||''))?'urgente':'normal');
+      // Si administración le apagó la voz a esta persona: ni voz ni sonido, solo el aviso en pantalla
+      if(VOZ_PERMITIDA){
+        const hablo = dichas.map(hablar).some(Boolean);
+        if(!hablo) tono(nuevas.some(x=>/urgen|falta|sin reporte/i.test(x.titulo||''))?'urgente':'normal');
+      }
       vibrar();
       nuevas.slice(0,2).forEach((n,i)=>setTimeout(()=>avisoFlotante(n.titulo,n.texto,n.job_id), i*700));
       // Banner del sistema (si diste permiso). Si este aparato ya recibe push, ese aviso ya llegó.
@@ -3478,7 +3491,7 @@ async function recordarCarpetDelDia(){
   const t='Carpet de hoy sin capturar', x='Todavía no hay trabajos de Carpet de hoy. Captura los reportes y factura lo que se hizo.';
   avisoFlotante(t, x, null);
   notifSistema({titulo:t, texto:x});
-  if(!hablar((nom&&nom!=='Oficina'?nom+', ':'')+'todavía no has capturado los trabajos de Carpet de hoy.')) tono('urgente');
+  if(VOZ_PERMITIDA && !hablar((nom&&nom!=='Oficina'?nom+', ':'')+'todavía no has capturado los trabajos de Carpet de hoy.')) tono('urgente');
 }
 
 function arrancarVigia(){
@@ -5358,7 +5371,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v198 · Carpet simplificado</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v199 · voz por persona</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -15354,6 +15367,7 @@ async function formUsuario(id){
       <label>Contraseña ${id?'(dejar vacío para no cambiarla)':''}</label><input id="u_pass" type="password">
       <label><input type="checkbox" id="u_act" ${u.activo?'checked':''} style="width:auto"> Activo</label>
       <label style="margin-top:10px"><input type="checkbox" id="u_alta" ${u.puede_alta?'checked':''} style="width:auto"> Puede dar de alta sus reportes iniciales como trabajo (sin esperar a oficina)</label>
+      <label style="margin-top:10px"><input type="checkbox" id="u_voz" ${u.voz===false?'':'checked'} style="width:auto"> 🔊 Avisos con voz y sonido (si lo quitas, solo le salen los avisos en pantalla, sin hablar)</label>
       <div style="height:16px"></div><button class="btn wide" id="sv">Guardar</button>
       ${id?`
       <div class="eyebrow">Dar de baja</div>
@@ -15367,6 +15381,7 @@ async function formUsuario(id){
       telefono:$('#u_tel').value.trim()||null,rol:$('#u_rol').value,departamento:$('#u_dep').value,activo:$('#u_act').checked};
     // Solo se manda si se usa, para no romper si la columna aún no existe en la base
     if($('#u_alta').checked || ('puede_alta' in u)) p.puede_alta=$('#u_alta').checked;
+    if(!$('#u_voz').checked || ('voz' in u)) p.voz=$('#u_voz').checked;
     if(!p.nombre||!p.username) return toast('Faltan nombre y usuario.');
     const pw=$('#u_pass').value;
     if(pw) p.password_hash=await sha256(pw);
@@ -15374,6 +15389,7 @@ async function formUsuario(id){
     const q=id?sb.from('usuarios').update(p).eq('id',id):sb.from('usuarios').insert(p);
     const {error}=await q;
     if(error && /puede_alta/.test(error.message)) return toast('Falta activar el permiso en la base (Supabase). Pídele a Jared el paso del SQL.');
+    if(error && /\bvoz\b/.test(error.message)) return toast('Falta activar la opción de voz en la base (Supabase). Corre el archivo voz.sql.');
     if(error) return toast('No se guardó: '+error.message);
     cerrar(); toast('Personal guardado'); render();
   };
