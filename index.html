@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="207">
+<meta name="app-version" content="208">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1072,6 +1072,21 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .chat-bts .btn.rojo{background:var(--rojo);color:#fff}
 @keyframes girar{to{transform:rotate(360deg)}}
 #refrescar.girando{animation:girar .8s linear infinite}
+.aj-sec{background:var(--sup);border:1px solid var(--linea);border-radius:14px;padding:6px 16px 14px;margin-bottom:14px}
+.aj-sec h3{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oro);margin:12px 0 4px;font-weight:600}
+.aj-r{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--linea)}
+.aj-r:last-of-type{border-bottom:0}
+.aj-t{min-width:0}.aj-t b{display:block;font-size:15px}.aj-t span{display:block;font-size:12.5px;color:var(--gris);margin-top:2px}
+.aj-c{flex-shrink:0;text-align:right}
+.aj-seg{display:inline-flex;border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+.aj-seg button{background:transparent;border:0;color:var(--gris);padding:8px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.aj-seg button+button{border-left:1px solid var(--linea)}
+.aj-seg button.on{background:var(--azul);color:#fff;font-weight:700}
+.aj-det{margin-top:8px}.aj-det summary{cursor:pointer;color:var(--azul);font-weight:600;padding:6px 0}
+.aj-ir{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:8px 0}
+.aj-ir button{text-align:left;background:var(--sup2);border:1px solid var(--linea);border-radius:10px;padding:11px 12px;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+.aj-ir button span{display:block;font-weight:400;font-size:12px;color:var(--gris);margin-top:3px}
+@media(max-width:560px){ .aj-r{flex-direction:column;align-items:flex-start} .aj-c{text-align:left} }
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -3786,6 +3801,117 @@ function chatDictado(btn, campo){
   };
 }
 
+/* ==================== AJUSTES ====================
+   Todo lo que se configura en un solo lugar: pantalla, sonido y voz,
+   avisos, contraseña, la app. Administración ve además sus accesos. */
+async function vAjustes(){
+  const esTec = U.rol==='tecnico' || U.rol==='contratista';
+  let yo={};
+  if(U.rol!=='contratista'){ try{ const {data}=await sb.from('usuarios').select('*').eq('id',U.id).maybeSingle(); yo=data||{}; }catch(e){} }
+  if('voz' in yo) VOZ_PERMITIDA = yo.voz!==false;
+  let ancho=''; try{ ancho=localStorage.getItem('jr31_ancho')||''; }catch(e){}
+  const perm = (typeof Notification!=='undefined') ? Notification.permission : 'no';
+  const ROL={admin:'Administración',gerente:'Gerencia',oficina:'Oficina',tecnico:'Técnico',contratista:'Contratista'};
+  const seg=(id,ops,val)=>`<div class="aj-seg" id="${id}">${ops.map(([v,t])=>`<button type="button" data-val="${v}" class="${String(val)===String(v)?'on':''}">${t}</button>`).join('')}</div>`;
+  const fila=(t,s,ctl)=>`<div class="aj-r"><div class="aj-t"><b>${t}</b>${s?`<span>${s}</span>`:''}</div><div class="aj-c">${ctl}</div></div>`;
+  return `
+  <div class="eyebrow">⚙ Ajustes</div>
+
+  <div class="aj-sec"><h3>Mi cuenta</h3>
+    ${fila(esc(U.nombre), esc((ROL[U.rol]||U.rol)+(yo.username?' · usuario: '+yo.username:'')+(U.departamento&&U.departamento!=='ambos'?' · '+(U.departamento==='cleaning'?'Carpet':'Restoration'):'')), '')}
+    ${U.rol!=='contratista'?`
+    <details class="aj-det"><summary>Cambiar mi contraseña</summary>
+      <label>Contraseña actual</label><input id="aj_pa" type="password" autocomplete="current-password">
+      <label>Contraseña nueva</label><input id="aj_pn" type="password" autocomplete="new-password" placeholder="Mínimo 6 letras o números">
+      <label>Repite la nueva</label><input id="aj_pr" type="password" autocomplete="new-password">
+      <div style="height:10px"></div><button class="btn wide" id="aj_pw">Guardar contraseña</button>
+    </details>`:''}
+  </div>
+
+  <div class="aj-sec"><h3>Pantalla</h3>
+    ${fila('Tema','', seg('aj_tema',[['oscuro','🌙 Oscuro'],['claro','☀ Claro']], OSCURO?'oscuro':'claro'))}
+    ${fila('Idioma','', seg('aj_idioma',[['es','Español'],['en','English']], ING()?'en':'es'))}
+    ${fila('Ancho','En compu: qué tanto de la pantalla usa la app', seg('aj_ancho',[['','Celular'],['w-tablet','Tablet'],['w-full','Completa']], ancho))}
+  </div>
+
+  <div class="aj-sec"><h3>Sonido y voz</h3>
+    ${fila('Sonido','Tonos y voz de la app en este aparato', seg('aj_son',[['on','Prendido'],['off','Apagado']], SONIDO?'on':'off'))}
+    ${fila('Voz de avisos','Que la app diga en voz alta lo que llega',
+      ES_ADMIN() ? seg('aj_voz',[['on','Prendida'],['off','Apagada']], VOZ_PERMITIDA?'on':'off')
+                 : `<span class="chip ${VOZ_PERMITIDA?'verde':'gris'}">${VOZ_PERMITIDA?'PRENDIDA':'APAGADA'}</span><span class="sub" style="display:block;margin-top:4px">La controla administración</span>`)}
+    ${fila('Mis mensajes de chat','Salen con voz para el que los recibe', seg('aj_chatvoz',[['on','Con voz'],['off','Sin voz']], CHAT_VOZ?'on':'off'))}
+    <button class="btn ghost sm" id="aj_probar" style="margin-top:8px">🔊 Probar la voz</button>
+  </div>
+
+  <div class="aj-sec"><h3>Avisos</h3>
+    ${fila('Avisos en pantalla', perm==='granted'?'Activados en este aparato':perm==='denied'?'Bloqueados en el navegador: dale al candado junto a la dirección y permite Notificaciones':'Todavía no los activas en este aparato',
+      perm==='granted'?'<span class="chip verde">ACTIVOS</span>':`<button class="btn sm" id="aj_notif">Activar</button>`)}
+    ${fila('Avisos con la app cerrada', PUSH_OK?'Este aparato recibe avisos aunque la app esté cerrada':SERVIDOR.push?'Se activan cuando prendes los avisos en pantalla':'El servidor de avisos no está conectado',
+      `<span class="chip ${PUSH_OK?'verde':'gris'}">${PUSH_OK?'SÍ':'NO'}</span>`)}
+    <button class="btn ghost sm" id="aj_pnot" style="margin-top:8px">Mandarme un aviso de prueba</button>
+  </div>
+
+  <div class="aj-sec"><h3>La app</h3>
+    ${fila('Versión','v'+esc(String(VERSION)), `<button class="btn sm" id="aj_act">⟳ Buscar actualización</button>`)}
+    ${!enApp()?fila('Instalar en este aparato','Queda con su ícono como una app', `<button class="btn ghost sm" id="aj_inst">📲 Instalar</button>`):''}
+    ${fila('Cerrar sesión','', `<button class="btn ghost sm" id="aj_salir" style="color:var(--rojo);border-color:var(--rojo)">Salir</button>`)}
+  </div>
+
+  ${ES_ADMIN()?`<div class="aj-sec"><h3>Administración</h3>
+    <div class="aj-ir">
+      <button data-ajv="equipo">👥 Personal y permisos<span>usuarios, contraseñas, voz por persona, quién da de alta</span></button>
+      <button data-ajv="precios">💲 Lista de precios<span>catálogo de Carpet</span></button>
+      <button data-ajv="mgmt">🏢 Managements y propiedades</button>
+      <button data-ajv="import">📅 Importar calendario de Google</button>
+    </div>
+    ${fila('Servidor de avisos (push)','', `<span class="chip ${SERVIDOR.push?'verde':'gris'}">${SERVIDOR.push?'CONECTADO':'NO CONECTADO'}</span>`)}
+    ${fila('Inteligencia artificial','', `<span class="chip ${SERVIDOR.ia?'verde':'gris'}">${SERVIDOR.ia?'CONECTADA':'APAGADA'}</span>`)}
+  </div>`:''}`;
+}
+
+function engancharAjustes(){
+  const seg=(id,fn)=>document.querySelectorAll('#'+id+' [data-val]').forEach(b=>b.onclick=async()=>{
+    document.querySelectorAll('#'+id+' [data-val]').forEach(x=>x.classList.toggle('on',x===b));
+    await fn(b.dataset.val);
+  });
+  seg('aj_tema', v=>{ if((v==='oscuro')!==OSCURO) cambiarTema(); });
+  seg('aj_idioma', v=>{ if((v==='en')!==ING()) cambiarIdioma(); });
+  seg('aj_ancho', v=>{ try{ localStorage.setItem('jr31_ancho',v); }catch(e){}
+    document.body.classList.remove('w-tablet','w-full'); if(v) document.body.classList.add(v);
+    document.querySelectorAll('[data-w]').forEach(b=>b.classList.toggle('on', b.dataset.w===v)); });
+  seg('aj_son', v=>{ SONIDO = v==='on'; try{ localStorage.setItem('jr31_sonido', SONIDO?'on':'off'); }catch(e){}
+    const bs=$('#sonido'); if(bs) bs.textContent=SONIDO?'♪':'✕'; if(SONIDO) tono('normal'); });
+  seg('aj_voz', async v=>{ const on=v==='on';
+    const {error}=await sb.from('usuarios').update({voz:on}).eq('id',U.id);
+    if(error) return toast('No se guardó: '+error.message);
+    VOZ_PERMITIDA=on; VOZ_LEIDA=Date.now(); toast(on?'Voz de avisos prendida':'Voz de avisos apagada'); });
+  seg('aj_chatvoz', v=>{ CHAT_VOZ = v==='on'; try{ localStorage.setItem('jr31_chatvoz', CHAT_VOZ?'on':'off'); }catch(e){} });
+  const pr=$('#aj_probar'); if(pr) pr.onclick=()=>{ if(!SONIDO) return toast('El sonido está apagado.');
+    if(!hablarChat('Hola '+chatNom(U.nombre)+', así suena la voz de la app.')) toast('Este aparato no tiene voz en español.'); };
+  const an=$('#aj_notif'); if(an) an.onclick=async()=>{ await notifActivar(); render(); };
+  const pn=$('#aj_pnot'); if(pn) pn.onclick=()=>{
+    if(typeof Notification==='undefined' || Notification.permission!=='granted'){ avisoFlotante('Aviso de prueba','Así se ven los avisos dentro de la app.',null); return toast('Activa los avisos para que salgan también fuera de la app.'); }
+    notifSistema({titulo:'JR31 · aviso de prueba', texto:'Así te llegan los avisos.'}); toast('Listo, revisa tu pantalla'); };
+  const ac=$('#aj_act'); if(ac) ac.onclick=refrescarTodo;
+  const ins=$('#aj_inst'); if(ins) ins.onclick=async()=>{
+    if(INSTALAR){ INSTALAR.prompt(); await INSTALAR.userChoice; INSTALAR=null; return render(); }
+    if(esIOS()) return alert('En iPhone:\n1. Abre esta página en Safari.\n2. Toca Compartir (cuadro con flecha).\n3. "Agregar a pantalla de inicio".');
+    toast('Ya está instalada o este navegador no deja instalar. En Chrome: menú ⋮ → Instalar app.'); };
+  const sl=$('#aj_salir'); if(sl) sl.onclick=()=>salir();
+  document.querySelectorAll('[data-ajv]').forEach(b=>b.onclick=()=>{ V=b.dataset.ajv; render(); });
+  const pw=$('#aj_pw'); if(pw) pw.onclick=async()=>{
+    const a=$('#aj_pa').value, n=$('#aj_pn').value, r=$('#aj_pr').value;
+    if(!a||!n) return toast('Escribe la contraseña actual y la nueva.');
+    if(n.length<6) return toast('La nueva debe tener al menos 6 letras o números.');
+    if(n!==r) return toast('La nueva y la repetida no son iguales.');
+    const {data:ok}=await sb.from('usuarios').select('id').eq('id',U.id).eq('password_hash',await sha256(a)).maybeSingle();
+    if(!ok) return toast('La contraseña actual no es correcta.');
+    const {error}=await sb.from('usuarios').update({password_hash:await sha256(n)}).eq('id',U.id);
+    if(error) return toast('No se guardó: '+error.message);
+    ['aj_pa','aj_pn','aj_pr'].forEach(i=>$('#'+i).value=''); toast('Contraseña cambiada. La próxima vez entra con la nueva.');
+  };
+}
+
 function arrancarVigia(){
   chatArrancar();
   if(VIGIA) clearInterval(VIGIA);
@@ -5462,6 +5588,7 @@ const IRA_ALIAS = {
   construccion:'construccion contratistas miguel saul daniel manuel drywall pisos bitacora',
   precios:'precios catalogo lista de precios tarifas costos',
   chat:'chat mensajes mensaje platicar escribir en linea',
+  ajustes:'ajustes configuracion settings contraseña password tema idioma sonido voz avisos notificaciones version',
   buscar:'busqueda encontrar', notif:'avisos alertas notificaciones campana'
 };
 
@@ -5625,6 +5752,7 @@ function shell(html){
       <div class="inicio"><button data-v="${inicio}" class="${V===inicio?'on':''}">${svgIC(esTec?'dia':'resumen')}<span>${esTec?T('Inicio'):BI('Resumen','Home')}</span></button></div>
       ${menuHTML}
       <button data-v="notif" class="${V==='notif'?'on':''}">${svgIC('notif')}<span>${esTec?T('Avisos'):BI('Avisos','Alerts')}${NOTIF?` (${NOTIF})`:''}</span></button>
+      <button data-v="ajustes" class="${V==='ajustes'?'on':''}">${svgIC('ajustes')}<span>${esTec?(ING()?'Settings':'Ajustes'):BI('Ajustes','Settings')}</span></button>
       <button data-v="salir" style="margin-top:22px;color:#6B7280"><span>${esTec?T('Salir'):BI('Salir','Log out')}</span></button>
     </div>
     <div class="wrap">
@@ -5633,7 +5761,7 @@ function shell(html){
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
         <button class="temabtn" id="refrescar" title="${ING()?'Refresh':'Actualizar'}" style="margin-left:8px;font-size:18px">⟳</button>
-        <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
+        <button class="temabtn ${V==='ajustes'?'on':''}" data-v="ajustes" title="${ING()?'Settings':'Ajustes'}" style="margin-left:8px;font-size:17px">⚙</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
         <div class="relojtop" id="relojtop"><b></b><span></span></div>
         <span class="anchobtn" id="anchosw">
@@ -5669,7 +5797,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v207 · Botón actualizar</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v208 · Ajustes</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5784,6 +5912,7 @@ async function render(){
   shell('<div class="empty">Cargando…</div>');
   try{
     if(V==='chat'){ shell(await vChat()); return engancharChat(); }
+    if(V==='ajustes'){ shell(await vAjustes()); return engancharAjustes(); }
     if(U.rol==='tecnico'){
       try{ await altaPendientes(); }catch(e){}
       if(U.rol==='contratista'){
@@ -7598,6 +7727,7 @@ const IC={
   reporte:'<path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h4"/>',
   hist:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   notif:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  ajustes:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
 };
 const svgIC=k=>IC[k]?`<svg viewBox="0 0 24 24">${IC[k]}</svg>`:'';
