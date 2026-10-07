@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="211">
+<meta name="app-version" content="212">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -5940,7 +5940,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v211 · Home con flujo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v212 · Activos correctos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -9090,7 +9090,11 @@ async function vJobs(){
   const repResuelta = x => factRep(x) || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
   // Si se reabrió a mano (quitaron "cerrado"), vuelve a salir aunque tenga sus facturas
   const reabierto = x => (x.docs||[]).includes('-subido');
-  const completo  = x => factFlood(x) && repResuelta(x) && !reabierto(x);
+  // Completo = las dos facturas resueltas Y (se cerró a mano, o ya no queda
+  // ninguna reparación pendiente). Un trabajo con reparaciones sin terminar que
+  // nadie ha cerrado sale en Activos aunque diga "no aplica".
+  const cerradoAMano = x => (x.docs||[]).includes('subido');
+  const completo  = x => !reabierto(x) && factFlood(x) && repResuelta(x) && (cerradoAMano(x) || repPend(x)===0);
 
   // ACTIVOS = todo lo que no está completo. Un trabajo con el flood
   // facturado pero la reparación en el aire sigue siendo trabajo abierto.
@@ -11562,7 +11566,7 @@ async function vHome(){
   const repPend= x => repsDe(x).filter(y=>y.estatus!=='terminada').length;
   const factFl = x => (!!x.invoice_num || x.estatus==='facturado') && !(x.docs||[]).includes('-invoice');
   const repOk  = x => !!x.invoice_rep_num || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
-  const cerrado= x => factFl(x) && repOk(x) && !(x.docs||[]).includes('-subido');
+  const cerrado= x => !(x.docs||[]).includes('-subido') && factFl(x) && repOk(x) && ((x.docs||[]).includes('subido') || repPend(x)===0);
   const activos= J.filter(x=>!cerrado(x));
   const ultRep={}; R.forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
   const desdeRep = x => ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10);
@@ -11575,7 +11579,7 @@ async function vHome(){
     {k:'flood', n:'Facturar flood', s:'terminados sin factura', a:'Facturar',
       l: activos.filter(x=>!factFl(x) && x.estatus==='terminado')},
     {k:'rep', n:'En reparación', s:'flood ya facturado', a:'Ver',
-      l: activos.filter(x=>factFl(x) && !repOk(x) && !(repsDe(x).length && !repPend(x)))},
+      l: activos.filter(x=>factFl(x) && (!repOk(x) || repPend(x)>0) && !(repsDe(x).length && !repPend(x) && !x.invoice_rep_num))},
     {k:'cobrar', n:'Facturar reparación', s:'reparación terminada', a:'Facturar',
       l: activos.filter(x=>factFl(x) && repsDe(x).length && !repPend(x) && !x.invoice_rep_num)},
     {k:'listo', n:'Cerrados', s:'este mes', a:'Ver',
