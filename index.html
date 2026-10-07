@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="208">
+<meta name="app-version" content="209">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -3865,7 +3865,6 @@ async function vAjustes(){
       <button data-ajv="import">📅 Importar calendario de Google</button>
     </div>
     ${fila('Servidor de avisos (push)','', `<span class="chip ${SERVIDOR.push?'verde':'gris'}">${SERVIDOR.push?'CONECTADO':'NO CONECTADO'}</span>`)}
-    ${fila('Inteligencia artificial','', `<span class="chip ${SERVIDOR.ia?'verde':'gris'}">${SERVIDOR.ia?'CONECTADA':'APAGADA'}</span>`)}
   </div>`:''}`;
 }
 
@@ -5797,7 +5796,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v208 · Ajustes</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v209 · Ajustes sin IA</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -9781,8 +9780,8 @@ async function escucharLlamada(modo){
     <div class="franja split"><i></i><i></i></div>
     <div class="sheet-body">
       <div class="ok">${T(
-        '<b>1.</b> Pon la llamada en altavoz cerca de la compu. <b>2.</b> Presiona <b>Empezar</b>. <b>3.</b> Al colgar, presiona <b>Crear trabajo con IA</b>.',
-        '<b>1.</b> Put the call on speaker near the computer. <b>2.</b> Press <b>Start</b>. <b>3.</b> When you hang up, press <b>Create job with AI</b>.')}</div>
+        '<b>1.</b> Pon la llamada en altavoz cerca de la compu. <b>2.</b> Presiona <b>Empezar</b>. <b>3.</b> Al colgar, presiona <b>Crear trabajo</b>.',
+        '<b>1.</b> Put the call on speaker near the computer. <b>2.</b> Press <b>Start</b>. <b>3.</b> When you hang up, press <b>Create job</b>.')}</div>
       <div class="sub" style="margin:-4px 0 14px;color:var(--rojo)">${T(
         'Avísale al cliente al inicio: “Esta llamada se está transcribiendo para tomar sus datos.” (ley de California).',
         'Tell the caller first: “This call is being transcribed to take down your information.” (California law).')}</div>
@@ -9813,7 +9812,7 @@ async function escucharLlamada(modo){
       <div style="height:10px"></div>
       <button class="btn wide" id="ll_nt" ${modo==='notas'?'':'style="background:var(--azul)"'}>📝 ${T('Guardar notas y resumen de la llamada','Save call notes and summary')}</button>
       <div style="height:10px"></div>
-      <button class="btn ${modo==='notas'?'ghost ':''}wide" id="ll_ia">✨ ${T('Crear trabajo con IA','Create job with AI')}</button>
+      <button class="btn ${modo==='notas'?'ghost ':''}wide" id="ll_ia">📝 ${T('Crear trabajo','Create job')}</button>
       <div style="height:12px"></div>
       <div class="g2">
         <button class="btn ghost wide" id="ll_cp">${T('Copiar texto','Copy text')}</button>
@@ -9911,7 +9910,7 @@ async function escucharLlamada(modo){
     const inicio = LLAM && LLAM.inicio ? LLAM.inicio : new Date();
     try{
       await llamCrearJob(texto, inicio);
-    }finally{ if($('#ll_ia')){ b.disabled=false; b.innerHTML='✨ '+T('Crear trabajo con IA','Create job with AI'); } }
+    }finally{ if($('#ll_ia')){ b.disabled=false; b.innerHTML='📝 '+T('Crear trabajo','Create job'); } }
   };
 }
 
@@ -9968,7 +9967,7 @@ async function guardarNotasLlamada(texto, inicio, conQuien, jobId, fotos){
       (d.pendientes||[]).length?'Pendientes: '+d.pendientes.join(' · '):'' ].filter(Boolean).join('\n');
     try{ await sb.from('notas').insert({job_id:jobId,usuario_id:U.id,autor:U.nombre,texto:lineas}); }catch(e){}
   }
-  toast(conIA?T('Llamada guardada con resumen','Call saved with summary'):T('Llamada guardada · resumen básico (IA no conectada)','Call saved · basic summary'));
+  toast(conIA?T('Llamada guardada con resumen','Call saved with summary'):T('Llamada guardada','Call saved'));
   return data.id;
 }
 
@@ -10249,12 +10248,12 @@ async function llamCrearJob(texto, inicio){
     if(!conIA){ av.style.borderLeftColor='var(--oro)'; }
     av.innerHTML = conIA
       ? (d.urgente?'<b style="color:var(--rojo)">🔴 '+T('URGENTE','URGENT')+'</b> · ':'')
-        + T('La IA llenó este trabajo con la llamada. <b>Revisa los datos</b> antes de guardar.','AI filled this job from the call. <b>Check the data</b> before saving.')
+        + T('Este trabajo se llenó con la llamada. <b>Revisa los datos</b> antes de guardar.','AI filled this job from the call. <b>Check the data</b> before saving.')
         + (d.resumen?'<div style="margin-top:6px">'+esc(d.resumen)+'</div>':'')
-      : T('La IA todavía no está conectada. Llené lo que pude y la transcripción quedó en <b>Notas internas</b>.','AI is not connected yet. I filled what I could and the transcript is in <b>Internal notes</b>.');
+      : T('Llené lo que pude con la llamada. Revisa y completa; lo que se dijo quedó en <b>Notas internas</b>.','AI is not connected yet. I filled what I could and the transcript is in <b>Internal notes</b>.');
     body.insertBefore(av, body.firstChild);
   }
-  toast(conIA?T('Datos listos · revisa y guarda','Data ready · review and save'):T('Sin IA · revisa y completa','No AI · review and complete'));
+  toast(conIA?T('Datos listos · revisa y guarda','Data ready · review and save'):T('Revisa y completa','Review and complete'));
 }
 
 async function formJob(id, pre){
