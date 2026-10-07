@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="210">
+<meta name="app-version" content="211">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1137,6 +1137,100 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .db-mini b{font-family:var(--disp);font-size:19px}
 @media(max-width:900px){ .db-g2{grid-template-columns:1fr} }
 @media(max-width:640px){ .db-kpis{grid-template-columns:1fr 1fr} .db-k b{font-size:25px} .db-sal{font-size:22px} }
+.fl-hola{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:8px 0 14px}
+.fl-hola h2{margin:0;font-family:var(--disp);font-size:28px;line-height:1.1;font-weight:700}
+.fl-hola span{color:var(--gris);font-size:14px;text-transform:capitalize}
+.fl-flujo{--agua:#2E8BFF;--agua2:#57D3F5;background:radial-gradient(120% 140% at 50% 0%,rgba(46,139,255,.14),transparent 60%),var(--sup);
+  border:1px solid var(--linea);border-radius:20px;padding:22px 20px 0;margin-bottom:14px;overflow:hidden}
+.fl-tanques{display:flex;align-items:flex-start;justify-content:space-between}
+.fl-t{flex:0 0 auto;width:118px;display:flex;flex-direction:column;align-items:center;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0;border-radius:16px}
+.fl-t:focus-visible{outline:2px solid var(--agua2);outline-offset:4px}
+.fl-vaso{position:relative;width:96px;height:118px;border-radius:22px 22px 26px 26px;border:2px solid rgba(160,190,230,.28);
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));overflow:hidden;transition:transform .25s,border-color .25s,box-shadow .25s}
+.fl-t:hover .fl-vaso{transform:translateY(-3px);border-color:rgba(87,211,245,.6)}
+.fl-t.on .fl-vaso{border-color:var(--agua2);box-shadow:0 0 0 4px rgba(87,211,245,.15),0 10px 30px rgba(46,139,255,.25)}
+.fl-vaso svg{position:absolute;inset:0;width:100%;height:100%}
+.fl-agua{transform:translateY(100%);transition:transform 1.6s cubic-bezier(.2,.75,.2,1) var(--d)}
+.fl-flujo.lleno .fl-agua{transform:translateY(calc((1 - var(--lvl)) * 100%))}
+.o1{fill:rgba(46,139,255,.78);animation:ola 3.6s linear infinite}
+.o2{fill:rgba(87,211,245,.45);animation:ola 5.2s linear infinite reverse}
+.fl-t.flood .o1,.fl-t.cobrar .o1{fill:rgba(255,170,60,.8)} .fl-t.flood .o2,.fl-t.cobrar .o2{fill:rgba(255,214,120,.45)}
+.fl-t.listo .o1{fill:rgba(47,211,138,.78)} .fl-t.listo .o2{fill:rgba(140,240,190,.4)}
+@keyframes ola{to{transform:translateX(-100px)}}
+.fl-n{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--disp);font-size:38px;font-weight:700;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.55)}
+.fl-nom{margin-top:10px;font-weight:700;font-size:14px;text-align:center;line-height:1.2}
+.fl-sub{font-size:11.5px;color:var(--gris);text-align:center;margin-top:2px}
+.fl-tubo{flex:1;height:8px;margin-top:56px;border-radius:8px;min-width:14px;
+  background:repeating-linear-gradient(90deg,rgba(87,211,245,.75) 0 10px,rgba(87,211,245,.12) 10px 22px);background-size:22px 100%;
+  animation:fluye .9s linear infinite;box-shadow:inset 0 0 0 1px rgba(160,190,230,.2)}
+@keyframes fluye{to{background-position:22px 0}}
+.fl-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.2,.75,.2,1)}
+.fl-panel.abierto{grid-template-rows:1fr;margin-top:18px}
+.fl-panel>div{overflow:hidden;min-height:0}
+.fl-ph{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--linea)}
+.fl-ph b{font-size:16px}.fl-ph span{color:var(--gris);font-size:13px;flex:1}
+.fl-x{background:none;border:1px solid var(--linea);color:inherit;border-radius:50%;width:30px;height:30px;cursor:pointer}
+.fl-lista{display:flex;flex-direction:column;max-height:340px;overflow-y:auto}
+.fl-lista.libre{max-height:none;overflow:visible}
+.fl-j{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--linea);padding:10px 4px;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:8px}
+.fl-j:last-child{border-bottom:0}.fl-j:hover{background:rgba(87,211,245,.07)}
+.fl-jd{flex:0 0 42px;font-family:var(--disp);font-size:16px;font-weight:700;color:var(--gris);text-align:center}
+.fl-jd.a{color:#F0A63A}.fl-jd.r{color:var(--rojo)}
+.fl-jt{flex:1;min-width:0;display:flex;flex-direction:column}
+.fl-jt b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-jt em{font-style:normal;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-ja{flex-shrink:0;font-size:12.5px;font-weight:700;color:var(--agua2)}
+.fl-vacio{padding:18px 0;color:var(--gris);text-align:center}
+.fl-cinta{margin:18px -20px 0;border-top:1px solid var(--linea);background:rgba(0,0,0,.18);overflow:hidden;white-space:nowrap;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.fl-pista{display:inline-flex;gap:34px;padding:11px 0;animation:cinta 60s linear infinite}
+.fl-cinta:hover .fl-pista{animation-play-state:paused}
+@keyframes cinta{to{transform:translateX(-50%)}}
+.fl-ev{font-size:13px;color:var(--gris)}.fl-ev b{color:var(--tinta-c,#E8EEF8);font-weight:600}.fl-ev em{font-style:normal;font-size:11.5px;opacity:.75}
+.fl-ev i{font-style:normal;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:rgba(87,211,245,.14);color:var(--agua2,#57D3F5);font-size:11px;margin-right:7px;font-weight:800}
+.fl-g{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.fl-c{background:var(--sup);border:1px solid var(--linea);border-radius:18px;padding:16px 16px 12px;min-width:0}
+.fl-c h3{margin:0 0 8px;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.fl-c h3 span{font-size:12.5px;font-weight:500;color:var(--gris)}
+.fl-big{display:block;font-family:var(--disp);font-size:44px;line-height:1;font-weight:700;margin-top:4px}
+.fl-del{display:block;font-size:12.5px;color:var(--gris);margin-top:6px}
+.fl-del i{font-style:normal;font-weight:700}.fl-del .sube{color:#2FD38A}.fl-del .baja{color:var(--rojo)}
+.fl-curva{width:100%;height:96px;margin-top:12px;overflow:visible}
+.fl-area{fill:rgba(46,139,255,.14);opacity:0;transition:opacity 1s .9s}
+.fl-lin{fill:none;stroke:#57D3F5;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.6s cubic-bezier(.3,.7,.2,1) .3s;vector-effect:non-scaling-stroke}
+.fl-flujo.lleno ~ .fl-g .fl-lin{stroke-dashoffset:0}.fl-flujo.lleno ~ .fl-g .fl-area{opacity:1}
+.fl-curva circle{fill:var(--sup);stroke:#57D3F5;stroke-width:2;vector-effect:non-scaling-stroke}
+.fl-curva circle.ult{fill:#57D3F5}
+.fl-meses{display:flex;justify-content:space-between;font-size:11px;color:var(--gris);text-transform:capitalize;padding:2px 2px 0}
+.fl-esp{margin-top:12px;width:100%;text-align:left;background:rgba(240,166,58,.08);border:1px solid rgba(240,166,58,.3);border-radius:12px;padding:10px 12px;color:var(--gris);font:inherit;font-size:13px;cursor:pointer}
+.fl-esp b{color:#F0A63A}
+.fl-mas{width:100%;margin-top:8px;background:none;border:1px solid var(--linea);border-radius:10px;padding:9px;color:#57D3F5;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.fl-eq{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.fl-p{display:flex;gap:12px;align-items:center}
+.fl-pv{position:relative;flex:0 0 38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--sup2);font-weight:800}
+.fl-pv.vivo::after{content:"";position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#2FD38A;border:2px solid var(--sup);animation:latido 1.8s ease-out infinite}
+@keyframes latido{0%{box-shadow:0 0 0 0 rgba(47,211,138,.6)}100%{box-shadow:0 0 0 10px rgba(47,211,138,0)}}
+.fl-pt{flex:1;min-width:0;display:flex;flex-direction:column}
+.fl-pt b{font-size:14px}.fl-pt em{font-style:normal;font-size:12px;color:var(--gris)}
+.fl-bar{display:block;height:5px;border-radius:5px;background:var(--sup2);margin-top:6px;overflow:hidden}
+.fl-bar i{display:block;height:100%;width:calc(var(--p) * 100%);background:linear-gradient(90deg,#2E8BFF,#57D3F5);border-radius:5px;transform-origin:left;animation:barra 1.2s cubic-bezier(.2,.75,.2,1)}
+@keyframes barra{from{transform:scaleX(0)}}
+body:not(.dark) .fl-ev b{color:#14181F}
+@media(max-width:1100px){ .fl-g{grid-template-columns:1fr 1fr} .fl-din{grid-column:1/-1} }
+@media(max-width:760px){
+  .fl-g{grid-template-columns:1fr}
+  .fl-flujo{padding:18px 12px 0}
+  .fl-tanques{display:grid;grid-template-columns:repeat(3,1fr);row-gap:18px;justify-items:center}
+  .fl-tubo{display:none}
+  .fl-t{width:100%}
+  .fl-vaso{width:82px;height:100px}
+  .fl-n{font-size:32px}
+  .fl-cinta{margin:18px -12px 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .fl-o,.fl-tubo,.fl-pista,.fl-pv.vivo::after,.fl-bar i{animation:none}
+  .fl-agua,.fl-lin,.fl-area{transition:none}
+}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -5846,7 +5940,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v210 · Home nuevo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v211 · Home con flujo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11440,93 +11534,103 @@ function equipoRegado(activos, reps){
    Un tablero corto: cuatro números que se tocan, y una lista
    priorizada de lo que urge. Nada de scroll infinito. */
 
-/* ============ HOME · tablero de administración ============
-   Números que sirven, lo que urge, la facturación del mes y el equipo.
-   Cada cosa se toca y te lleva a donde se resuelve. */
+/* ============ HOME · el flujo del agua ============
+   Cada etapa del trabajo es un tanque que se llena según cuántos trabajos
+   tiene. Los tubos muestran el camino: campo → facturar → reparación →
+   cobrar reparación → cerrados. Tocar un tanque abre sus trabajos. */
+let HM_ETAPA = null;
 async function vHome(){
   const h=hoy();
   const mesIni=h.slice(0,8)+'01';
   const pm=new Date(h+'T12:00:00'); pm.setDate(1); pm.setMonth(pm.getMonth()-1);
   const mesPasIni=pm.toLocaleDateString('en-CA');
   const seisIni=(()=>{ const d=new Date(h+'T12:00:00'); d.setDate(1); d.setMonth(d.getMonth()-5); return d.toLocaleDateString('en-CA'); })();
-  const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts},{data:tecs}] = await Promise.all([
+  let gente = await sb.from('usuarios').select('id,nombre,rol,departamento,activo,ultimo_visto').eq('rol','tecnico');
+  if(gente.error) gente = await sb.from('usuarios').select('id,nombre,rol,departamento,activo').eq('rol','tecnico');
+  const [{data:jobs},{data:reps},{data:ests},{data:parts}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,departamento,docs,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num,invoice_rep_fecha,invoice_rep_monto,rep_resolucion,precio_carpet, propiedades(nombre)')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,docs,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num,invoice_rep_fecha,invoice_rep_monto,rep_resolucion, propiedades(nombre), usuarios(nombre)')
       .eq('departamento',DEPV()).limit(1000),
-    sb.from('asignaciones').select('job_id,hora,usuario_id, jobs(id,folio,cliente,unidad,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
-    sb.from('reportes').select('id,job_id,fecha,created_at,tecnico_id,tipo_reporte,fotos').gte('fecha',hace(60)).order('created_at',{ascending:false}).limit(3000),
+    sb.from('reportes').select('id,job_id,fecha,created_at,tecnico_id,tipo_reporte').gte('fecha',hace(60)).order('created_at',{ascending:false}).limit(3000),
     sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at,job_id').eq('departamento',DEPV()).eq('estatus','enviado'),
-    sb.from('partidas').select('id,job_id,estatus,revisado,clase'),
-    sb.from('usuarios').select('id,nombre,rol,departamento,activo').eq('rol','tecnico')
+    sb.from('partidas').select('id,job_id,estatus,revisado,clase')
   ]);
   const J=jobs||[], R=reps||[], E=ests||[], P=parts||[];
-  const A=(asig||[]).filter(a=>a.jobs && a.jobs.departamento===DEPV());
   const ver=VE_DINERO();
 
-  // Misma regla que en Jobs
-  const repsH  = x => P.filter(y=>y.job_id===x.id && (y.clase||'reparacion')==='reparacion');
+  const repsDe = x => P.filter(y=>y.job_id===x.id && (y.clase||'reparacion')==='reparacion');
+  const repPend= x => repsDe(x).filter(y=>y.estatus!=='terminada').length;
   const factFl = x => (!!x.invoice_num || x.estatus==='facturado') && !(x.docs||[]).includes('-invoice');
   const repOk  = x => !!x.invoice_rep_num || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
   const cerrado= x => factFl(x) && repOk(x) && !(x.docs||[]).includes('-subido');
   const activos= J.filter(x=>!cerrado(x));
   const ultRep={}; R.forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
   const desdeRep = x => ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10);
+  const ultFact = x => [x.invoice_fecha,x.invoice_rep_fecha].filter(Boolean).sort().pop()||'';
 
-  // ── Pendientes ──
-  const sinRep = activos.filter(x=>!factFl(x) && x.estatus!=='terminado' && dias(desdeRep(x),h)>=2)
-    .map(x=>({d:dias(desdeRep(x),h), x, tipo:'rep', txt:'Sin reporte', acc:'Ver'}));
-  const idsAb=new Set(activos.map(x=>x.id));
-  const espera = E.filter(e=>!e.job_id || idsAb.has(e.job_id))
-    .map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e, tipo:'est', txt:'Estimado sin respuesta', acc:'Insistir'}));
-  const porFac = activos.filter(x=>!factFl(x) ? x.estatus==='terminado'
-                               : (repsH(x).length>0 && repsH(x).every(y=>y.estatus==='terminada') && !x.invoice_rep_num))
-    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac', txt:factFl(x)?'Reparación por facturar':'Flood por facturar', acc:'Facturar'}));
-  const porRev = P.filter(x=>x.estatus==='terminada' && !x.revisado);
-  const urge = porFac.concat(sinRep, espera.filter(o=>o.d>=5)).sort((a,b)=>b.d-a.d);
+  // ── Las etapas (tanques) ──
+  const ET = [
+    {k:'campo', n:'En campo', s:'secando y reportando', a:'Ver',
+      l: activos.filter(x=>!factFl(x) && x.estatus!=='terminado')},
+    {k:'flood', n:'Facturar flood', s:'terminados sin factura', a:'Facturar',
+      l: activos.filter(x=>!factFl(x) && x.estatus==='terminado')},
+    {k:'rep', n:'En reparación', s:'flood ya facturado', a:'Ver',
+      l: activos.filter(x=>factFl(x) && !repOk(x) && !(repsDe(x).length && !repPend(x)))},
+    {k:'cobrar', n:'Facturar reparación', s:'reparación terminada', a:'Facturar',
+      l: activos.filter(x=>factFl(x) && repsDe(x).length && !repPend(x) && !x.invoice_rep_num)},
+    {k:'listo', n:'Cerrados', s:'este mes', a:'Ver',
+      l: J.filter(x=>cerrado(x) && ultFact(x)>=mesIni)}
+  ];
+  const maxN=Math.max(1,...ET.map(e=>e.l.length));
+  const nivel = n => n ? Math.max(.1, n/maxN*.86) : 0;
 
   // ── Dinero ──
-  const enRango=(f,a,b)=>f && f>=a && f<b;
-  const sumaMes=(a,b)=>J.reduce((t,x)=>t+(enRango(x.invoice_fecha,a,b)?Number(x.invoice_monto||0):0)
-                                     +(enRango(x.invoice_rep_fecha,a,b)?Number(x.invoice_rep_monto||0):0),0);
+  const enR=(f,a,b)=>f && f>=a && f<b;
+  const suma=(a,b)=>J.reduce((t,x)=>t+(enR(x.invoice_fecha,a,b)?Number(x.invoice_monto||0):0)+(enR(x.invoice_rep_fecha,a,b)?Number(x.invoice_rep_monto||0):0),0);
   const manana=(()=>{ const d=new Date(h+'T12:00:00'); d.setDate(d.getDate()+1); return d.toLocaleDateString('en-CA'); })();
-  const factMes=sumaMes(mesIni,manana), factPas=sumaMes(mesPasIni,mesIni);
-  // mismo tramo del mes pasado (del 1 al día de hoy) para comparar parejo
+  const factMes=suma(mesIni,manana);
   const diaHoy=Number(h.slice(8,10));
-  const tramoPas=(()=>{ const d=new Date(mesPasIni+'T12:00:00'); d.setDate(diaHoy+1); return d.toLocaleDateString('en-CA'); })();
-  const factPasTramo=sumaMes(mesPasIni, tramoPas<mesIni?tramoPas:mesIni);
-  const delta = factPasTramo>0 ? Math.round((factMes-factPasTramo)/factPasTramo*100) : null;
+  const tramo=(()=>{ const d=new Date(mesPasIni+'T12:00:00'); d.setDate(diaHoy+1); const s=d.toLocaleDateString('en-CA'); return s<mesIni?s:mesIni; })();
+  const factPas=suma(mesPasIni,tramo);
+  const delta = factPas>0 ? Math.round((factMes-factPas)/factPas*100) : null;
   const meses=[]; { const d=new Date(seisIni+'T12:00:00'); for(let i=0;i<6;i++){ const a=d.toLocaleDateString('en-CA');
-    d.setMonth(d.getMonth()+1); const b=d.toLocaleDateString('en-CA');
-    meses.push({k:a, n:new Date(a+'T12:00:00').toLocaleDateString('es-MX',{month:'short'}).replace('.',''), v:sumaMes(a,b)}); } }
-  const totEst=espera.reduce((t,o)=>t+Number(o.x.monto||0),0);
+    d.setMonth(d.getMonth()+1); meses.push({n:new Date(a+'T12:00:00').toLocaleDateString('es-MX',{month:'short'}).replace('.',''), v:suma(a,d.toLocaleDateString('en-CA'))}); } }
+  const idsAb=new Set(activos.map(x=>x.id));
+  const espera=E.filter(e=>!e.job_id||idsAb.has(e.job_id));
+  const totEsp=espera.reduce((t,e)=>t+Number(e.monto||0),0);
 
-  // ── Semana ──
-  const sem=hace(7);
-  const nuevosSem=J.filter(x=>(x.created_at||'').slice(0,10)>=sem).length;
+  // Curva de 6 meses (línea que se dibuja sola)
+  const W=320, H=90, mx=Math.max(1,...meses.map(m=>m.v));
+  const pts=meses.map((m,i)=>[Math.round(10+i*(W-20)/5), Math.round(H-10-(m.v/mx)*(H-24))]);
+  const linea='M'+pts.map(p=>p.join(' ')).join(' L');
+  const area=linea+` L${pts[5][0]} ${H} L${pts[0][0]} ${H} Z`;
+
+  // ── Lo urgente ──
+  const urge = ET[1].l.map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, t:'Flood por facturar', k:'flood'}))
+    .concat(ET[3].l.map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, t:'Reparación por facturar', k:'cobrar'})))
+    .concat(ET[0].l.filter(x=>dias(desdeRep(x),h)>=2).map(x=>({d:dias(desdeRep(x),h), x, t:'Sin reporte', k:'campo'})))
+    .concat(espera.map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e, t:'Estimado sin respuesta', k:'est'})).filter(o=>o.d>=5))
+    .sort((a,b)=>b.d-a.d);
+
+  // ── Equipo en vivo ──
   const repsHoy=R.filter(r=>r.fecha===h);
-
-  // ── Equipo ──
-  const T=(tecs||[]).filter(t=>t.activo!==false && (!t.departamento || t.departamento==='ambos' || t.departamento===DEPV()));
+  const T=(gente.data||[]).filter(t=>t.activo!==false && (!t.departamento||t.departamento==='ambos'||t.departamento===DEPV()));
   const equipo=T.map(t=>{
-    const mis=activos.filter(x=>x.tecnico_id===t.id && !factFl(x));
-    const debe=mis.filter(x=>dias(desdeRep(x),h)>=1).length;
-    const hoyN=repsHoy.filter(r=>r.tecnico_id===t.id).length;
-    const ult=R.find(r=>r.tecnico_id===t.id);
-    return {t, n:mis.length, debe, hoyN, ult: ult?ult.created_at:null};
-  }).filter(e=>e.n || e.hoyN).sort((a,b)=>b.debe-a.debe || b.n-a.n);
+    const mis=ET[0].l.filter(x=>x.tecnico_id===t.id);
+    const hoyN=new Set(repsHoy.filter(r=>r.tecnico_id===t.id).map(r=>r.job_id)).size;
+    return {t, n:mis.length, hoyN, vivo:chatEnLinea(t)};
+  }).filter(e=>e.n||e.hoyN).sort((a,b)=>(b.vivo-a.vivo)||(b.n-a.n));
 
-  // ── Actividad reciente ──
-  const nomJ={}; J.forEach(x=>nomJ[x.id]=x);
+  // ── Cinta de actividad ──
+  const porId={}; J.forEach(x=>porId[x.id]=x);
+  const lugar=x=>(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' '+x.unidad:'');
   const ev=[];
-  R.slice(0,30).forEach(r=>{ const x=nomJ[r.job_id]; if(!x) return;
-    const tn=(T.find(t=>t.id===r.tecnico_id)||{}).nombre||'';
-    ev.push({t:r.created_at||r.fecha, i:'rep', job:r.job_id, a:(r.tipo_reporte==='inicial'?'Inicial':'Reporte')+(tn?' · '+chatNom(tn):''),
-      b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}); });
-  J.filter(x=>(x.created_at||'').slice(0,10)>=sem).forEach(x=>ev.push({t:x.created_at, i:'nuevo', job:x.id, a:'Trabajo nuevo · '+(x.folio||''),
-      b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}));
-  J.filter(x=>x.invoice_fecha && x.invoice_fecha>=sem).forEach(x=>ev.push({t:x.invoice_fecha+'T12:00:00', i:'fact', job:x.id,
-      a:'Facturado'+(ver&&x.invoice_monto?' · '+cf(x.invoice_monto):''), b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}));
+  R.slice(0,25).forEach(r=>{ const x=porId[r.job_id]; if(!x) return; const tn=(T.find(t=>t.id===r.tecnico_id)||{}).nombre;
+    ev.push({t:r.created_at, i:'✎', s:(tn?chatNom(tn)+' mandó ':'')+(r.tipo_reporte==='inicial'?'inicial':'reporte'), l:lugar(x)}); });
+  J.filter(x=>(x.created_at||'').slice(0,10)>=hace(7)).forEach(x=>ev.push({t:x.created_at, i:'+', s:'Trabajo nuevo', l:lugar(x)}));
+  J.filter(x=>x.invoice_fecha && x.invoice_fecha>=hace(7)).forEach(x=>ev.push({t:x.invoice_fecha+'T12:00:00', i:'$', s:'Facturado'+(ver&&x.invoice_monto?' '+cf(x.invoice_monto):''), l:lugar(x)}));
   ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+  const cinta = ev.slice(0,14).map(e=>`<span class="fl-ev"><i>${e.i}</i>${esc(e.s)} <b>${esc(e.l)}</b> <em>${fmtRel(e.t)}</em></span>`).join('');
 
   const hora=new Date().getHours();
   const saludo = hora<12?'Buenos días':hora<19?'Buenas tardes':'Buenas noches';
@@ -11534,96 +11638,106 @@ async function vHome(){
   const fecha=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   const mesNom=F.toLocaleDateString('es-MX',{month:'long'});
   const nomU=chatNom(String(U.nombre||'').replace(/^ing\.?\s*/i,''));
-  const nomO=o=> o.tipo==='est' ? (o.x.cliente||'Sin nombre') : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
-  const viejo=l=>l.length?Math.max(...l.map(o=>o.d)):0;
+  const nomO=o=> o.k==='est' ? (o.x.cliente||'Sin nombre') : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
+  const sel=HM_ETAPA && ET.find(e=>e.k===HM_ETAPA);
 
-  const kpi=(k,lab,val,sub,cls='')=>`<button class="db-k ${cls}" data-hk="${k}"><span class="db-kl">${lab}</span><b>${val}</b><em>${sub}</em></button>`;
-  const maxM=Math.max(1,...meses.map(m=>m.v));
-  const grafica = `<div class="db-graf">${meses.map((m,i)=>{
-      const pct=Math.round(m.v/maxM*100); const ult=i===meses.length-1;
-      return `<div class="db-gc" title="${esc(m.n)}: ${cf(m.v)}"><span class="db-gv">${ult||m.v===maxM?cf(m.v):''}</span>
-        <div class="db-gb"><i style="height:${Math.max(pct,m.v?2:0)}%" class="${ult?'act':''}"></i></div><span class="db-gm">${esc(m.n)}</span></div>`; }).join('')}</div>`;
+  const tanque=(e,i)=>`
+    <button class="fl-t ${HM_ETAPA===e.k?'on':''} ${e.k}" data-et="${e.k}" style="--lvl:${nivel(e.l.length)};--d:${i*0.12}s" aria-pressed="${HM_ETAPA===e.k}">
+      <span class="fl-vaso">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <g class="fl-agua"><path class="fl-o o1" d="M0 6 Q25 0 50 6 T100 6 T150 6 T200 6 V120 H0 Z"/><path class="fl-o o2" d="M0 6 Q25 12 50 6 T100 6 T150 6 T200 6 V120 H0 Z"/></g>
+        </svg>
+        <b class="fl-n" data-cnt="${e.l.length}">${e.l.length}</b>
+      </span>
+      <span class="fl-nom">${e.n}</span><span class="fl-sub">${e.s}</span>
+    </button>`;
 
   return `
     ${selectorDep()}
-    <div class="db-top"><div><span class="db-sal">${saludo}, ${esc(nomU)}</span><span class="db-fec">${esc(fecha)}</span></div></div>
+    <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span></div>
 
-    <div class="db-kpis">
-      ${kpi('jobs','Trabajos activos', activos.length, `+${nuevosSem} nuevos esta semana`)}
-      ${ver?kpi('cobranza','Facturado en '+esc(mesNom), cf(factMes),
-         delta===null?'sin datos del mes pasado':`<span class="${delta>=0?'sube':'baja'}">${delta>=0?'▲':'▼'} ${Math.abs(delta)}%</span> vs. mismo día del mes pasado`):''}
-      ${kpi('fac','Por facturar', porFac.length, porFac.length?`el más viejo: ${viejo(porFac)} días`:'todo facturado', porFac.length?'al':'')}
-      ${kpi('rep','Sin reporte', sinRep.length, sinRep.length?`2+ días sin reporte · máx ${viejo(sinRep)}d`:'todos al corriente', sinRep.length?'al':'')}
-      ${kpi('est','Estimados sin respuesta', espera.length, espera.length?(ver&&totEst?cf(totEst)+' en espera':'el más viejo: '+viejo(espera)+' días'):'ninguno', espera.length>0&&viejo(espera)>=10?'am':'')}
-      ${kpi('dia','Reportes hoy', repsHoy.length, A.length?`${A.length} visitas en agenda`:'sin agenda hoy')}
-    </div>
+    <section class="fl-flujo">
+      <div class="fl-tanques">
+        ${ET.map((e,i)=>tanque(e,i)+(i<ET.length-1?'<span class="fl-tubo" aria-hidden="true"></span>':'')).join('')}
+      </div>
+      <div class="fl-panel ${sel?'abierto':''}"><div>
+        ${sel?`<div class="fl-ph"><b>${sel.n}</b><span>${sel.l.length} ${sel.l.length===1?'trabajo':'trabajos'}</span><button class="fl-x" id="fl_x" aria-label="Cerrar">✕</button></div>
+          ${sel.l.length?`<div class="fl-lista">${sel.l.slice().sort((a,b)=>inicioJob(a).localeCompare(inicioJob(b))).slice(0,40).map(x=>`
+            <button class="fl-j" data-fj="${sel.k}:${x.id}">
+              <span class="fl-jd">${dias(inicioJob(x),h)}d</span>
+              <span class="fl-jt"><b>${esc(x.propiedades?.nombre||x.cliente||'')}${x.unidad?' · '+esc(x.unidad):''}</b><em>${esc(x.folio||'')}${x.usuarios?.nombre?' · '+esc(x.usuarios.nombre):''}</em></span>
+              <span class="fl-ja">${sel.a}</span></button>`).join('')}</div>`
+          :'<div class="fl-vacio">Vacío. Nada en esta etapa.</div>'}`:''}
+      </div></div>
+      ${ev.length?`<div class="fl-cinta" aria-label="Actividad reciente"><div class="fl-pista">${cinta}${cinta}</div></div>`:''}
+    </section>
 
-    <div class="db-g2">
-      <section class="db-card">
-        <header><h3>Requiere atención</h3><span>${urge.length}</span></header>
-        ${urge.length?`<div class="db-tab">${urge.slice(0,8).map(o=>`
-          <button class="db-row" data-hu="${o.tipo}:${o.x.id}">
-            <span class="db-d ${o.d>=14?'r':o.d>=7?'a':''}">${o.d}d</span>
-            <span class="db-rt"><b>${esc(nomO(o))}${o.x.unidad?' · '+esc(o.x.unidad):''}</b><em>${o.txt}${o.x.folio?' · '+esc(o.x.folio):''}</em></span>
-            <span class="db-acc">${o.acc} ›</span></button>`).join('')}</div>
-          ${urge.length>8?`<button class="db-mas" id="hm_mas">Ver los ${urge.length} pendientes</button>`:''}`
-        :`<div class="db-vacio">✓ Nada atrasado</div>`}
-        ${porRev.length?`<button class="db-row db-rev" data-hk="rev"><span class="db-d">${porRev.length}</span><span class="db-rt"><b>Reparaciones por revisar</b><em>terminadas, esperan tu visto bueno</em></span><span class="db-acc">Revisar ›</span></button>`:''}
-      </section>
-
-      ${ver?`<section class="db-card">
-        <header><h3>Facturación · últimos 6 meses</h3><span>${cf(meses.reduce((t,m)=>t+m.v,0))}</span></header>
-        ${grafica}
-        <div class="db-mini"><div><span>Mes pasado</span><b>${cf(factPas)}</b></div><div><span>Este mes</span><b>${cf(factMes)}</b></div></div>
+    <div class="fl-g">
+      ${ver?`<section class="fl-c fl-din">
+        <h3>Facturado en ${esc(mesNom)}</h3>
+        <b class="fl-big" data-cnt="${Math.round(factMes)}" data-din="1">${cf(factMes)}</b>
+        <span class="fl-del">${delta===null?'Sin datos del mes pasado':`<i class="${delta>=0?'sube':'baja'}">${delta>=0?'▲':'▼'} ${Math.abs(delta)}%</i> contra el mismo día del mes pasado`}</span>
+        <svg class="fl-curva" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Facturado por mes">
+          <path class="fl-area" d="${area}"/><path class="fl-lin" d="${linea}" pathLength="1"/>
+          ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===5?4.5:3}" class="${i===5?'ult':''}"><title>${meses[i].n}: ${cf(meses[i].v)}</title></circle>`).join('')}
+        </svg>
+        <div class="fl-meses">${meses.map(m=>`<span>${esc(m.n)}</span>`).join('')}</div>
+        ${espera.length?`<button class="fl-esp" data-hk="est"><b>${cf(totEsp)}</b> en ${espera.length} ${espera.length===1?'estimado':'estimados'} esperando respuesta</button>`:''}
       </section>`:''}
-    </div>
 
-    <div class="db-g2">
-      <section class="db-card">
-        <header><h3>Equipo</h3><span>${repsHoy.length} ${repsHoy.length===1?'reporte':'reportes'} hoy</span></header>
-        ${equipo.length?`<div class="db-tab">${equipo.map(e=>`
-          <div class="db-row nolink">
-            <span class="db-av">${esc(chatNom(e.t.nombre).slice(0,1))}</span>
-            <span class="db-rt"><b>${esc(e.t.nombre)}</b><em>${e.n} ${e.n===1?'trabajo':'trabajos'} · ${e.hoyN} ${e.hoyN===1?'reporte':'reportes'} hoy${e.ult?' · último '+fmtRel(e.ult):''}</em></span>
-            <span class="db-est ${e.debe?'r':'v'}">${e.debe?'Debe '+e.debe:'Al día'}</span></div>`).join('')}</div>
-          <button class="db-mas" id="ar_send">Mandarles su resumen por WhatsApp</button>`
-        :`<div class="db-vacio">Sin técnicos con trabajos activos</div>`}
-        ${A.length?`<div class="db-sub">Agenda de hoy</div><div class="db-tab">${A.slice(0,6).map(a=>`
-          <button class="db-row" data-hj="${a.job_id}"><span class="db-d">${esc((a.hora||'--:--').slice(0,5))}</span>
-          <span class="db-rt"><b>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</b><em>${esc(a.usuarios?.nombre||'sin técnico')}</em></span></button>`).join('')}</div>`:''}
+      <section class="fl-c">
+        <h3>Lo urgente <span>${urge.length}</span></h3>
+        ${urge.length?`<div class="fl-lista libre">${urge.slice(0,6).map(o=>`
+          <button class="fl-j" data-fj="${o.k}:${o.x.id}">
+            <span class="fl-jd ${o.d>=14?'r':o.d>=7?'a':''}">${o.d}d</span>
+            <span class="fl-jt"><b>${esc(nomO(o))}${o.x.unidad?' · '+esc(o.x.unidad):''}</b><em>${o.t}</em></span></button>`).join('')}</div>
+          ${urge.length>6?`<button class="fl-mas" id="hm_mas">Ver los ${urge.length}</button>`:''}`
+        :'<div class="fl-vacio">Todo al corriente.</div>'}
       </section>
 
-      <section class="db-card">
-        <header><h3>Actividad reciente</h3><span>7 días</span></header>
-        ${ev.length?`<div class="db-tab">${ev.slice(0,7).map(e=>`
-          <button class="db-row" data-hj="${e.job}"><span class="db-ic ${e.i}">${e.i==='fact'?'$':e.i==='nuevo'?'+':'✎'}</span>
-          <span class="db-rt"><b>${esc(e.a)}</b><em>${esc(e.b)}</em></span><span class="db-h">${fmtRel(e.t)}</span></button>`).join('')}</div>`
-        :`<div class="db-vacio">Sin movimiento esta semana</div>`}
+      <section class="fl-c">
+        <h3>Equipo <span>${repsHoy.length} ${repsHoy.length===1?'reporte':'reportes'} hoy</span></h3>
+        ${equipo.length?`<div class="fl-eq">${equipo.map(e=>{ const p=e.n?Math.min(1,e.hoyN/e.n):1;
+          return `<div class="fl-p">
+            <span class="fl-pv ${e.vivo?'vivo':''}" title="${e.vivo?'En línea':''}">${esc(chatNom(e.t.nombre).slice(0,1))}</span>
+            <span class="fl-pt"><b>${esc(e.t.nombre)}</b><em>${e.hoyN} de ${e.n} reportados hoy</em>
+              <span class="fl-bar"><i style="--p:${p}"></i></span></span></div>`; }).join('')}</div>
+          <button class="fl-mas" id="ar_send">Mandarles su resumen por WhatsApp</button>`
+        :'<div class="fl-vacio">Nadie tiene trabajos en campo.</div>'}
       </section>
     </div>`;
 }
 
 function engancharHome(){
   engancharDep();
-  const IR={jobs:'jobs', rep:'dia', fac:'cobranza', rev:'dia', dia:'dia', cobranza:'cobranza', est:'cobranza'};
-  document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{
-    const k=b.dataset.hk, d=IR[k]; if(!d) return;
-    if(k==='fac') COBTAB='facturar';
-    if(k==='est') COBTAB='estimados';
-    V=d; render();
+  const quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Los tanques se llenan y los números cuentan, una sola vez al abrir
+  requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelectorAll('.fl-flujo').forEach(f=>f.classList.add('lleno'))));
+  document.querySelectorAll('[data-cnt]').forEach(el=>{
+    const fin=Number(el.dataset.cnt)||0, din=!!el.dataset.din;
+    if(quieto || !fin || HM_ETAPA_VISTO){ el.textContent=din?cf(fin):fin; return; }
+    const t0=performance.now(), dur=din?1300:900;
+    const paso=t=>{ const k=Math.min(1,(t-t0)/dur), v=fin*(1-Math.pow(1-k,3));
+      el.textContent = din ? cf(Math.round(v)) : Math.round(v); if(k<1) requestAnimationFrame(paso); };
+    el.textContent=din?cf(0):'0'; requestAnimationFrame(paso);
   });
-  document.querySelectorAll('[data-hj]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.hj));
-  document.querySelectorAll('[data-hu]').forEach(b=>b.onclick=()=>{
-    const [t,id]=b.dataset.hu.split(':');
-    if(t==='est') return abrirEstimado(id);
-    if(t==='fac') return DEPV()==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id);
+  HM_ETAPA_VISTO=true;
+  document.querySelectorAll('[data-et]').forEach(b=>b.onclick=()=>{ HM_ETAPA = HM_ETAPA===b.dataset.et?null:b.dataset.et; render(); });
+  const fx=$('#fl_x'); if(fx) fx.onclick=()=>{ HM_ETAPA=null; render(); };
+  document.querySelectorAll('[data-fj]').forEach(b=>b.onclick=()=>{
+    const [k,id]=b.dataset.fj.split(':');
+    if(k==='est') return abrirEstimado(id);
+    if(k==='flood') return DEPV()==='cleaning' ? formInvoiceCarpet(id) : formInvoice(id);
+    if(k==='cobrar') return formInvoiceRep(id);
     return abrirJob(id);
   });
+  document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{ if(b.dataset.hk==='est'){ COBTAB='estimados'; V='cobranza'; render(); } });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
   const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
     if(confirm('Se le manda a cada técnico su resumen: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
   };
 }
+let HM_ETAPA_VISTO=false;
 
 /* ============ TABLERO DEL DÍA · CARPET ============
    Pantalla principal del área. Un trabajo por tarjeta y UN solo
