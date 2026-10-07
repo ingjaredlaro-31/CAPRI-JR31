@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="209">
+<meta name="app-version" content="210">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1087,6 +1087,56 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .aj-ir button{text-align:left;background:var(--sup2);border:1px solid var(--linea);border-radius:10px;padding:11px 12px;color:inherit;font:inherit;font-weight:700;cursor:pointer}
 .aj-ir button span{display:block;font-weight:400;font-size:12px;color:var(--gris);margin-top:3px}
 @media(max-width:560px){ .aj-r{flex-direction:column;align-items:flex-start} .aj-c{text-align:left} }
+.db-top{display:flex;justify-content:space-between;align-items:flex-end;margin:6px 0 16px}
+.db-sal{display:block;font-family:var(--disp);font-size:26px;line-height:1.1}
+.db-fec{display:block;font-size:13px;color:var(--gris);margin-top:3px;text-transform:capitalize}
+.db-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.db-k{text-align:left;background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:13px 15px;color:inherit;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.db-k:hover{border-color:var(--azul)}
+.db-kl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}
+.db-k b{font-family:var(--disp);font-size:30px;line-height:1.05;font-weight:700}
+.db-k em{font-style:normal;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-k.al b{color:var(--rojo)} .db-k.am b{color:#E0A526}
+.db-k .sube{color:#2FD38A;font-weight:700} .db-k .baja{color:var(--rojo);font-weight:700}
+.db-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.db-card{background:var(--sup);border:1px solid var(--linea);border-radius:12px;padding:6px 14px 12px;min-width:0}
+.db-card header{display:flex;justify-content:space-between;align-items:center;padding:8px 0 8px;border-bottom:1px solid var(--linea);margin-bottom:4px}
+.db-card h3{margin:0;font-size:14px;font-weight:700;letter-spacing:.01em}
+.db-card header span{font-family:var(--mono);font-size:12px;color:var(--gris)}
+.db-tab{display:flex;flex-direction:column}
+.db-row{display:flex;align-items:center;gap:11px;width:100%;background:transparent;border:0;border-bottom:1px solid var(--linea);padding:9px 2px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.db-row:last-child{border-bottom:0}
+.db-row:hover{background:var(--sup2)} .db-row.nolink{cursor:default} .db-row.nolink:hover{background:transparent}
+.db-d{flex:0 0 44px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--gris);text-align:center}
+.db-d.a{color:#E0A526} .db-d.r{color:var(--rojo)}
+.db-rt{flex:1;min-width:0;display:flex;flex-direction:column}
+.db-rt b{font-size:14px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-rt em{font-style:normal;font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-acc{flex-shrink:0;font-size:12px;font-weight:700;color:var(--azul)}
+.db-h{flex-shrink:0;font-family:var(--mono);font-size:11px;color:var(--gris)}
+.db-ic{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;background:var(--sup2);color:var(--gris)}
+.db-ic.fact{color:#2FD38A} .db-ic.nuevo{color:var(--azul)}
+.db-av{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--sup2);font-weight:800;font-size:13px}
+.db-est{flex-shrink:0;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid}
+.db-est.v{color:#2FD38A;border-color:rgba(47,211,138,.45)} .db-est.r{color:var(--rojo);border-color:rgba(255,90,90,.5)}
+.db-mas{width:100%;margin-top:8px;background:transparent;border:1px solid var(--linea);border-radius:8px;padding:8px;color:var(--azul);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.db-sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);margin:14px 0 2px}
+.db-vacio{padding:22px 0;text-align:center;color:var(--gris);font-size:14px}
+.db-rev{margin-top:4px;border-top:1px solid var(--linea)}
+.db-graf{display:flex;align-items:flex-end;gap:10px;height:170px;padding:16px 4px 0}
+.db-gc{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0}
+.db-gv{font-family:var(--mono);font-size:10.5px;color:var(--gris);height:16px;white-space:nowrap}
+.db-gb{flex:1;width:100%;max-width:38px;display:flex;align-items:flex-end;border-bottom:1px solid var(--linea)}
+.db-gb i{display:block;width:100%;background:rgba(77,139,255,.45);border-radius:4px 4px 0 0}
+.db-gb i.act{background:var(--azul)}
+.db-gc:hover .db-gb i{background:var(--azul)}
+.db-gm{font-size:11px;color:var(--gris);margin-top:5px;text-transform:capitalize}
+.db-mini{display:flex;gap:10px;margin-top:12px}
+.db-mini div{flex:1;background:var(--sup2);border-radius:8px;padding:8px 10px}
+.db-mini span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gris)}
+.db-mini b{font-family:var(--disp);font-size:19px}
+@media(max-width:900px){ .db-g2{grid-template-columns:1fr} }
+@media(max-width:640px){ .db-kpis{grid-template-columns:1fr 1fr} .db-k b{font-size:25px} .db-sal{font-size:22px} }
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -5796,7 +5846,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v209 · Ajustes sin IA</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v210 · Home nuevo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11390,146 +11440,176 @@ function equipoRegado(activos, reps){
    Un tablero corto: cuatro números que se tocan, y una lista
    priorizada de lo que urge. Nada de scroll infinito. */
 
+/* ============ HOME · tablero de administración ============
+   Números que sirven, lo que urge, la facturación del mes y el equipo.
+   Cada cosa se toca y te lleva a donde se resuelve. */
 async function vHome(){
   const h=hoy();
-  const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts}] = await Promise.all([
+  const mesIni=h.slice(0,8)+'01';
+  const pm=new Date(h+'T12:00:00'); pm.setDate(1); pm.setMonth(pm.getMonth()-1);
+  const mesPasIni=pm.toLocaleDateString('en-CA');
+  const seisIni=(()=>{ const d=new Date(h+'T12:00:00'); d.setDate(1); d.setMonth(d.getMonth()-5); return d.toLocaleDateString('en-CA'); })();
+  const [{data:jobs},{data:asig},{data:reps},{data:ests},{data:parts},{data:tecs}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,departamento,fecha_inicio,fecha_cierre,created_at,tecnico_id,scope,invoice_num,invoice_fecha,invoice_monto,invoice_pagado,invoice_rep_num,rep_resolucion,precio_carpet, propiedades(nombre), usuarios(nombre)')
-      .eq('departamento',DEPV()).limit(500),
-    sb.from('asignaciones').select('job_id,hora, jobs(id,folio,cliente,unidad,tipo,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
-    sb.from('reportes').select('job_id,fecha,revisado,deshu_inst,air_inst,scrub_inst').gte('fecha',hace(60)),
-    sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at').eq('departamento',DEPV()).eq('estatus','enviado'),
-    sb.from('partidas').select('id,job_id,nombre,estatus,revisado,clase')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,docs,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num,invoice_rep_fecha,invoice_rep_monto,rep_resolucion,precio_carpet, propiedades(nombre)')
+      .eq('departamento',DEPV()).limit(1000),
+    sb.from('asignaciones').select('job_id,hora,usuario_id, jobs(id,folio,cliente,unidad,departamento, propiedades(nombre)), usuarios(nombre)').eq('fecha',h).order('hora'),
+    sb.from('reportes').select('id,job_id,fecha,created_at,tecnico_id,tipo_reporte,fotos').gte('fecha',hace(60)).order('created_at',{ascending:false}).limit(3000),
+    sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at,job_id').eq('departamento',DEPV()).eq('estatus','enviado'),
+    sb.from('partidas').select('id,job_id,estatus,revisado,clase'),
+    sb.from('usuarios').select('id,nombre,rol,departamento,activo').eq('rol','tecnico')
   ]);
-
   const J=jobs||[], R=reps||[], E=ests||[], P=parts||[];
   const A=(asig||[]).filter(a=>a.jobs && a.jobs.departamento===DEPV());
+  const ver=VE_DINERO();
 
-  // MISMA REGLA QUE EN JOBS: el trabajo sigue abierto hasta que están
-  // las dos facturas, o hasta que se resolvió que no lleva reparación.
-  const repsH   = x => P.filter(y=>y.job_id===x.id && (y.clase||'reparacion')==='reparacion');
-  const factFl  = x => !!x.invoice_num || x.estatus==='facturado';
-  const repOkH  = x => !!x.invoice_rep_num || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
-  const cerrado = x => factFl(x) && repOkH(x);
-  const activos = J.filter(x=>!cerrado(x));
+  // Misma regla que en Jobs
+  const repsH  = x => P.filter(y=>y.job_id===x.id && (y.clase||'reparacion')==='reparacion');
+  const factFl = x => (!!x.invoice_num || x.estatus==='facturado') && !(x.docs||[]).includes('-invoice');
+  const repOk  = x => !!x.invoice_rep_num || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
+  const cerrado= x => factFl(x) && repOk(x) && !(x.docs||[]).includes('-subido');
+  const activos= J.filter(x=>!cerrado(x));
   const ultRep={}; R.forEach(r=>{ if(!ultRep[r.job_id]||r.fecha>ultRep[r.job_id]) ultRep[r.job_id]=r.fecha; });
+  const desdeRep = x => ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10);
 
-  // ── Las cuatro cosas que importan ──
-  const sinRep = activos.filter(x=>{
-    const u=ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10);
-    return dias(u,h)>=2;
-  }).map(x=>({d:dias(ultRep[x.id]||x.fecha_inicio||(x.created_at||'').slice(0,10),h), x,
-             tipo:'rep', txt:'sin reporte', acc:'VER'}));
+  // ── Pendientes ──
+  const sinRep = activos.filter(x=>!factFl(x) && x.estatus!=='terminado' && dias(desdeRep(x),h)>=2)
+    .map(x=>({d:dias(desdeRep(x),h), x, tipo:'rep', txt:'Sin reporte', acc:'Ver'}));
   const idsAb=new Set(activos.map(x=>x.id));
   const espera = E.filter(e=>!e.job_id || idsAb.has(e.job_id))
-    .map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e,
-             tipo:'est', txt:'estimado sin respuesta', acc:'INSISTIR'})).filter(o=>o.d>=5);
-  // LO PRIMERO es solo trabajo ABIERTO. Lo que ya se cerró no vuelve
-  // a aparecer aquí aunque falte cobrarlo: eso vive en Facturación.
+    .map(e=>({d:dias(e.fecha_envio||(e.created_at||'').slice(0,10),h), x:e, tipo:'est', txt:'Estimado sin respuesta', acc:'Insistir'}));
   const porFac = activos.filter(x=>!factFl(x) ? x.estatus==='terminado'
-                                : (repsH(x).length>0 && repsH(x).every(y=>y.estatus==='terminada') && !x.invoice_rep_num))
-    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac',
-              txt: factFl(x)?'reparación lista, falta cobrarla':'falta facturar el flood',
-              acc:'FACTURAR'}));
-  // Los pagos se llevan en QuickBooks, el app no los persigue.
-  const porCob = [];
-  const porRev = P.filter(x=>x.estatus==='terminado' && !x.revisado);
+                               : (repsH(x).length>0 && repsH(x).every(y=>y.estatus==='terminada') && !x.invoice_rep_num))
+    .map(x=>({d:dias(x.fecha_cierre||inicioJob(x),h), x, tipo:'fac', txt:factFl(x)?'Reparación por facturar':'Flood por facturar', acc:'Facturar'}));
+  const porRev = P.filter(x=>x.estatus==='terminada' && !x.revisado);
+  const urge = porFac.concat(sinRep, espera.filter(o=>o.d>=5)).sort((a,b)=>b.d-a.d);
 
-  // Lo que falta facturar, que sí depende del app
-  const tPorFac = porFac.reduce((a,o)=>a+(Number(o.x.invoice_monto||0)||Number(o.x.precio_carpet||0)||0),0);
+  // ── Dinero ──
+  const enRango=(f,a,b)=>f && f>=a && f<b;
+  const sumaMes=(a,b)=>J.reduce((t,x)=>t+(enRango(x.invoice_fecha,a,b)?Number(x.invoice_monto||0):0)
+                                     +(enRango(x.invoice_rep_fecha,a,b)?Number(x.invoice_rep_monto||0):0),0);
+  const manana=(()=>{ const d=new Date(h+'T12:00:00'); d.setDate(d.getDate()+1); return d.toLocaleDateString('en-CA'); })();
+  const factMes=sumaMes(mesIni,manana), factPas=sumaMes(mesPasIni,mesIni);
+  // mismo tramo del mes pasado (del 1 al día de hoy) para comparar parejo
+  const diaHoy=Number(h.slice(8,10));
+  const tramoPas=(()=>{ const d=new Date(mesPasIni+'T12:00:00'); d.setDate(diaHoy+1); return d.toLocaleDateString('en-CA'); })();
+  const factPasTramo=sumaMes(mesPasIni, tramoPas<mesIni?tramoPas:mesIni);
+  const delta = factPasTramo>0 ? Math.round((factMes-factPasTramo)/factPasTramo*100) : null;
+  const meses=[]; { const d=new Date(seisIni+'T12:00:00'); for(let i=0;i<6;i++){ const a=d.toLocaleDateString('en-CA');
+    d.setMonth(d.getMonth()+1); const b=d.toLocaleDateString('en-CA');
+    meses.push({k:a, n:new Date(a+'T12:00:00').toLocaleDateString('es-MX',{month:'short'}).replace('.',''), v:sumaMes(a,b)}); } }
+  const totEst=espera.reduce((t,o)=>t+Number(o.x.monto||0),0);
 
-  const urge = sinRep.concat(espera, porFac, porCob).sort((a,b)=>b.d-a.d);
+  // ── Semana ──
+  const sem=hace(7);
+  const nuevosSem=J.filter(x=>(x.created_at||'').slice(0,10)>=sem).length;
+  const repsHoy=R.filter(r=>r.fecha===h);
 
-  const [arranque, zonas, viva] = await Promise.all([bloqueArranque(), bloqueZonas(), actividadViva()]);
-  const nom=(o)=> o.tipo==='est' ? (o.x.cliente||'Sin nombre')
-                : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
-  const col={rep:'m',est:'am',fac:'r',cob:'r'};
+  // ── Equipo ──
+  const T=(tecs||[]).filter(t=>t.activo!==false && (!t.departamento || t.departamento==='ambos' || t.departamento===DEPV()));
+  const equipo=T.map(t=>{
+    const mis=activos.filter(x=>x.tecnico_id===t.id && !factFl(x));
+    const debe=mis.filter(x=>dias(desdeRep(x),h)>=1).length;
+    const hoyN=repsHoy.filter(r=>r.tecnico_id===t.id).length;
+    const ult=R.find(r=>r.tecnico_id===t.id);
+    return {t, n:mis.length, debe, hoyN, ult: ult?ult.created_at:null};
+  }).filter(e=>e.n || e.hoyN).sort((a,b)=>b.debe-a.debe || b.n-a.n);
 
-  const F=new Date(h+'T12:00:00');
-  const dia=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // ── Actividad reciente ──
+  const nomJ={}; J.forEach(x=>nomJ[x.id]=x);
+  const ev=[];
+  R.slice(0,30).forEach(r=>{ const x=nomJ[r.job_id]; if(!x) return;
+    const tn=(T.find(t=>t.id===r.tecnico_id)||{}).nombre||'';
+    ev.push({t:r.created_at||r.fecha, i:'rep', job:r.job_id, a:(r.tipo_reporte==='inicial'?'Inicial':'Reporte')+(tn?' · '+chatNom(tn):''),
+      b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}); });
+  J.filter(x=>(x.created_at||'').slice(0,10)>=sem).forEach(x=>ev.push({t:x.created_at, i:'nuevo', job:x.id, a:'Trabajo nuevo · '+(x.folio||''),
+      b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}));
+  J.filter(x=>x.invoice_fecha && x.invoice_fecha>=sem).forEach(x=>ev.push({t:x.invoice_fecha+'T12:00:00', i:'fact', job:x.id,
+      a:'Facturado'+(ver&&x.invoice_monto?' · '+cf(x.invoice_monto):''), b:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' · '+x.unidad:'')}));
+  ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+
   const hora=new Date().getHours();
   const saludo = hora<12?'Buenos días':hora<19?'Buenas tardes':'Buenas noches';
+  const F=new Date(h+'T12:00:00');
+  const fecha=F.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  const mesNom=F.toLocaleDateString('es-MX',{month:'long'});
+  const nomU=chatNom(String(U.nombre||'').replace(/^ing\.?\s*/i,''));
+  const nomO=o=> o.tipo==='est' ? (o.x.cliente||'Sin nombre') : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
+  const viejo=l=>l.length?Math.max(...l.map(o=>o.d)):0;
+
+  const kpi=(k,lab,val,sub,cls='')=>`<button class="db-k ${cls}" data-hk="${k}"><span class="db-kl">${lab}</span><b>${val}</b><em>${sub}</em></button>`;
+  const maxM=Math.max(1,...meses.map(m=>m.v));
+  const grafica = `<div class="db-graf">${meses.map((m,i)=>{
+      const pct=Math.round(m.v/maxM*100); const ult=i===meses.length-1;
+      return `<div class="db-gc" title="${esc(m.n)}: ${cf(m.v)}"><span class="db-gv">${ult||m.v===maxM?cf(m.v):''}</span>
+        <div class="db-gb"><i style="height:${Math.max(pct,m.v?2:0)}%" class="${ult?'act':''}"></i></div><span class="db-gm">${esc(m.n)}</span></div>`; }).join('')}</div>`;
 
   return `
     ${selectorDep()}
+    <div class="db-top"><div><span class="db-sal">${saludo}, ${esc(nomU)}</span><span class="db-fec">${esc(fecha)}</span></div></div>
 
-    <div class="hm-top">
-      <div>
-        <div class="hm-sal">${saludo}</div>
-        <div class="hm-nom">${esc((U.nombre||'').split('·')[0].trim())}</div>
-      </div>
-      <div class="hm-fec"><b id="hm_reloj">${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</b>
-        <span>${dia}</span></div>
+    <div class="db-kpis">
+      ${kpi('jobs','Trabajos activos', activos.length, `+${nuevosSem} nuevos esta semana`)}
+      ${ver?kpi('cobranza','Facturado en '+esc(mesNom), cf(factMes),
+         delta===null?'sin datos del mes pasado':`<span class="${delta>=0?'sube':'baja'}">${delta>=0?'▲':'▼'} ${Math.abs(delta)}%</span> vs. mismo día del mes pasado`):''}
+      ${kpi('fac','Por facturar', porFac.length, porFac.length?`el más viejo: ${viejo(porFac)} días`:'todo facturado', porFac.length?'al':'')}
+      ${kpi('rep','Sin reporte', sinRep.length, sinRep.length?`2+ días sin reporte · máx ${viejo(sinRep)}d`:'todos al corriente', sinRep.length?'al':'')}
+      ${kpi('est','Estimados sin respuesta', espera.length, espera.length?(ver&&totEst?cf(totEst)+' en espera':'el más viejo: '+viejo(espera)+' días'):'ninguno', espera.length>0&&viejo(espera)>=10?'am':'')}
+      ${kpi('dia','Reportes hoy', repsHoy.length, A.length?`${A.length} visitas en agenda`:'sin agenda hoy')}
     </div>
 
-    <div class="hm-kpi">
-      <button data-hk="jobs" class="${activos.length?'':'off'}">
-        <b>${activos.length}</b><span>🔧 activos</span></button>
-      <button data-hk="rep" class="${sinRep.length?'al':'off'}">
-        <b>${sinRep.length}</b><span>📋 sin reporte</span></button>
-      <button data-hk="fac" class="${porFac.length?'al':'off'}">
-        <b>${porFac.length}</b><span>🧾 por facturar</span></button>
-      <button data-hk="fac" class="${porFac.length?'az':'off'}">
-        <b>${VE_DINERO()&&tPorFac?cf(tPorFac):porFac.length}</b><span>💵 por facturar</span></button>
+    <div class="db-g2">
+      <section class="db-card">
+        <header><h3>Requiere atención</h3><span>${urge.length}</span></header>
+        ${urge.length?`<div class="db-tab">${urge.slice(0,8).map(o=>`
+          <button class="db-row" data-hu="${o.tipo}:${o.x.id}">
+            <span class="db-d ${o.d>=14?'r':o.d>=7?'a':''}">${o.d}d</span>
+            <span class="db-rt"><b>${esc(nomO(o))}${o.x.unidad?' · '+esc(o.x.unidad):''}</b><em>${o.txt}${o.x.folio?' · '+esc(o.x.folio):''}</em></span>
+            <span class="db-acc">${o.acc} ›</span></button>`).join('')}</div>
+          ${urge.length>8?`<button class="db-mas" id="hm_mas">Ver los ${urge.length} pendientes</button>`:''}`
+        :`<div class="db-vacio">✓ Nada atrasado</div>`}
+        ${porRev.length?`<button class="db-row db-rev" data-hk="rev"><span class="db-d">${porRev.length}</span><span class="db-rt"><b>Reparaciones por revisar</b><em>terminadas, esperan tu visto bueno</em></span><span class="db-acc">Revisar ›</span></button>`:''}
+      </section>
+
+      ${ver?`<section class="db-card">
+        <header><h3>Facturación · últimos 6 meses</h3><span>${cf(meses.reduce((t,m)=>t+m.v,0))}</span></header>
+        ${grafica}
+        <div class="db-mini"><div><span>Mes pasado</span><b>${cf(factPas)}</b></div><div><span>Este mes</span><b>${cf(factMes)}</b></div></div>
+      </section>`:''}
     </div>
 
-    ${A.length?`
-      <div class="eyebrow">📅 Agenda de hoy · ${A.length}</div>
-      <div class="hm-ag">${A.map(a=>`<button class="hm-ags" data-hj="${a.job_id}">
-        <b>${esc(a.hora||'--:--')}</b>
-        <span>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</span>
-        <em>${esc(a.usuarios?.nombre||'sin técnico')}</em></button>`).join('')}</div>`:''}
+    <div class="db-g2">
+      <section class="db-card">
+        <header><h3>Equipo</h3><span>${repsHoy.length} ${repsHoy.length===1?'reporte':'reportes'} hoy</span></header>
+        ${equipo.length?`<div class="db-tab">${equipo.map(e=>`
+          <div class="db-row nolink">
+            <span class="db-av">${esc(chatNom(e.t.nombre).slice(0,1))}</span>
+            <span class="db-rt"><b>${esc(e.t.nombre)}</b><em>${e.n} ${e.n===1?'trabajo':'trabajos'} · ${e.hoyN} ${e.hoyN===1?'reporte':'reportes'} hoy${e.ult?' · último '+fmtRel(e.ult):''}</em></span>
+            <span class="db-est ${e.debe?'r':'v'}">${e.debe?'Debe '+e.debe:'Al día'}</span></div>`).join('')}</div>
+          <button class="db-mas" id="ar_send">Mandarles su resumen por WhatsApp</button>`
+        :`<div class="db-vacio">Sin técnicos con trabajos activos</div>`}
+        ${A.length?`<div class="db-sub">Agenda de hoy</div><div class="db-tab">${A.slice(0,6).map(a=>`
+          <button class="db-row" data-hj="${a.job_id}"><span class="db-d">${esc((a.hora||'--:--').slice(0,5))}</span>
+          <span class="db-rt"><b>${esc(a.jobs.propiedades?.nombre||a.jobs.cliente||'')}${a.jobs.unidad?' · '+esc(a.jobs.unidad):''}</b><em>${esc(a.usuarios?.nombre||'sin técnico')}</em></span></button>`).join('')}</div>`:''}
+      </section>
 
-    ${viva}
-
-    ${arranque}
-
-    <div class="eyebrow">🔥 Lo primero${urge.length?' · '+urge.length+' pendientes':''}</div>
-    ${urge.length? `<div class="hm-lista">${urge.slice(0,7).map(o=>`
-      <button class="hm-it ${col[o.tipo]}" data-hu="${o.tipo}:${o.x.id}">
-        <span class="hm-d">${o.d}d</span>
-        <span class="hm-tx"><b>${esc(nom(o))}${o.x.unidad?' · '+esc(o.x.unidad):''}</b>
-          <em>${o.txt}${o.x.folio?' · '+esc(o.x.folio):''}</em></span>
-        <span class="hm-ac">${o.acc}</span>
-      </button>`).join('')}</div>
-      ${urge.length>7?`<button class="btn ghost wide" id="hm_mas" style="margin-top:9px">Ver los otros ${urge.length-7}</button>`:''}`
-    : `<div class="ok"><div class="t">Todo al corriente.</div>
-       <div class="sub">No hay nada atrasado en ${esc(DEPV()==='cleaning'?'Carpet':'Restoration')}.</div></div>`}
-
-    ${porRev.length?`<div class="eyebrow">👀 Por revisar</div>
-      <button class="hm-rev" data-hk="rev">
-        <b>${porRev.length}</b> ${porRev.length===1?'partida terminada espera tu visto bueno':'partidas terminadas esperan tu visto bueno'}</button>`:''}
-
-    ${equipoRegado(activos, R)}
-
-    ${zonas}
-
-    <div class="eyebrow">🚀 Ir a</div>
-    <div class="hm-ir">
-      <button data-hk="llam"><span style="font-size:20px">📞</span>Escuchar llamada</button>
-      <button data-hk="llnotas"><span style="font-size:20px">📝</span>Notas de llamadas</button>
-      <button data-hk="dia"><span>${svgIC('dia')}</span>Control del día</button>
-      <button data-hk="mapa"><span>${svgIC('mapa')}</span>Mapa y rutas</button>
-      <button data-hk="cobranza"><span>${svgIC('estimados')}</span>Facturación</button>
-      <button data-hk="schedule"><span>${svgIC('schedule')}</span>Calendario</button>
+      <section class="db-card">
+        <header><h3>Actividad reciente</h3><span>7 días</span></header>
+        ${ev.length?`<div class="db-tab">${ev.slice(0,7).map(e=>`
+          <button class="db-row" data-hj="${e.job}"><span class="db-ic ${e.i}">${e.i==='fact'?'$':e.i==='nuevo'?'+':'✎'}</span>
+          <span class="db-rt"><b>${esc(e.a)}</b><em>${esc(e.b)}</em></span><span class="db-h">${fmtRel(e.t)}</span></button>`).join('')}</div>`
+        :`<div class="db-vacio">Sin movimiento esta semana</div>`}
+      </section>
     </div>`;
 }
 
 function engancharHome(){
   engancharDep();
-  const rl=$('#hm_reloj');
-  if(rl){ if(RELOJ) clearInterval(RELOJ);
-    RELOJ=setInterval(()=>{ const e=$('#hm_reloj'); if(e) e.textContent=
-      new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); },20000); }
-
-  const IR={jobs:'jobs', rep:'dia', fac:'cobranza', cob:'cobranza', rev:'dia',
-            dia:'dia', mapa:'mapa', cobranza:'cobranza', schedule:'schedule'};
+  const IR={jobs:'jobs', rep:'dia', fac:'cobranza', rev:'dia', dia:'dia', cobranza:'cobranza', est:'cobranza'};
   document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{
-    if(b.dataset.hk==='llam') return escucharLlamada();
-    if(b.dataset.hk==='llnotas'){ V='llamadas'; return render(); }
-    const d=IR[b.dataset.hk]; if(!d) return;
-    if(b.dataset.hk==='fac') COBTAB='facturar';
-    if(b.dataset.hk==='cob') COBTAB='cobrar';
+    const k=b.dataset.hk, d=IR[k]; if(!d) return;
+    if(k==='fac') COBTAB='facturar';
+    if(k==='est') COBTAB='estimados';
     V=d; render();
   });
   document.querySelectorAll('[data-hj]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.hj));
@@ -11540,11 +11620,9 @@ function engancharHome(){
     return abrirJob(id);
   });
   const m=$('#hm_mas'); if(m) m.onclick=()=>{ V='cobranza'; render(); };
-  pintarZonas();
   const ars=$('#ar_send'); if(ars) ars.onclick=()=>{
-    if(confirm('Se le manda a cada técnico su resumen detallado: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
+    if(confirm('Se le manda a cada técnico su resumen: qué trabajos trae y qué reportes debe.\n\n¿Le seguimos?')) mandarResumenTecnicos();
   };
-  document.querySelectorAll('[data-artec]').forEach(b=>b.onclick=()=>{ V='dia'; render(); });
 }
 
 /* ============ TABLERO DEL DÍA · CARPET ============
