@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="206">
+<meta name="app-version" content="207">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1070,6 +1070,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offse
 .chat-in textarea{flex:1;min-height:52px;margin:0}
 .chat-bts{display:flex;flex-direction:column;gap:6px}
 .chat-bts .btn.rojo{background:var(--rojo);color:#fff}
+@keyframes girar{to{transform:rotate(360deg)}}
+#refrescar.girando{animation:girar .8s linear infinite}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -3321,6 +3323,26 @@ setTimeout(()=>{ try{ const id=new URLSearchParams(location.search).get('job');
    versión más nueva. Si la hay, sale un aviso con botón para actualizar. */
 const APP_VER = Number((document.querySelector('meta[name="app-version"]')||{}).content||0);
 let VER_AVISADA = 0;
+/* Botón ⟳: vuelve a leer todo de la base. Si hay versión nueva de la app, la carga. */
+let ULT_FICHA = null;   // trabajo abierto en la ficha, para volver a abrirlo ya actualizado
+async function refrescarTodo(){
+  const b=$('#refrescar'); if(b){ b.disabled=true; b.classList.add('girando'); }
+  try{
+    const html = await (await fetch('/?ver='+Date.now(), {cache:'no-store'})).text();
+    const m = html.match(/<meta name="app-version" content="(\d+)">/);
+    if(m && Number(m[1]) > APP_VER){
+      toast('Cargando la versión nueva…');
+      try{ if(SW_REG) await SW_REG.update(); }catch(e){}
+      return location.reload();
+    }
+  }catch(e){}
+  const ficha = ($('#sheet') && $('#sheet').innerHTML.trim()) ? ULT_FICHA : null;
+  try{ chatRevisar(); }catch(e){}
+  await render();
+  if(ficha){ try{ await abrirJob(ficha); }catch(e){} }
+  toast(ING()?'Updated':'Actualizado');
+}
+
 async function revisarVersion(){
   try{
     const html = await (await fetch('/?ver='+Date.now(), {cache:'no-store'})).text();
@@ -5610,6 +5632,7 @@ function shell(html){
       <div class="top">
         ${V!==inicio?`<button class="homebtn" data-v="${inicio}" title="Inicio">⌂</button>`:''}
         <button class="homebtn campana" data-v="notif" title="Notificaciones" style="margin-left:${V!==inicio?'8px':'0'}">🔔${NOTIF?`<span class="badge">${NOTIF>9?'9+':NOTIF}</span>`:''}</button>
+        <button class="temabtn" id="refrescar" title="${ING()?'Refresh':'Actualizar'}" style="margin-left:8px;font-size:18px">⟳</button>
         <button class="temabtn" id="sonido" title="${SONIDO?(ING()?'Mute':'Silenciar'):(ING()?'Unmute':'Activar sonido')}" style="margin-left:8px">${SONIDO?'♪':'✕'}</button>
         <button class="temabtn" id="idioma" title="${ING()?'Cambiar a español':'Switch to English'}" style="margin-left:8px;font-family:var(--mono);font-size:13px;font-weight:600">${ING()?'ES':'EN'}</button>
         <div class="relojtop" id="relojtop"><b></b><span></span></div>
@@ -5646,7 +5669,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v206 · Chat del equipo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v207 · Botón actualizar</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -5660,6 +5683,7 @@ function shell(html){
   });
   const o=$('#out'); if(o) o.onclick=e=>{e.preventDefault();salir();};
   const bt=$('#tema'); if(bt) bt.onclick=cambiarTema;
+  const brf=$('#refrescar'); if(brf) brf.onclick=refrescarTodo;
   // Reloj de la barra · corre en toda la app
   const pintaReloj=()=>{
     const r=document.getElementById('relojtop'); if(!r) return;
@@ -8784,13 +8808,16 @@ async function vJobs(){
   const repPend = x => repsDe(x).filter(y=>y.estatus!=='terminada').length;
   const llevaRep = x => repsDe(x).length>0;
 
-  const factFlood = x => !!x.invoice_num || x.estatus==='facturado';
+  // Si le quitaron la palomita de invoice a mano, ya no cuenta como facturado
+  const factFlood = x => (!!x.invoice_num || x.estatus==='facturado') && !(x.docs||[]).includes('-invoice');
   const factRep   = x => !!x.invoice_rep_num;
   // La reparación se puede resolver de tres formas: se facturó, se canceló,
   // o el trabajo no llevaba. Sin una de esas, el trabajo NO se cierra.
   // Solo 'cancelada' y 'no_aplica' cierran. 'estimado' y 'pendiente' dejan el trabajo abierto.
   const repResuelta = x => factRep(x) || ['cancelada','no_aplica'].includes(x.rep_resolucion||'');
-  const completo  = x => factFlood(x) && repResuelta(x);
+  // Si se reabrió a mano (quitaron "cerrado"), vuelve a salir aunque tenga sus facturas
+  const reabierto = x => (x.docs||[]).includes('-subido');
+  const completo  = x => factFlood(x) && repResuelta(x) && !reabierto(x);
 
   // ACTIVOS = todo lo que no está completo. Un trabajo con el flood
   // facturado pero la reparación en el aire sigue siendo trabajo abierto.
@@ -13580,6 +13607,7 @@ async function abrirReporteCarpet(id){
 }
 
 async function abrirJob(id){
+  ULT_FICHA = id;
   if(CARPET_ON){
     const {data:dj}=await sb.from('jobs').select('departamento').eq('id',id).maybeSingle();
     if(dj && dj.departamento==='cleaning') return abrirReporteCarpet(id);
