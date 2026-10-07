@@ -1,0 +1,13 @@
+{
+  // Capri JR31 · configuración del worker (Cloudflare)
+  "name": "caprijr31",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // No borrar las variables y secretos que se pusieron en el panel de Cloudflare
+  "keep_vars": true
+}
