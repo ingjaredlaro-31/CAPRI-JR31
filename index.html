@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="214">
+<meta name="app-version" content="215">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1344,6 +1344,39 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .lg-port{position:relative;overflow:hidden;background:radial-gradient(90% 60% at 50% 0%,rgba(46,139,255,.18),transparent 60%),var(--fondo)}
 .lg-port .login{position:relative;z-index:1}
 @media(prefers-reduced-motion:reduce){ .lg-olas path,.lg-burbuja,.lg-anillo,.lg-linea,.lg-go::after{animation:none} .lg-burbuja{display:none} }
+.mx-fila{display:grid;grid-template-columns:minmax(300px,1fr) 1.35fr;gap:14px;margin-bottom:14px}
+.mx-asis{position:relative;display:flex;align-items:flex-end;gap:4px;background:radial-gradient(80% 90% at 0% 100%,rgba(46,139,255,.16),transparent 70%),var(--sup);border:1px solid var(--linea);border-radius:20px;padding:14px 16px 0 6px;min-height:250px}
+.mx-masc{flex:0 0 132px;height:200px;background:var(--mascota) center bottom/contain no-repeat;border:0;cursor:pointer;transform-origin:50% 100%;animation:respira 3.6s ease-in-out infinite}
+.mx-masc.habla{animation:habla .36s ease-in-out infinite alternate}
+@keyframes respira{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(-1.2deg)}}
+@keyframes habla{from{transform:translateY(0) scale(1)}to{transform:translateY(-5px) scale(1.025)}}
+.mx-globo{position:relative;flex:1;align-self:center;margin-bottom:24px;background:#F4F8FF;color:#0E1726;border-radius:20px;padding:15px 16px 11px;box-shadow:0 12px 30px rgba(0,0,0,.35);cursor:pointer;min-height:132px;display:flex;flex-direction:column;justify-content:space-between}
+.mx-globo::before{content:"";position:absolute;left:-10px;bottom:30px;border-width:10px 12px 10px 0;border-style:solid;border-color:transparent #F4F8FF transparent transparent}
+.mx-txt{margin:0;font-size:16px;line-height:1.45;font-weight:600}
+.mx-txt.escribe::after{content:"";display:inline-block;width:2px;height:1em;background:#2E8BFF;margin-left:2px;vertical-align:-2px;animation:cursor .7s steps(2) infinite}
+@keyframes cursor{50%{opacity:0}}
+.mx-pie{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.mx-puntos{display:flex;gap:5px;flex-wrap:wrap}
+.mx-puntos i{width:7px;height:7px;border-radius:50%;background:#C5D3E8;cursor:pointer;transition:all .25s}
+.mx-puntos i.on{width:20px;border-radius:5px;background:#2E8BFF}
+.mx-voz{background:#0E1726;color:#fff;border:0;border-radius:20px;padding:7px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.mx-mapa{position:relative;background:var(--sup);border:1px solid var(--linea);border-radius:20px;overflow:hidden;min-height:250px;display:flex;flex-direction:column}
+#hm_mapa{flex:1;min-height:250px;background:#0A1120}
+#hm_mapa.oscuro .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.88) saturate(.5)}
+.mx-ley{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px;color:var(--gris);border-top:1px solid var(--linea)}
+.mx-ley span{display:inline-flex;align-items:center;gap:6px}.mx-ley em{font-style:normal;margin-left:auto;opacity:.8}
+.mx-ley i{width:10px;height:10px;border-radius:50%}
+.mx-ley i.campo,.mx-pin.campo{background:#2E8BFF}.mx-ley i.flood,.mx-pin.flood{background:#F0A63A}.mx-ley i.rep,.mx-pin.rep{background:#A879FF}
+.mx-pin{position:relative;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,.92);box-shadow:0 3px 10px rgba(0,0,0,.45)}
+.mx-pin::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid currentColor;color:inherit;animation:onda 2.2s ease-out infinite;border-color:rgba(255,255,255,.7)}
+@keyframes onda{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.2);opacity:0}}
+.mx-pin b{font-size:12px;color:#fff;font-weight:800}
+.mx-pop{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto;min-width:200px}
+.mx-pop button{text-align:left;background:#F2F6FC;border:0;border-radius:8px;padding:7px 9px;cursor:pointer;font:inherit}
+.mx-pop b{display:block;font-size:13px;color:#0E1726}.mx-pop span{font-size:11.5px;color:#5A6B85}
+@media(max-width:900px){ .mx-fila{grid-template-columns:1fr} }
+@media(max-width:520px){ .mx-masc{flex-basis:100px;height:160px} .mx-txt{font-size:15px} .mx-asis{min-height:200px} }
+@media(prefers-reduced-motion:reduce){ .mx-masc,.mx-masc.habla,.mx-pin::after{animation:none} }
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -6160,7 +6193,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v214 · Entrada nueva y entrar con la cara</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v215 · Home con mapa y mascota</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11762,7 +11795,7 @@ function equipoRegado(activos, reps){
    Cada etapa del trabajo es un tanque que se llena según cuántos trabajos
    tiene. Los tubos muestran el camino: campo → facturar → reparación →
    cobrar reparación → cerrados. Tocar un tanque abre sus trabajos. */
-let HM_ETAPA = null;
+let HM_ETAPA = null, HM_MSGS = [], HM_PUNTOS = [], MX_TIM = null;
 async function vHome(){
   const h=hoy();
   const mesIni=h.slice(0,8)+'01';
@@ -11773,7 +11806,7 @@ async function vHome(){
   if(gente.error) gente = await sb.from('usuarios').select('id,nombre,rol,departamento,activo').eq('rol','tecnico');
   const [{data:jobs},{data:reps},{data:ests},{data:parts}] = await Promise.all([
     sb.from('jobs')
-      .select('id,folio,cliente,unidad,tipo,estatus,departamento,docs,fecha_inicio,fecha_cierre,created_at,tecnico_id,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num,invoice_rep_fecha,invoice_rep_monto,rep_resolucion, propiedades(nombre), usuarios(nombre)')
+      .select('id,folio,cliente,unidad,tipo,estatus,departamento,docs,fecha_inicio,fecha_cierre,created_at,tecnico_id,lat,lng,invoice_num,invoice_fecha,invoice_monto,invoice_rep_num,invoice_rep_fecha,invoice_rep_monto,rep_resolucion, propiedades(nombre,lat,lng), usuarios(nombre)')
       .eq('departamento',DEPV()).limit(1000),
     sb.from('reportes').select('id,job_id,fecha,created_at,tecnico_id,tipo_reporte').gte('fecha',hace(60)).order('created_at',{ascending:false}).limit(3000),
     sb.from('estimados').select('id,folio,cliente,monto,estatus,fecha_envio,created_at,job_id').eq('departamento',DEPV()).eq('estatus','enviado'),
@@ -11865,6 +11898,32 @@ async function vHome(){
   const nomO=o=> o.k==='est' ? (o.x.cliente||'Sin nombre') : (o.x.propiedades?.nombre||o.x.cliente||'Sin nombre');
   const sel=HM_ETAPA && ET.find(e=>e.k===HM_ETAPA);
 
+  // ── Lo que la mascota te dice ──
+  const pl=(n,a,b)=>n+' '+(n===1?a:b);
+  const M=[];
+  const sinRepL=ET[0].l.filter(x=>dias(desdeRep(x),h)>=2).sort((a,b)=>dias(desdeRep(b),h)-dias(desdeRep(a),h));
+  if(sinRepL.length){ const x=sinRepL[0];
+    M.push(`${pl(sinRepL.length,'trabajo lleva','trabajos llevan')} 2 días o más sin reporte. El más atrasado es ${lugar(x)}, con ${dias(desdeRep(x),h)} días.`); }
+  if(ET[1].l.length) M.push(`Hay ${pl(ET[1].l.length,'flood terminado','floods terminados')} esperando factura.`);
+  if(ET[3].l.length) M.push(`${pl(ET[3].l.length,'reparación ya está terminada','reparaciones ya están terminadas')} y falta facturarla${ET[3].l.length===1?'':'s'}.`);
+  const espV=espera.filter(e=>dias(e.fecha_envio||(e.created_at||'').slice(0,10),h)>=5);
+  if(espV.length) M.push(`${pl(espV.length,'estimado lleva','estimados llevan')} más de 5 días sin respuesta${ver&&totEsp?', son '+cf(totEsp)+' en espera':''}. Vale la pena insistir.`);
+  const debenEq=equipo.filter(e=>e.n && e.hoyN<e.n);
+  if(debenEq.length && new Date().getHours()>=14) M.push(debenEq.map(e=>`${chatNom(e.t.nombre)} lleva ${e.hoyN} de ${e.n} reportes hoy`).join('. ')+'.');
+  if(ver) M.push(delta===null?`Llevas ${cf(factMes)} facturado en ${mesNom}.`:`Llevas ${cf(factMes)} facturado en ${mesNom}, ${delta>=0?'arriba':'abajo'} ${Math.abs(delta)} por ciento contra el mes pasado.`);
+  if(ET[4].l.length) M.push(`Este mes ya ${ET[4].l.length===1?'se cerró 1 trabajo':'se cerraron '+ET[4].l.length+' trabajos'}. ¡Bien!`);
+  if(!sinRepL.length && !ET[1].l.length && !ET[3].l.length && !espV.length) M.unshift('Todo al corriente. No hay nada atrasado.');
+  HM_MSGS = [`${saludo}, ${nomU}. Tienes ${pl(activos.length,'trabajo activo','trabajos activos')}.`].concat(M);
+
+  // ── Puntos del mapa (solo trabajos abiertos) ──
+  const etapaDe={}; ET.slice(0,4).forEach(e=>e.l.forEach(x=>etapaDe[x.id]=e.k));
+  const grupos={}; let sinUbic=0;
+  activos.forEach(x=>{ const la=Number(x.lat||x.propiedades?.lat), ln=Number(x.lng||x.propiedades?.lng);
+    if(!la||!ln){ sinUbic++; return; }
+    const g=la.toFixed(3)+','+ln.toFixed(3);
+    (grupos[g] ||= {lat:la,lng:ln,j:[]}).j.push({id:x.id, k:etapaDe[x.id]||'campo', t:lugar(x), f:x.folio||'', d:dias(inicioJob(x),h)}); });
+  HM_PUNTOS = Object.values(grupos);
+
   const tanque=(e,i)=>`
     <button class="fl-t ${HM_ETAPA===e.k?'on':''} ${e.k}" data-et="${e.k}" style="--lvl:${nivel(e.l.length)};--d:${i*0.12}s" aria-pressed="${HM_ETAPA===e.k}">
       <span class="fl-vaso">
@@ -11879,6 +11938,21 @@ async function vHome(){
   return `
     ${selectorDep()}
     <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span></div>
+
+    <section class="mx-fila">
+      <div class="mx-asis">
+        <button class="mx-masc" id="mx_masc" aria-label="Que me diga los pendientes en voz alta"></button>
+        <div class="mx-globo" id="mx_globo" role="status" aria-live="polite">
+          <p class="mx-txt" id="mx_txt">${esc(HM_MSGS[0])}</p>
+          <div class="mx-pie"><span class="mx-puntos">${HM_MSGS.map((m,i)=>`<i data-mx="${i}" class="${i?'':'on'}"></i>`).join('')}</span>
+            <button class="mx-voz" id="mx_voz">🔊 Dímelo</button></div>
+        </div>
+      </div>
+      <div class="mx-mapa">
+        <div id="hm_mapa" aria-label="Mapa de trabajos activos"></div>
+        <div class="mx-ley"><span><i class="campo"></i>En campo</span><span><i class="flood"></i>Por facturar</span><span><i class="rep"></i>En reparación</span>${sinUbic?`<em>${sinUbic} sin ubicación</em>`:''}</div>
+      </div>
+    </section>
 
     <section class="fl-flujo">
       <div class="fl-tanques">
@@ -11934,6 +12008,8 @@ async function vHome(){
 
 function engancharHome(){
   engancharDep();
+  mascotaArrancar();
+  mapaActivos();
   const quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Los tanques se llenan y los números cuentan, una sola vez al abrir
   requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelectorAll('.fl-flujo').forEach(f=>f.classList.add('lleno'))));
@@ -11955,6 +12031,66 @@ function engancharHome(){
   };
 }
 let HM_ETAPA_VISTO=false;
+
+/* La mascota escribe los pendientes uno por uno, y los dice en voz alta
+   la primera vez del día (o cuando la tocas). */
+function mascotaArrancar(){
+  if(MX_TIM){ clearTimeout(MX_TIM); MX_TIM=null; }
+  const txt=$('#mx_txt'); if(!txt || !HM_MSGS.length) return;
+  const quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i=0;
+  const pinta=n=>{
+    i=n; document.querySelectorAll('[data-mx]').forEach(d=>d.classList.toggle('on', +d.dataset.mx===i));
+    const m=HM_MSGS[i]; if(MX_TIM) clearTimeout(MX_TIM);
+    if(quieto){ txt.textContent=m; MX_TIM=setTimeout(()=>pinta((i+1)%HM_MSGS.length), 7000); return; }
+    let c=0; txt.textContent=''; txt.classList.add('escribe');
+    const paso=()=>{ if(!$('#mx_txt')) return; c+=2; txt.textContent=m.slice(0,c);
+      if(c<m.length) MX_TIM=setTimeout(paso,22); else { txt.classList.remove('escribe'); MX_TIM=setTimeout(()=>pinta((i+1)%HM_MSGS.length), 5200); } };
+    paso();
+  };
+  pinta(0);
+  document.querySelectorAll('[data-mx]').forEach(d=>d.onclick=()=>pinta(+d.dataset.mx));
+  const g=$('#mx_globo'); if(g) g.onclick=e=>{ if(e.target.closest('#mx_voz,[data-mx]')) return; pinta((i+1)%HM_MSGS.length); };
+  const decir=()=>{
+    if(!SONIDO) return toast('El sonido está apagado. Préndelo en Ajustes.');
+    try{ speechSynthesis.cancel(); }catch(e){}
+    const ok=HM_MSGS.map(m=>hablarChat(m)).some(Boolean);
+    if(!ok) return toast('Este aparato no tiene voz en español.');
+    const ms=$('#mx_masc'); if(ms){ ms.classList.add('habla'); setTimeout(()=>ms.classList.remove('habla'), Math.min(60000, HM_MSGS.join(' ').length*65)); }
+  };
+  const v=$('#mx_voz'); if(v) v.onclick=e=>{ e.stopPropagation(); decir(); };
+  const ms=$('#mx_masc'); if(ms) ms.onclick=decir;
+  let ya=''; try{ ya=localStorage.getItem('jr31_mx_dia')||''; }catch(e){}
+  if(ya!==hoy() && SONIDO && VOZ_PERMITIDA){ try{ localStorage.setItem('jr31_mx_dia',hoy()); }catch(e){} setTimeout(()=>{ if($('#mx_masc')) decir(); }, 1400); }
+}
+
+/* Mapa de los trabajos abiertos, con el color de su etapa */
+function mapaActivos(){
+  const el=document.getElementById('hm_mapa'); if(!el || !window.L || !L.map) return;
+  try{
+    if(MAPA){ try{ MAPA.remove(); }catch(e){} MAPA=null; }
+    MAPA=L.map(el,{zoomControl:true, scrollWheelZoom:false, attributionControl:true});
+    const oscuro = typeof OSCURO==='undefined' || OSCURO;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenStreetMap'}).addTo(MAPA);
+    el.classList.toggle('oscuro', oscuro);
+    const pts=[];
+    const orden={flood:3,cobrar:3,rep:2,campo:1};
+    HM_PUNTOS.forEach(g=>{
+      const k=g.j.slice().sort((a,b)=>(orden[b.k]||0)-(orden[a.k]||0))[0].k;
+      const cls = (k==='flood'||k==='cobrar')?'flood':k==='rep'?'rep':'campo';
+      const ic=L.divIcon({className:'', iconSize:[30,30], iconAnchor:[15,15],
+        html:`<span class="mx-pin ${cls}"><b>${g.j.length>1?g.j.length:''}</b></span>`});
+      const mk=L.marker([g.lat,g.lng],{icon:ic}).addTo(MAPA);
+      mk.bindPopup(`<div class="mx-pop">${g.j.map(x=>`<button data-mxj="${x.id}"><b>${esc(x.t)}</b><span>${esc(x.f)} · ${x.d} días</span></button>`).join('')}</div>`);
+      pts.push([g.lat,g.lng]);
+    });
+    MAPA.on('popupopen',e=>{ e.popup.getElement().querySelectorAll('[data-mxj]').forEach(b=>b.onclick=()=>abrirJob(b.dataset.mxj)); });
+    if(pts.length>1) MAPA.fitBounds(pts,{padding:[30,30],maxZoom:13});
+    else if(pts.length) MAPA.setView(pts[0],13);
+    else MAPA.setView([32.75,-117.1],10);
+    setTimeout(()=>{ try{ MAPA && MAPA.invalidateSize(); }catch(e){} },250);
+  }catch(e){}
+}
 /* Los números cuentan hacia arriba una vez por pantalla (no cada vez que se repinta igual) */
 const CONTEO_VISTO = new Set();
 function animarConteos(){
