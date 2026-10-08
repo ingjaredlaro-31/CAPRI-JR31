@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="215">
+<meta name="app-version" content="217">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1377,6 +1377,15 @@ body:not(.dark) .fl-ev b{color:#14181F}
 @media(max-width:900px){ .mx-fila{grid-template-columns:1fr} }
 @media(max-width:520px){ .mx-masc{flex-basis:100px;height:160px} .mx-txt{font-size:15px} .mx-asis{min-height:200px} }
 @media(prefers-reduced-motion:reduce){ .mx-masc,.mx-masc.habla,.mx-pin::after{animation:none} }
+.mx-flot{position:fixed;left:16px;bottom:16px;z-index:150;display:flex;align-items:flex-end;gap:2px;max-width:min(430px,calc(100vw - 32px));transform:translateY(130%);transition:transform .55s cubic-bezier(.2,.8,.2,1.1)}
+.mx-flot.on{transform:none}
+.mx-fm{flex:0 0 96px;height:140px;background:var(--mascota) center bottom/contain no-repeat;cursor:pointer;transform-origin:50% 100%;animation:respira 3.6s ease-in-out infinite}
+.mx-fm.habla{animation:habla .36s ease-in-out infinite alternate}
+.mx-fb{position:relative;margin-bottom:34px;background:#F4F8FF;color:#0E1726;border-radius:18px;padding:13px 15px 10px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.mx-fb::before{content:"";position:absolute;left:-9px;bottom:24px;border-width:9px 11px 9px 0;border-style:solid;border-color:transparent #F4F8FF transparent transparent}
+.mx-fb b{font-size:15px}
+.mx-fb ul{margin:7px 0 0;padding-left:18px;font-size:14px;line-height:1.45}
+.mx-fbt{display:flex;justify-content:flex-end;gap:6px;margin-top:9px}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -3787,10 +3796,18 @@ function vozElegir(){
   }catch(e){}
 }
 if('speechSynthesis' in window){ vozElegir(); try{ speechSynthesis.onvoiceschanged=vozElegir; }catch(e){} }
+// Todo se cobra en dólares (San Diego, CA). La voz en español de México lee "$" como
+// "pesos", así que antes de hablar se cambia "$1,623.50" por "1624 dólares".
+function vozDolares(t){
+  return String(t||'').replace(/\$\s?([\d,]+(?:\.\d+)?)/g, (m,n)=>{
+    const v=Math.round(Number(n.replace(/,/g,''))||0);
+    return v+(v===1?' dólar':' dólares');
+  });
+}
 function hablar(texto){
   if(!SONIDO || !VOZ_PERMITIDA || !('speechSynthesis' in window)) return false;
   try{
-    const u=new SpeechSynthesisUtterance(texto);
+    const u=new SpeechSynthesisUtterance(vozDolares(texto));
     if(!VOZ_ES) vozElegir();
     if(VOZ_ES) u.voice=VOZ_ES;
     u.lang = VOZ_ES ? VOZ_ES.lang : 'es-MX';
@@ -3844,12 +3861,85 @@ async function vigilarAvisos(){
     if(data && data.length) ULT_NOTIF = Math.max(ULT_NOTIF, ...data.map(x=>new Date(x.created_at).getTime()));
     else if(!ULT_NOTIF) ULT_NOTIF = Date.now();
   }catch(e){}
-  try{ await recordarCarpetDelDia(); }catch(e){}
+  try{ await recordatorioOficina(); }catch(e){}
 }
 
 /* Recordatorio a oficina (Gabi): a partir de las 4 pm, si hoy no se ha
    capturado ningún trabajo de Carpet, le sale el aviso con voz. Una vez al día. */
 let REC_CARPET_DIA='';
+/* ==================== RECORDATORIOS A OFICINA ====================
+   Cada hora (8 am a 6 pm, lunes a sábado) la mascota le dice a oficina lo
+   que le falta: precios de Carpet, facturas por corregir, iniciales por
+   revisar, reportes que pedir, el pizarrón y lo de mañana. */
+async function pendientesOficina(){
+  const P=[], h=hoy(), hora=new Date().getHours();
+  const dep=U.departamento||'ambos';
+  const verCarpet = CARPET_ON && (dep==='cleaning'||dep==='ambos');
+  const verResto  = dep==='restoration'||dep==='ambos';
+  const pl=(n,a,b)=>n+' '+(n===1?a:b);
+  if(verCarpet){
+    const [{count:hoyN},{count:sinPrecio},{count:corregir}] = await Promise.all([
+      sb.from('jobs').select('id',{count:'exact',head:true}).eq('departamento','cleaning').eq('fecha_inicio',h),
+      sb.from('jobs').select('id',{count:'exact',head:true}).eq('departamento','cleaning').is('invoice_num',null),
+      sb.from('jobs').select('id',{count:'exact',head:true}).eq('departamento','cleaning').eq('invoice_revision','corregir')
+    ]);
+    if(hora>=13 && !hoyN) P.push('Todavía no capturas los reportes de Carpet de hoy.');
+    if(sinPrecio) P.push(`Tienes ${pl(sinPrecio,'trabajo de Carpet sin precio','trabajos de Carpet sin precio')}.`);
+    if(corregir) P.push(`Jared marcó ${pl(corregir,'factura para corregir','facturas para corregir')}.`);
+  }
+  if(verResto){
+    const [{count:ini},{data:act},{data:rr},{data:es}] = await Promise.all([
+      sb.from('reportes_iniciales').select('id',{count:'exact',head:true}).eq('estatus','pendiente'),
+      sb.from('jobs').select('id,fecha_inicio,created_at,invoice_num,estatus').eq('departamento','restoration').eq('estatus','activo').limit(300),
+      sb.from('reportes').select('job_id,fecha').gte('fecha',hace(2)).limit(2000),
+      sb.from('estimados').select('id,fecha_envio,created_at').eq('departamento','restoration').eq('estatus','enviado')
+    ]);
+    if(ini) P.push(`Hay ${pl(ini,'reporte inicial por revisar','reportes iniciales por revisar')}.`);
+    const con=new Set((rr||[]).map(r=>r.job_id));
+    const sinR=(act||[]).filter(x=>!x.invoice_num && !con.has(x.id) && dias((x.fecha_inicio||x.created_at||h).slice(0,10),h)>=2).length;
+    if(sinR) P.push(`${pl(sinR,'trabajo lleva','trabajos llevan')} 2 días sin reporte. Pídele el reporte a los técnicos.`);
+    const est=(es||[]).filter(e=>dias((e.fecha_envio||e.created_at||h).slice(0,10),h)>=5).length;
+    if(est) P.push(`${pl(est,'estimado lleva','estimados llevan')} más de 5 días sin respuesta. Hay que darle seguimiento.`);
+  }
+  P.push('¿Ya actualizaste el pizarrón?');
+  if(hora>=15) P.push('¿Ya está listo lo de mañana?');
+  return P;
+}
+
+function avisoMascota(nombre, lista){
+  document.querySelectorAll('.mx-flot').forEach(x=>x.remove());
+  const d=document.createElement('div'); d.className='mx-flot no-print';
+  d.innerHTML=`<div class="mx-fm"></div><div class="mx-fb">
+      <b>${esc(nombre)}, esto te falta:</b>
+      <ul>${lista.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+      <div class="mx-fbt"><button class="mx-voz" data-mf="voz">🔊</button><button class="mx-voz" data-mf="ok">Listo</button></div></div>`;
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.classList.add('on'));
+  const quitar=()=>{ d.classList.remove('on'); setTimeout(()=>d.remove(),400); };
+  const decir=()=>{ const m=d.querySelector('.mx-fm'); m.classList.add('habla'); setTimeout(()=>m.classList.remove('habla'), Math.min(30000,lista.join(' ').length*65));
+    hablarChat(nombre+', esto te falta. '+lista.join(' ')); };
+  d.querySelector('[data-mf="ok"]').onclick=quitar;
+  d.querySelector('[data-mf="voz"]').onclick=decir;
+  d.querySelector('.mx-fm').onclick=decir;
+  return decir;
+}
+
+async function recordatorioOficina(probar){
+  if(!U || U.rol!=='oficina') return;
+  const ahora=new Date(), hora=ahora.getHours(), dia=ahora.getDay();
+  if(!probar && (hora<8 || hora>=18 || dia===0)) return;
+  const clave=hoy()+'-'+hora;
+  let ya=''; try{ ya=localStorage.getItem('jr31_rec_ofi')||''; }catch(e){}
+  if(!probar && ya===clave) return;
+  try{ localStorage.setItem('jr31_rec_ofi', clave); }catch(e){}
+  const lista=await pendientesOficina();
+  if(!lista.length) return;
+  const nombre=chatNom(String(U.nombre||'').replace(/^ing\.?\s*/i,''));
+  const decir=avisoMascota(nombre, lista);
+  notifSistema({titulo:'Pendientes de oficina', texto:lista.join(' · ')});
+  if(VOZ_PERMITIDA && SONIDO) decir(); else tono('normal');
+}
+
 async function recordarCarpetDelDia(){
   if(!U || U.rol!=='oficina' || !CARPET_ON) return;
   if(new Date().getHours() < 16) return;
@@ -4144,6 +4234,7 @@ async function vAjustes(){
     ${fila('Avisos con la app cerrada', PUSH_OK?'Este aparato recibe avisos aunque la app esté cerrada':SERVIDOR.push?'Se activan cuando prendes los avisos en pantalla':'El servidor de avisos no está conectado',
       `<span class="chip ${PUSH_OK?'verde':'gris'}">${PUSH_OK?'SÍ':'NO'}</span>`)}
     <button class="btn ghost sm" id="aj_pnot" style="margin-top:8px">Mandarme un aviso de prueba</button>
+    ${U.rol==='oficina'?`<button class="btn ghost sm" id="aj_recofi" style="margin-top:8px">Ver mis pendientes ahora</button>`:''}
   </div>
 
   <div class="aj-sec"><h3>La app</h3>
@@ -4187,6 +4278,7 @@ function engancharAjustes(){
     if(typeof Notification==='undefined' || Notification.permission!=='granted'){ avisoFlotante('Aviso de prueba','Así se ven los avisos dentro de la app.',null); return toast('Activa los avisos para que salgan también fuera de la app.'); }
     notifSistema({titulo:'JR31 · aviso de prueba', texto:'Así te llegan los avisos.'}); toast('Listo, revisa tu pantalla'); };
   const ac=$('#aj_act'); if(ac) ac.onclick=refrescarTodo;
+  const ro=$('#aj_recofi'); if(ro) ro.onclick=()=>recordatorioOficina(true);
   const bon=$('#aj_bio_on'); if(bon) bon.onclick=async()=>{
     if(!(await bioDisponible())) return toast('Este aparato no tiene Face ID, huella ni Windows Hello activado.');
     try{ await bioActivar(U, PUERTA || (U.departamento==='cleaning'?'carpet':U.rol==='admin'?'admin':U.rol==='oficina'?'oficina':'restoration'));
@@ -6193,7 +6285,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v215 · Home con mapa y mascota</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v217 · Mascota: pendientes y recordatorios a oficina</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -11910,10 +12002,7 @@ async function vHome(){
   if(espV.length) M.push(`${pl(espV.length,'estimado lleva','estimados llevan')} más de 5 días sin respuesta${ver&&totEsp?', son '+cf(totEsp)+' en espera':''}. Vale la pena insistir.`);
   const debenEq=equipo.filter(e=>e.n && e.hoyN<e.n);
   if(debenEq.length && new Date().getHours()>=14) M.push(debenEq.map(e=>`${chatNom(e.t.nombre)} lleva ${e.hoyN} de ${e.n} reportes hoy`).join('. ')+'.');
-  if(ver) M.push(delta===null?`Llevas ${cf(factMes)} facturado en ${mesNom}.`:`Llevas ${cf(factMes)} facturado en ${mesNom}, ${delta>=0?'arriba':'abajo'} ${Math.abs(delta)} por ciento contra el mes pasado.`);
-  if(ET[4].l.length) M.push(`Este mes ya ${ET[4].l.length===1?'se cerró 1 trabajo':'se cerraron '+ET[4].l.length+' trabajos'}. ¡Bien!`);
-  if(!sinRepL.length && !ET[1].l.length && !ET[3].l.length && !espV.length) M.unshift('Todo al corriente. No hay nada atrasado.');
-  HM_MSGS = [`${saludo}, ${nomU}. Tienes ${pl(activos.length,'trabajo activo','trabajos activos')}.`].concat(M);
+  HM_MSGS = M.length ? M.map((m,i)=>i===0?`${nomU}, ${m.charAt(0).toLowerCase()+m.slice(1)}`:m) : [`${nomU}, no tienes pendientes. Todo al corriente.`];
 
   // ── Puntos del mapa (solo trabajos abiertos) ──
   const etapaDe={}; ET.slice(0,4).forEach(e=>e.l.forEach(x=>etapaDe[x.id]=e.k));
