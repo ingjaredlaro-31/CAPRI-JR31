@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="213">
+<meta name="app-version" content="214">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1283,6 +1283,67 @@ body:not(.dark) .fl-ev b{color:#14181F}
   .cp-din{margin:14px 0 0;align-items:center;grid-column:1/-1} }
 @media(max-width:760px){ .cp-flujo .fl-tanques{grid-template-columns:repeat(3,1fr)} }
 @media(prefers-reduced-motion:reduce){ .tc-ruta::before,.tc-debe i,.tc-par.falta .tc-nodo{animation:none} .tc-agua,.tc-prog{transition:none} }
+.lg{position:relative;width:100%;flex:1;align-self:stretch;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:28px 18px 120px;overflow:hidden;
+  background:radial-gradient(90% 60% at 50% 0%,rgba(46,139,255,.22),transparent 60%),radial-gradient(60% 50% at 100% 100%,rgba(87,211,245,.12),transparent 70%),#070B14}
+.lg-olas{position:absolute;left:0;right:0;bottom:0;height:200px;pointer-events:none;z-index:0}
+.lg-olas svg{position:absolute;left:0;bottom:0;width:200%;height:100%}
+.lg-olas path{animation:olaLg 14s linear infinite}
+.lo1{fill:rgba(46,139,255,.16)} .lo2{fill:rgba(87,211,245,.14);animation-duration:10s!important;animation-direction:reverse!important} .lo3{fill:rgba(46,139,255,.28);animation-duration:7s!important}
+@keyframes olaLg{to{transform:translateX(-50%)}}
+.lg-burbuja{position:absolute;bottom:-20px;width:var(--r);height:var(--r);border-radius:50%;border:1px solid rgba(160,215,255,.45);background:rgba(160,215,255,.08);animation:sube var(--t) linear var(--d) infinite;opacity:0}
+@keyframes sube{0%{transform:translateY(0);opacity:0}10%{opacity:.9}100%{transform:translateY(-70vh) translateX(18px);opacity:0}}
+.lg-card{position:relative;z-index:1;width:100%;max-width:400px;background:rgba(16,24,40,.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(140,180,240,.18);border-radius:26px;padding:26px 24px 18px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:entraLg .7s cubic-bezier(.2,.75,.2,1)}
+@keyframes entraLg{from{opacity:0;transform:translateY(24px) scale(.98)}}
+.lg-cab{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.lg-emp{font-size:12px;color:#8FA3C0;letter-spacing:.02em}
+.lg-puerta{font-family:var(--disp);font-size:26px;font-weight:700;color:#fff;line-height:1.1}
+.lg-ps{font-size:13px;color:#9FB6D8;margin-top:2px}
+.lg-cara{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(46,139,255,.14),rgba(46,139,255,.04));
+  border:1px solid rgba(87,211,245,.35);border-radius:20px;padding:18px 12px 16px;color:#fff;font:inherit;cursor:pointer;transition:transform .2s,border-color .2s}
+.lg-cara:hover{border-color:#57D3F5}.lg-cara:active{transform:scale(.98)}
+.lg-cara b{font-size:17px}
+.lg-quien{font-size:12.5px;color:#9FB6D8}
+.lg-scan{position:relative;width:96px;height:96px;display:grid;place-items:center}
+.lg-scan.chico{width:58px;height:58px;flex:0 0 58px}
+.lg-anillo{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:#57D3F5;border-right-color:rgba(87,211,245,.35);animation:gira 2.4s linear infinite}
+.lg-anillo.b{inset:9px;border-top-color:transparent;border-bottom-color:#2E8BFF;border-left-color:rgba(46,139,255,.4);animation-duration:3.6s;animation-direction:reverse}
+@keyframes gira{to{transform:rotate(360deg)}}
+.lg-rostro{width:56%;height:56%;fill:none;stroke:#BFE9FF;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.lg-rostro circle{fill:#BFE9FF;stroke:none}
+.lg-linea{position:absolute;left:18%;right:18%;height:2px;top:22%;background:linear-gradient(90deg,transparent,#57D3F5,transparent);box-shadow:0 0 10px #57D3F5;animation:barre 2.2s ease-in-out infinite;border-radius:2px}
+@keyframes barre{0%,100%{top:22%}50%{top:76%}}
+.lg-cara.escaneando .lg-anillo{animation-duration:.8s}.lg-cara.escaneando .lg-linea{animation-duration:.9s}
+.lg-cara.escaneando{border-color:#57D3F5;box-shadow:0 0 0 6px rgba(87,211,245,.12)}
+.lg-cara.listo{border-color:#2FD38A;box-shadow:0 0 0 8px rgba(47,211,138,.15)}
+.lg-cara.listo .lg-anillo{border-color:#2FD38A;animation:none}.lg-cara.listo .lg-linea{display:none}.lg-cara.listo .lg-rostro{stroke:#2FD38A}.lg-cara.listo .lg-rostro circle{fill:#2FD38A}
+.lg-cara.compacto{flex-direction:row;justify-content:flex-start;gap:14px;padding:12px 14px;margin-bottom:14px;text-align:left}
+.lg-cara.compacto b{font-size:15.5px;display:block}
+.lg-ct{display:flex;flex-direction:column}
+.cajaclara .lg-cara.compacto{background:linear-gradient(90deg,#0F2347,#16407E);border-color:#2E8BFF;color:#fff}
+.cajaclara .lg-cara.compacto .lg-quien{color:#BFD7FF}
+.lg-o{display:flex;align-items:center;gap:10px;margin:18px 0 6px;color:#7F93B2;font-size:12.5px}
+.lg-o::before,.lg-o::after{content:"";flex:1;height:1px;background:rgba(140,180,240,.2)}
+.lg-campo{position:relative;margin-top:14px}
+.lg-campo input{width:100%;height:56px;margin:0;padding:22px 46px 6px 16px;font-size:16px;background:rgba(8,14,26,.6);border:1px solid rgba(140,180,240,.22);border-radius:14px;color:#fff;transition:border-color .2s,box-shadow .2s}
+.lg-campo input:focus{outline:none;border-color:#57D3F5;box-shadow:0 0 0 4px rgba(87,211,245,.15)}
+.lg-campo label{position:absolute;left:16px;top:18px;margin:0;font-size:15px;color:#8FA3C0;pointer-events:none;transition:all .18s;text-transform:none;letter-spacing:0;font-family:inherit}
+.lg-campo input:focus+label,.lg-campo input:not(:placeholder-shown)+label{top:7px;font-size:11.5px;color:#57D3F5}
+.lg-ojo{position:absolute;right:8px;top:9px;width:38px;height:38px;border:0;background:none;color:#8FA3C0;font-size:17px;cursor:pointer;border-radius:10px}
+.lg-go{position:relative;overflow:hidden;width:100%;height:54px;margin-top:20px;border:0;border-radius:14px;cursor:pointer;font:inherit;font-weight:800;font-size:16px;letter-spacing:.02em;color:#04121F;
+  background:linear-gradient(90deg,#2E8BFF,#57D3F5);box-shadow:0 10px 30px rgba(46,139,255,.35)}
+.lg-go::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:brillo 3.2s ease-in-out infinite}
+@keyframes brillo{0%,60%{left:-60%}100%{left:130%}}
+.lg-err{color:#FF7A7A;font-size:14px;text-align:center;min-height:20px;margin:12px 0 0}
+.lg-tip{font-size:12.5px;color:#9FB6D8;text-align:center;margin:4px 0 0}
+.lg-volver{display:block;margin:10px auto 0;background:none;border:0;color:#8FA3C0;font:inherit;font-size:14px;cursor:pointer;padding:8px}
+.lg-oferta{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:18px;background:rgba(3,7,14,.75);backdrop-filter:blur(6px)}
+.lg-of{max-width:360px;width:100%;background:#101828;border:1px solid rgba(140,180,240,.2);border-radius:24px;padding:24px 22px 14px;text-align:center;color:#fff;animation:entraLg .5s cubic-bezier(.2,.75,.2,1)}
+.lg-of .lg-scan{margin:0 auto 12px;width:84px;height:84px}
+.lg-of b{font-size:19px;display:block}.lg-of p{font-size:13.5px;color:#9FB6D8;line-height:1.5;margin:8px 0 0}
+.lg-port{position:relative;overflow:hidden;background:radial-gradient(90% 60% at 50% 0%,rgba(46,139,255,.18),transparent 60%),var(--fondo)}
+.lg-port .login{position:relative;z-index:1}
+@media(prefers-reduced-motion:reduce){ .lg-olas path,.lg-burbuja,.lg-anillo,.lg-linea,.lg-go::after{animation:none} .lg-burbuja{display:none} }
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -4024,6 +4085,11 @@ async function vAjustes(){
     </details>`:''}
   </div>
 
+  <div class="aj-sec"><h3>Entrar con mi cara</h3>
+    ${fila('En este aparato', bioLista().some(e=>e.uid===U.id)?'Activado: entras con Face ID, desbloqueo facial, huella o Windows Hello':'Entra sin escribir contraseña usando la cara o huella del aparato',
+      bioLista().some(e=>e.uid===U.id)?`<button class="btn ghost sm" id="aj_bio_off">Quitar</button>`:`<button class="btn sm" id="aj_bio_on">Activar</button>`)}
+  </div>
+
   <div class="aj-sec"><h3>Pantalla</h3>
     ${fila('Tema','', seg('aj_tema',[['oscuro','🌙 Oscuro'],['claro','☀ Claro']], OSCURO?'oscuro':'claro'))}
     ${fila('Idioma','', seg('aj_idioma',[['es','Español'],['en','English']], ING()?'en':'es'))}
@@ -4088,6 +4154,13 @@ function engancharAjustes(){
     if(typeof Notification==='undefined' || Notification.permission!=='granted'){ avisoFlotante('Aviso de prueba','Así se ven los avisos dentro de la app.',null); return toast('Activa los avisos para que salgan también fuera de la app.'); }
     notifSistema({titulo:'JR31 · aviso de prueba', texto:'Así te llegan los avisos.'}); toast('Listo, revisa tu pantalla'); };
   const ac=$('#aj_act'); if(ac) ac.onclick=refrescarTodo;
+  const bon=$('#aj_bio_on'); if(bon) bon.onclick=async()=>{
+    if(!(await bioDisponible())) return toast('Este aparato no tiene Face ID, huella ni Windows Hello activado.');
+    try{ await bioActivar(U, PUERTA || (U.departamento==='cleaning'?'carpet':U.rol==='admin'?'admin':U.rol==='oficina'?'oficina':'restoration'));
+      try{ localStorage.removeItem('jr31_bio_no_'+U.id); }catch(e){}
+      toast('Listo: ya puedes entrar con tu cara'); render(); }
+    catch(e){ toast('No se activó. Intenta otra vez.'); } };
+  const bof=$('#aj_bio_off'); if(bof) bof.onclick=()=>{ bioQuitar(U.id); toast('Quitado de este aparato'); render(); };
   const ins=$('#aj_inst'); if(ins) ins.onclick=async()=>{
     if(INSTALAR){ INSTALAR.prompt(); await INSTALAR.userChoice; INSTALAR=null; return render(); }
     if(esIOS()) return alert('En iPhone:\n1. Abre esta página en Safari.\n2. Toca Compartir (cuadro con flecha).\n3. "Agregar a pantalla de inicio".');
@@ -5559,7 +5632,8 @@ const PUERTAS = {
 };
 
 function portada(){
-  $('#root').innerHTML = `<div class="login-page"><div class="fondo-tex"></div><div class="login">
+  const carasP = bioLista();
+  $('#root').innerHTML = `<div class="login-page lg-port"><div class="fondo-tex"></div>${OLAS_HTML}<div class="login">
     <div class="staffbox">
       <div class="masc-cara staff-masc"></div>
       <div class="portada marca-agua">
@@ -5570,6 +5644,9 @@ function portada(){
       </div>
       <div class="franja split" style="border-radius:0"><i></i><i></i></div>
       <div class="cajaclara">
+        ${carasP.length?`<button class="lg-cara compacto" id="pt_cara" type="button">
+          <span class="lg-scan chico"><span class="lg-anillo"></span><svg viewBox="0 0 64 64" class="lg-rostro" aria-hidden="true"><path d="M8 20V12a4 4 0 0 1 4-4h8M44 8h8a4 4 0 0 1 4 4v8M56 44v8a4 4 0 0 1-4 4h-8M20 56h-8a4 4 0 0 1-4-4v-8"/><circle cx="24" cy="27" r="2.4"/><circle cx="40" cy="27" r="2.4"/><path d="M32 27v9h-3M24 43c4.5 3.5 11.5 3.5 16 0"/></svg><span class="lg-linea"></span></span>
+          <span class="lg-ct"><b>${PT('Sign in with my face','Entrar con mi cara')}</b><span class="lg-quien">${carasP.map(c=>esc(nomCara(c.nombre))).join(' · ')}</span></span></button>`:''}
         <div class="eyebrow">${PT('Team access','Acceso del equipo')}</div>
 
         <div class="grupo-et">${PT('Management','Dirección')}</div>
@@ -5630,6 +5707,7 @@ function portada(){
   </div>`;
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ PUERTA=b.dataset.p; login(); });
   const pc=$('#p_cliente'); if(pc) pc.onclick=()=>buscarCliente();
+  const ptc=$('#pt_cara'); if(ptc) ptc.onclick=()=>entrarConCara(bioLista());
   const pid=$('#p_idio');
   if(pid) pid.onclick=()=>{
     IDIOMA_PORTADA = IDIOMA_PORTADA==='es' ? 'en' : 'es';
@@ -5671,33 +5749,130 @@ function bienvenida(u, luego){
 }
 
 /* ============================ LOGIN ============================ */
+const OLAS_HTML = `<div class="lg-olas" aria-hidden="true">
+  <svg viewBox="0 0 1200 200" preserveAspectRatio="none"><path class="lo1" d="M0 80 Q150 40 300 80 T600 80 T900 80 T1200 80 T1500 80 T1800 80 T2100 80 T2400 80 V200 H0Z"/></svg>
+  <svg viewBox="0 0 1200 200" preserveAspectRatio="none"><path class="lo2" d="M0 110 Q150 70 300 110 T600 110 T900 110 T1200 110 T1500 110 T1800 110 T2100 110 T2400 110 V200 H0Z"/></svg>
+  <svg viewBox="0 0 1200 200" preserveAspectRatio="none"><path class="lo3" d="M0 140 Q150 105 300 140 T600 140 T900 140 T1200 140 T1500 140 T1800 140 T2100 140 T2400 140 V200 H0Z"/></svg>
+  ${Array.from({length:14},(_,i)=>`<i class="lg-burbuja" style="left:${(i*37)%100}%;--t:${7+(i*13)%9}s;--r:${4+(i*7)%10}px;--d:${(i*1.7)%8}s"></i>`).join('')}
+</div>`;
+
 function login(msg){
   if(!PUERTA) return portada();
-  $('#root').innerHTML = `<div class="login-page"><div class="fondo-tex"></div><div class="login"><div class="box">
-    <div class="cab marca-agua">
-      <div class="logo-img" style="width:78px;height:78px"></div>
-      <div class="rot">${esc(EMPRESA.toUpperCase())}</div>
-      <div class="tt">${esc(PUERTAS[PUERTA].t)}</div>
-      <div style="font-size:14.5px;color:#C3D6F7;margin-top:6px">${esc(PUERTAS[PUERTA].s)}</div>
-      <div class="mono" style="font-size:13px;letter-spacing:.5em;color:var(--oro);margin-top:11px;font-weight:600">JR31</div>
+  const caras = bioLista().filter(e=>!e.puerta || e.puerta===PUERTA);
+  $('#root').innerHTML = `<div class="lg">
+    ${OLAS_HTML}
+    <div class="lg-card">
+      <div class="lg-cab">
+        <div class="logo-img" style="width:64px;height:64px"></div>
+        <div><div class="lg-emp">${esc(EMPRESA)}</div>
+          <div class="lg-puerta">${esc(PUERTAS[PUERTA].t)}</div>
+          <div class="lg-ps">${esc(PUERTAS[PUERTA].s)}</div></div>
+      </div>
+
+      ${caras.length?`
+      <button class="lg-cara" id="lg_cara" type="button">
+        <span class="lg-scan"><span class="lg-anillo"></span><span class="lg-anillo b"></span>
+          <svg viewBox="0 0 64 64" class="lg-rostro" aria-hidden="true"><path d="M8 20V12a4 4 0 0 1 4-4h8M44 8h8a4 4 0 0 1 4 4v8M56 44v8a4 4 0 0 1-4 4h-8M20 56h-8a4 4 0 0 1-4-4v-8"/><circle cx="24" cy="27" r="2.4"/><circle cx="40" cy="27" r="2.4"/><path d="M32 27v9h-3M24 43c4.5 3.5 11.5 3.5 16 0"/></svg>
+          <span class="lg-linea"></span></span>
+        <b>${PT('Sign in with my face','Entrar con mi cara')}</b>
+        <span class="lg-quien">${caras.map(c=>esc(nomCara(c.nombre))).join(' · ')}</span>
+      </button>
+      <div class="lg-o"><span>${PT('or with your username','o con tu usuario')}</span></div>`:''}
+
+      <div class="lg-campo"><input id="u" autocapitalize="none" autocomplete="username" placeholder=" " spellcheck="false"><label for="u">${PT('Username','Usuario')}</label></div>
+      <div class="lg-campo"><input id="p" type="password" autocomplete="current-password" placeholder=" "><label for="p">${PT('Password','Contraseña')}</label>
+        <button type="button" class="lg-ojo" id="lg_ojo" aria-label="${PT('Show password','Ver contraseña')}">👁</button></div>
+      <button class="lg-go" id="go">${PT('Sign in','Entrar')}</button>
+      <p id="err" class="lg-err">${esc(msg||'')}</p>
+      ${!caras.length?`<p class="lg-tip" id="lg_tip" hidden>🙂 ${PT('After you sign in you can turn on face sign-in for this device.','Después de entrar puedes activar entrar con tu cara en este aparato.')}</p>`:''}
+      <button class="lg-volver" id="atras">‹ ${PT('Back','Cambiar de puerta')}</button>
     </div>
-    <div class="franja split"><i></i><i></i></div>
-    <div class="cajaclara">
-      <label style="margin-top:0">${PT('Username','Usuario')}</label>
-      <input id="u" autocapitalize="none" autocomplete="username">
-      <label>${PT('Password','Contraseña')}</label>
-      <input id="p" type="password" autocomplete="current-password">
-      <div style="height:22px"></div>
-      <button class="btn wide" id="go">${PT('Sign in','Entrar')}</button>
-      <p id="err" style="color:var(--rojo);font-size:15px;text-align:center;min-height:20px;margin:12px 0 0">${esc(msg||'')}</p>
-      <div style="text-align:center"><button class="volver" id="atras">‹ ${PT('Back','Cambiar de usuario')}</button></div>
-    </div></div>
-    <div class="pie">SAN DIEGO · CALIFORNIA</div>
-    </div></div>`;
+  </div>`;
   $('#go').onclick = entrar;
   $('#p').onkeydown = e => { if(e.key==='Enter') entrar(); };
+  $('#u').onkeydown = e => { if(e.key==='Enter') $('#p').focus(); };
   $('#atras').onclick = () => { PUERTA=null; portada(); };
+  $('#lg_ojo').onclick = () => { const i=$('#p'); i.type = i.type==='password'?'text':'password'; };
+  const lc=$('#lg_cara'); if(lc) lc.onclick=()=>entrarConCara(caras);
+  bioDisponible().then(ok=>{ const t=$('#lg_tip'); if(t && ok) t.hidden=false; });
 }
+
+/* ==================== ENTRAR CON LA CARA ====================
+   Usa el desbloqueo del propio aparato (WebAuthn / passkey): Face ID en
+   iPhone, desbloqueo facial o huella en Android, Windows Hello en la compu.
+   La cara nunca sale del aparato; la app solo recibe "sí es él". Se activa
+   por aparato, después de entrar una vez con usuario y contraseña. */
+const nomCara = n => chatNom(String(n||'').replace(/^ing\.?\s*/i,''));
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const b64uDec = s => { s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); };
+function bioLista(){ try{ return JSON.parse(localStorage.getItem('jr31_bio')||'[]'); }catch(e){ return []; } }
+function bioGuardar(l){ try{ localStorage.setItem('jr31_bio', JSON.stringify(l)); }catch(e){} }
+async function bioDisponible(){
+  try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; }
+}
+async function bioActivar(u, puerta){
+  const cred = await navigator.credentials.create({publicKey:{
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    rp:{name:'Capri JR31', id:location.hostname},
+    user:{id:new TextEncoder().encode(String(u.id)), name:u.username||u.nombre, displayName:u.nombre},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform', userVerification:'required', residentKey:'preferred'},
+    timeout:60000, attestation:'none'}});
+  const l=bioLista().filter(e=>e.uid!==u.id);
+  l.push({uid:u.id, nombre:u.nombre, rol:u.rol, puerta:puerta||null, cred:b64u(cred.rawId)});
+  bioGuardar(l);
+}
+function bioQuitar(uid){ bioGuardar(bioLista().filter(e=>e.uid!==uid)); }
+
+async function entrarConCara(lista){
+  const btn=$('#lg_cara')||$('#pt_cara');
+  if(btn) btn.classList.add('escaneando');
+  try{
+    const r = await navigator.credentials.get({publicKey:{
+      challenge: crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname,
+      allowCredentials: lista.map(e=>({type:'public-key', id:b64uDec(e.cred), transports:['internal']})),
+      userVerification:'required', timeout:60000}});
+    const e = lista.find(x=>x.cred===b64u(r.rawId));
+    if(!e) throw new Error('no-match');
+    const {data,error} = await sb.from('usuarios').select('*').eq('id',e.uid).eq('activo',true).maybeSingle();
+    if(error) throw new Error('red');
+    if(!data){ bioQuitar(e.uid); throw new Error('baja'); }
+    if(btn){ btn.classList.remove('escaneando'); btn.classList.add('listo'); }
+    PUERTA = e.puerta || PUERTA || data.rol;
+    setTimeout(()=>terminarEntrada(data), 650);
+  }catch(err){
+    if(btn) btn.classList.remove('escaneando');
+    const m = String(err&&err.message||'');
+    const msg = m==='red' ? 'No hay conexión con la base de datos.'
+      : m==='baja' ? 'Esa cuenta ya no está activa.'
+      : (err&&err.name==='NotAllowedError') ? 'No se reconoció. Intenta otra vez o entra con tu usuario.'
+      : 'No se pudo entrar con la cara. Entra con tu usuario.';
+    if($('#err')) errLogin(msg); else toast(msg);
+  }
+}
+
+function ofrecerCara(u, seguir){
+  let no=false; try{ no = localStorage.getItem('jr31_bio_no_'+u.id)==='1'; }catch(e){}
+  if(no || bioLista().some(e=>e.uid===u.id)) return seguir();
+  bioDisponible().then(ok=>{
+    if(!ok) return seguir();
+    const d=document.createElement('div'); d.className='lg-oferta';
+    d.innerHTML=`<div class="lg-of">
+      <span class="lg-scan chico"><span class="lg-anillo"></span><svg viewBox="0 0 64 64" class="lg-rostro"><path d="M8 20V12a4 4 0 0 1 4-4h8M44 8h8a4 4 0 0 1 4 4v8M56 44v8a4 4 0 0 1-4 4h-8M20 56h-8a4 4 0 0 1-4-4v-8"/><circle cx="24" cy="27" r="2.4"/><circle cx="40" cy="27" r="2.4"/><path d="M32 27v9h-3M24 43c4.5 3.5 11.5 3.5 16 0"/></svg><span class="lg-linea"></span></span>
+      <b>${PT('Sign in with your face next time?','¿Entrar con tu cara la próxima vez?')}</b>
+      <p>${PT('Uses this device\'s Face ID, face unlock, fingerprint or Windows Hello. Your face never leaves the device.','Usa el Face ID, desbloqueo facial, huella o Windows Hello de este aparato. Tu cara nunca sale del aparato.')}</p>
+      <button class="lg-go" id="of_si">${PT('Turn on','Activar')}</button>
+      <button class="lg-volver" id="of_no">${PT('Not now','Ahora no')}</button></div>`;
+    document.body.appendChild(d);
+    const fin=()=>{ d.remove(); seguir(); };
+    d.querySelector('#of_si').onclick=async()=>{
+      try{ await bioActivar(u, PUERTA); toast(PT('Face sign-in on','Listo: ya puedes entrar con tu cara')); }
+      catch(e){ toast(PT('Could not turn it on','No se pudo activar en este aparato')); }
+      fin(); };
+    d.querySelector('#of_no').onclick=()=>{ try{ localStorage.setItem('jr31_bio_no_'+u.id,'1'); }catch(e){} fin(); };
+  });
+}
+
 function errLogin(m){ const e=$('#err'); if(e) e.textContent=m; else login(m); }
 async function entrar(){
   const u=$('#u').value.trim().toLowerCase(), p=$('#p').value;
@@ -5733,6 +5908,11 @@ async function entrar(){
   } else if(PUERTA && data.rol!==PUERTA){
     return errLogin('Esa cuenta es de '+(PUERTAS[data.rol]?PUERTAS[data.rol].t.toLowerCase():data.rol)+'. Regresa y entra por esa puerta.');
   }
+  ofrecerCara(data, ()=>terminarEntrada(data));
+}
+function terminarEntrada(data){
+  const AREA_PUERTA = CARPET_ON ? {restoration:'restoration', carpet:'cleaning'} : {restoration:'restoration'};
+  const areaP = AREA_PUERTA[PUERTA];
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
   DEP = (U.rol==='admin' && U.departamento==='ambos' && areaP) ? areaP
       : (areaP || (U.departamento==='ambos' ? 'restoration' : U.departamento));
@@ -5980,7 +6160,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v213 · Técnico y oficina con movimiento</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v214 · Entrada nueva y entrar con la cara</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
