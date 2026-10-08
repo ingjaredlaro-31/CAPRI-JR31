@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="218">
+<meta name="app-version" content="219">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1394,6 +1394,7 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .wa-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.wa-h span{font-size:12px;color:var(--gris)}
 .wa-tx{white-space:pre-wrap;font-size:13.5px;line-height:1.45;margin:4px 0 6px;max-height:120px;overflow:auto}
 .wa-c select{margin:0;font-size:13px}
+.wa-sube{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:16px;border:2px dashed rgba(37,211,102,.55);border-radius:14px;background:rgba(37,211,102,.07);color:#5BE08F;font-weight:800;font-size:15px;cursor:pointer;text-transform:none;letter-spacing:0}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -4322,14 +4323,16 @@ function waLeer(texto){
   const L=String(texto||'').replace(/\r/g,'').split('\n');
   // [10:15 a. m., 8/10/2026] Jesús Lozoya: texto   ·   8/10/26, 10:15 a. m. - Jesús Lozoya: texto
   const R1=/^‎?\[(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?),?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\]\s*([^:]{1,60}):\s?(.*)$/i;
-  const R2=/^‎?\[?(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s*(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?)\]?\s*[-–]\s*([^:]{1,60}):\s?(.*)$/i;
+  const R2=/^‎?\[?(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s*(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?)(?:\]\s*|\s*[-–]\s*)([^:]{1,60}):\s?(.*)$/i;
+  const ADJ=/(?:<(?:adjunto|attached):\s*([^>]+)>)|([\w\-]+\.(?:jpe?g|png|webp|heic))\s*\((?:archivo adjunto|file attached)\)/gi;
   const M=[]; let cur=null;
   L.forEach(l=>{
     let m=l.match(R1), hora, fecha, quien, txt;
     if(m){ hora=m[1]; fecha=m[2]; quien=m[3]; txt=m[4]; }
     else if((m=l.match(R2))){ fecha=m[1]; hora=m[2]; quien=m[3]; txt=m[4]; }
-    if(m){ cur={fechaTxt:fecha, hora:hora.replace(/\s+/g,' ').trim(), quien:quien.replace(/^~\s*/,'').trim(), texto:txt.trim()}; M.push(cur); }
+    if(m){ cur={fechaTxt:fecha, hora:hora.replace(/\s+/g,' ').trim(), quien:quien.replace(/^~\s*/,'').replace(/[\u200e\u202a\u202c]/g,'').trim(), texto:txt.trim(), adj:[]}; M.push(cur); }
     else if(cur && l.trim()) cur.texto += '\n'+l.trim();
+    if(cur){ let a; ADJ.lastIndex=0; const linea=m?txt:l; while((a=ADJ.exec(linea))){ cur.adj.push((a[1]||a[2]).trim()); } }
   });
   // Fechas: en español es día/mes. Si el segundo número pasa de 12, es mes/día.
   M.forEach(x=>{
@@ -4341,13 +4344,15 @@ function waLeer(texto){
     const hh=hoy(), dist=s=>{ const d=dias(s,hh); return d<0 ? 9999-d : d; };
     x.fecha = opc.sort((p,q)=>dist(p)-dist(q))[0] || f(a,b);
     x.foto = /omitid|omitted|<adjunto|\.jpg|\.jpeg|\.png|imagen|image|video/i.test(x.texto);
-    x.texto = x.texto.replace(/[‎‏]/g,'').replace(/<?(multimedia omitid[oa]|media omitted|imagen omitida|image omitted|video omitido|video omitted)>?/gi,'').trim();
+    x.foto = x.foto || x.adj.length>0;
+    x.texto = x.texto.replace(/[\u200e\u200f]/g,'').replace(/<(?:adjunto|attached):[^>]*>/gi,'').replace(/[\w\-]+\.(?:jpe?g|png|webp|heic|mp4|opus|pdf)\s*\((?:archivo adjunto|file attached)\)/gi,'')
+      .replace(/<?(multimedia omitid[oa]|media omitted|imagen omitida|image omitted|video omitido|video omitted)>?/gi,'').trim();
   });
   // Junta mensajes seguidos de la misma persona el mismo día
   const G=[];
   M.forEach(x=>{ const u=G[G.length-1];
-    if(u && u.quien===x.quien && u.fecha===x.fecha){ if(x.texto) u.texto+=(u.texto?'\n':'')+x.texto; u.fotos+=x.foto?1:0; }
-    else G.push({...x, fotos:x.foto?1:0}); });
+    if(u && u.quien===x.quien && u.fecha===x.fecha){ if(x.texto) u.texto+=(u.texto?'\n':'')+x.texto; u.fotos+=x.foto?Math.max(1,x.adj.length):0; u.adj=u.adj.concat(x.adj); }
+    else G.push({...x, fotos:x.foto?Math.max(1,x.adj.length):0, adj:x.adj.slice()}); });
   return G.filter(x=>x.texto || x.fotos);
 }
 
@@ -4357,16 +4362,28 @@ async function pegarWhatsApp(){
     <div class="disp" style="font-size:21px;line-height:1.1">Pegar reportes del grupo</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="sheet-body">
-      <div class="ok">En WhatsApp Business de la compu, selecciona los mensajes del grupo (clic en la flechita de un mensaje → <b>Seleccionar</b>, y marca los demás), copia con <b>Ctrl+C</b> y pégalos aquí con <b>Ctrl+V</b>.</div>
-      <textarea id="wa_t" style="min-height:190px;font-size:13.5px" placeholder="[10:15 a. m., 8/10/2026] Jesús Lozoya: Avino 269 todo seco, quité 6 aires..."></textarea>
-      <div style="height:10px"></div>
-      <button class="btn wide" id="wa_leer">Leer mensajes</button>
+      <div class="ok"><b>Exporta el chat del grupo desde el celular:</b><br>
+        <b>Android:</b> abre el grupo → ⋮ → Más → <b>Exportar chat</b> → <b>Incluir archivos</b> → mándatelo por correo o guárdalo en Drive.<br>
+        <b>iPhone:</b> abre el grupo → toca el nombre del grupo → <b>Exportar chat</b> → <b>Adjuntar archivos</b> → guárdalo en Archivos o mándalo por correo.<br>
+        Luego súbelo aquí (el .zip con fotos, o el .txt).</div>
+      <label class="wa-sube"><input type="file" id="wa_f" accept=".zip,.txt,application/zip,text/plain" hidden>📎 Subir chat exportado (.zip o .txt)</label>
+      <div class="g2" style="margin-top:10px">
+        <div><label>¿Qué días leer?</label><select id="wa_r"><option value="1">Solo hoy</option><option value="2">Hoy y ayer</option><option value="7" selected>Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="9999">Todo el chat</option></select></div>
+        <div></div>
+      </div>
+      <details class="aj-det"><summary>O pega los mensajes copiados</summary>
+        <textarea id="wa_t" style="min-height:150px;font-size:13.5px" placeholder="[10:15 a. m., 8/10/2026] Jesús Lozoya: Avino 269 todo seco, quité 6 aires..."></textarea>
+        <button class="btn wide" id="wa_leer" style="margin-top:8px">Leer mensajes</button>
+      </details>
+      <div id="wa_est" class="sub" style="margin-top:8px"></div>
       <div id="wa_res"></div>
     </div></div>`;
   $('#c1').onclick=cerrar;
-  $('#wa_leer').onclick=async()=>{
-    const G=waLeer($('#wa_t').value);
-    if(!G.length) return toast('No encontré mensajes. Copia los mensajes con su fecha y hora, como salen en WhatsApp.');
+  let ARCH={};   // fotos que vienen en el .zip: nombre → archivo
+  const procesar=async(texto)=>{
+    const dd=Number($('#wa_r').value)||7, desde=hace(dd-1);
+    const G=waLeer(texto).filter(x=>dd>=9999 || x.fecha>=desde);
+    if(!G.length) return toast('No encontré mensajes de esos días. Revisa el archivo o escoge más días.');
     const [{data:us},{data:js}] = await Promise.all([
       sb.from('usuarios').select('id,nombre,rol').eq('activo',true),
       sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus,invoice_num, propiedades(nombre)').eq('departamento',DEPV()==='cleaning'?'cleaning':'restoration').not('estatus','in','("facturado")').limit(500)
@@ -4402,6 +4419,7 @@ async function pegarWhatsApp(){
     document.querySelectorAll('[data-waj]').forEach(s=>s.onchange=()=>{ const i=+s.dataset.waj; G[i].j=JS.find(j=>j.id===s.value)||null;
       const c=document.querySelector(`[data-wa="${i}"]`); if(c) c.checked=!!G[i].j; });
     $('#wa_ok').onclick=async()=>{
+      $('#wa_ok').disabled=true; $('#wa_ok').textContent='Guardando…';
       const sel=G.filter((x,i)=>document.querySelector(`[data-wa="${i}"]`)?.checked && x.j);
       if(!sel.length) return toast('Marca al menos un mensaje con su trabajo.');
       let nuevos=0, ya=0, mal=0;
@@ -4411,9 +4429,20 @@ async function pegarWhatsApp(){
         if(tid) q=q.eq('tecnico_id',tid);
         const {count}=await q;
         if(count){ ya++; continue; }
+        // Fotos del .zip que pertenecen a este mensaje
+        const fotos=[];
+        for(const n of (x.adj||[])){
+          const f=ARCH[n] || ARCH[Object.keys(ARCH).find(k=>k.endsWith(n))||''];
+          if(!f || !/\.(jpe?g|png|webp)$/i.test(n)) continue;
+          try{ const blob=await f.async('blob');
+            const ruta=`whatsapp/${x.fecha}/${Date.now()}-${Math.random().toString(36).slice(2,7)}-${n.replace(/[^\w.\-]/g,'')}`;
+            const {error:eu}=await sb.storage.from('capri').upload(ruta, blob, {contentType:/png$/i.test(n)?'image/png':'image/jpeg'});
+            if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl);
+          }catch(e){}
+        }
         const base={job_id:x.j.id, tecnico_id:tid, fecha:x.fecha, tipo_reporte:'seguimiento',
           trabajo_realizado:(x.texto||'Fotos por WhatsApp').slice(0,1500),
-          notas:'Desde WhatsApp · '+(x.u?x.u.nombre:x.quien)+' · '+x.hora+(x.fotos?' · '+x.fotos+' foto(s) en el grupo':''), fotos:[]};
+          notas:'Desde WhatsApp · '+(x.u?x.u.nombre:x.quien)+' · '+x.hora+(x.fotos&&!fotos.length?' · '+x.fotos+' foto(s) en el grupo':''), fotos};
         let {error}=await sb.from('reportes').insert({...base, servicios:[], areas:[], material_removido:[], lecturas:[]});
         if(error) ({error}=await sb.from('reportes').insert(base));
         if(error) mal++; else nuevos++;
@@ -4421,6 +4450,27 @@ async function pegarWhatsApp(){
       cerrar(); render();
       toast(`${nuevos} reporte(s) guardados`+(ya?` · ${ya} ya estaban`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
     };
+  };
+  $('#wa_leer').onclick=()=>procesar($('#wa_t').value);
+  $('#wa_f').onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const est=$('#wa_est'); est.textContent='Leyendo '+f.name+'…';
+    try{
+      let texto='';
+      if(/\.zip$/i.test(f.name) || f.type.includes('zip')){
+        if(!window.JSZip) await new Promise((ok,no)=>{ const s=document.createElement('script');
+          s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=ok; s.onerror=no; document.head.appendChild(s); });
+        const z=await JSZip.loadAsync(f);
+        ARCH={};
+        const txt=Object.keys(z.files).find(n=>/\.txt$/i.test(n) && !z.files[n].dir);
+        Object.keys(z.files).forEach(n=>{ if(!z.files[n].dir) ARCH[n.split('/').pop()]=z.files[n]; });
+        if(!txt) throw new Error('El .zip no trae el chat (.txt).');
+        texto=await z.files[txt].async('string');
+        est.textContent=`Chat leído · ${Object.keys(ARCH).filter(n=>/\.(jpe?g|png|webp)$/i.test(n)).length} fotos en el archivo`;
+      } else { texto=await f.text(); ARCH={}; est.textContent='Chat leído (sin fotos)'; }
+      await procesar(texto);
+    }catch(err){ est.textContent='No se pudo leer: '+(err.message||err); }
+    e.target.value='';
   };
 }
 
@@ -6404,7 +6454,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v218 · Pegar reportes de WhatsApp</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v219 · Subir chat exportado de WhatsApp</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
