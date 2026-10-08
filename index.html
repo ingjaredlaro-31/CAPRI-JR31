@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="217">
+<meta name="app-version" content="218">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1386,6 +1386,14 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .mx-fb b{font-size:15px}
 .mx-fb ul{margin:7px 0 0;padding-left:18px;font-size:14px;line-height:1.45}
 .mx-fbt{display:flex;justify-content:flex-end;gap:6px;margin-top:9px}
+.fl-wa{margin-left:auto;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.45);color:#5BE08F;border-radius:20px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.wa-m{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--linea)}
+.wa-m.si{background:linear-gradient(90deg,rgba(47,211,138,.06),transparent)}
+.wa-ck input{width:20px;height:20px;margin-top:2px}
+.wa-c{flex:1;min-width:0}
+.wa-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.wa-h span{font-size:12px;color:var(--gris)}
+.wa-tx{white-space:pre-wrap;font-size:13.5px;line-height:1.45;margin:4px 0 6px;max-height:120px;overflow:auto}
+.wa-c select{margin:0;font-size:13px}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
 .qb-nota{display:block;font-size:11px;color:var(--rojo);margin-top:4px;white-space:normal}
@@ -4305,6 +4313,117 @@ function engancharAjustes(){
   };
 }
 
+/* ==================== REPORTES DESDE WHATSAPP ====================
+   En WhatsApp Business de la compu: seleccionas los mensajes del grupo,
+   Ctrl+C, y los pegas aquí. La app reconoce quién lo mandó, a qué hora,
+   y a qué trabajo se refiere (por propiedad y unidad). Lo que confirmes
+   queda guardado como el reporte de ese día. */
+function waLeer(texto){
+  const L=String(texto||'').replace(/\r/g,'').split('\n');
+  // [10:15 a. m., 8/10/2026] Jesús Lozoya: texto   ·   8/10/26, 10:15 a. m. - Jesús Lozoya: texto
+  const R1=/^‎?\[(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?),?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\]\s*([^:]{1,60}):\s?(.*)$/i;
+  const R2=/^‎?\[?(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s*(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?)\]?\s*[-–]\s*([^:]{1,60}):\s?(.*)$/i;
+  const M=[]; let cur=null;
+  L.forEach(l=>{
+    let m=l.match(R1), hora, fecha, quien, txt;
+    if(m){ hora=m[1]; fecha=m[2]; quien=m[3]; txt=m[4]; }
+    else if((m=l.match(R2))){ fecha=m[1]; hora=m[2]; quien=m[3]; txt=m[4]; }
+    if(m){ cur={fechaTxt:fecha, hora:hora.replace(/\s+/g,' ').trim(), quien:quien.replace(/^~\s*/,'').trim(), texto:txt.trim()}; M.push(cur); }
+    else if(cur && l.trim()) cur.texto += '\n'+l.trim();
+  });
+  // Fechas: en español es día/mes. Si el segundo número pasa de 12, es mes/día.
+  M.forEach(x=>{
+    const [a,b,c]=x.fechaTxt.split('/').map(Number);
+    const y = c<100 ? 2000+c : c;
+    const f=(dd,mm)=>`${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+    // Si las dos lecturas son posibles, se queda la más cercana a hoy sin pasarse
+    const opc=[a<=12&&b<=31?f(b,a):null, b<=12&&a<=31?f(a,b):null].filter(Boolean);
+    const hh=hoy(), dist=s=>{ const d=dias(s,hh); return d<0 ? 9999-d : d; };
+    x.fecha = opc.sort((p,q)=>dist(p)-dist(q))[0] || f(a,b);
+    x.foto = /omitid|omitted|<adjunto|\.jpg|\.jpeg|\.png|imagen|image|video/i.test(x.texto);
+    x.texto = x.texto.replace(/[‎‏]/g,'').replace(/<?(multimedia omitid[oa]|media omitted|imagen omitida|image omitted|video omitido|video omitted)>?/gi,'').trim();
+  });
+  // Junta mensajes seguidos de la misma persona el mismo día
+  const G=[];
+  M.forEach(x=>{ const u=G[G.length-1];
+    if(u && u.quien===x.quien && u.fecha===x.fecha){ if(x.texto) u.texto+=(u.texto?'\n':'')+x.texto; u.fotos+=x.foto?1:0; }
+    else G.push({...x, fotos:x.foto?1:0}); });
+  return G.filter(x=>x.texto || x.fotos);
+}
+
+async function pegarWhatsApp(){
+  $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
+    <div><div class="mono" style="font-size:11px;color:#C3D6F7">WHATSAPP → JR31</div>
+    <div class="disp" style="font-size:21px;line-height:1.1">Pegar reportes del grupo</div></div>
+    <button class="x" id="c1">✕</button></div>
+    <div class="sheet-body">
+      <div class="ok">En WhatsApp Business de la compu, selecciona los mensajes del grupo (clic en la flechita de un mensaje → <b>Seleccionar</b>, y marca los demás), copia con <b>Ctrl+C</b> y pégalos aquí con <b>Ctrl+V</b>.</div>
+      <textarea id="wa_t" style="min-height:190px;font-size:13.5px" placeholder="[10:15 a. m., 8/10/2026] Jesús Lozoya: Avino 269 todo seco, quité 6 aires..."></textarea>
+      <div style="height:10px"></div>
+      <button class="btn wide" id="wa_leer">Leer mensajes</button>
+      <div id="wa_res"></div>
+    </div></div>`;
+  $('#c1').onclick=cerrar;
+  $('#wa_leer').onclick=async()=>{
+    const G=waLeer($('#wa_t').value);
+    if(!G.length) return toast('No encontré mensajes. Copia los mensajes con su fecha y hora, como salen en WhatsApp.');
+    const [{data:us},{data:js}] = await Promise.all([
+      sb.from('usuarios').select('id,nombre,rol').eq('activo',true),
+      sb.from('jobs').select('id,folio,cliente,unidad,departamento,estatus,invoice_num, propiedades(nombre)').eq('departamento',DEPV()==='cleaning'?'cleaning':'restoration').not('estatus','in','("facturado")').limit(500)
+    ]);
+    const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const US=us||[], JS=js||[];
+    const quienEs = n => { const t=norm(n).split(/\s+/).filter(w=>w.length>2);
+      let best=null, bs=0; US.forEach(u=>{ const un=norm(u.nombre); const s=t.filter(w=>un.includes(w)).length; if(s>bs){bs=s;best=u;} }); return best; };
+    const trabajoDe = txt => { const t=' '+norm(txt).replace(/[^a-z0-9#\- ]/g,' ')+' ';
+      let best=null, bs=0;
+      JS.forEach(j=>{ let s=0; const pn=norm(j.propiedades?.nombre||j.cliente);
+        const pal=pn.split(/\s+/).filter(w=>w.length>3 && !['apartments','apartment','apts','the','homes','villas'].includes(w));
+        if(pal.length && pal.some(w=>t.includes(' '+w))) s+=2;
+        const un=norm(j.unidad).trim();
+        if(un && new RegExp('[ #\\-]'+un.replace(/[-]/g,'\\-')+'[ ,.]').test(t)) s+=3;
+        if(j.folio && t.includes(norm(j.folio))) s+=5;
+        if(s>bs){ bs=s; best=j; } });
+      return bs>=3 ? best : null; };
+    G.forEach(x=>{ x.u=quienEs(x.quien); x.j=trabajoDe(x.texto); });
+    const opJ = sel => `<option value="">— no es reporte de un trabajo —</option>`+JS.map(j=>`<option value="${j.id}" ${sel&&sel.id===j.id?'selected':''}>${esc((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · '+j.unidad:'')+' · '+(j.folio||''))}</option>`).join('');
+    const ok=G.filter(x=>x.j).length;
+    $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} mensajes · ${ok} reconocidos</div>
+      ${G.map((x,i)=>`<div class="wa-m ${x.j?'si':''}">
+        <label class="wa-ck"><input type="checkbox" data-wa="${i}" ${x.j?'checked':''}></label>
+        <div class="wa-c">
+          <div class="wa-h"><b>${esc(x.u?x.u.nombre:x.quien)}</b>${!x.u?'<span class="chip ambar">NO ESTÁ EN PERSONAL</span>':''}<span>${fmt(x.fecha)} · ${esc(x.hora)}${x.fotos?' · 📷 '+x.fotos:''}</span></div>
+          <div class="wa-tx">${esc(x.texto||'(solo fotos)')}</div>
+          <select data-waj="${i}">${opJ(x.j)}</select>
+        </div></div>`).join('')}
+      <div style="height:12px"></div>
+      <button class="btn wide" id="wa_ok">Guardar como reportes</button>
+      <div class="sub" style="margin-top:8px">Si ya hay un reporte de ese técnico en ese trabajo ese día, no se duplica. Las fotos no se copian desde WhatsApp; esas se suben aparte.</div>`;
+    document.querySelectorAll('[data-waj]').forEach(s=>s.onchange=()=>{ const i=+s.dataset.waj; G[i].j=JS.find(j=>j.id===s.value)||null;
+      const c=document.querySelector(`[data-wa="${i}"]`); if(c) c.checked=!!G[i].j; });
+    $('#wa_ok').onclick=async()=>{
+      const sel=G.filter((x,i)=>document.querySelector(`[data-wa="${i}"]`)?.checked && x.j);
+      if(!sel.length) return toast('Marca al menos un mensaje con su trabajo.');
+      let nuevos=0, ya=0, mal=0;
+      for(const x of sel){
+        const tid=x.u?x.u.id:null;
+        let q=sb.from('reportes').select('id',{count:'exact',head:true}).eq('job_id',x.j.id).eq('fecha',x.fecha);
+        if(tid) q=q.eq('tecnico_id',tid);
+        const {count}=await q;
+        if(count){ ya++; continue; }
+        const base={job_id:x.j.id, tecnico_id:tid, fecha:x.fecha, tipo_reporte:'seguimiento',
+          trabajo_realizado:(x.texto||'Fotos por WhatsApp').slice(0,1500),
+          notas:'Desde WhatsApp · '+(x.u?x.u.nombre:x.quien)+' · '+x.hora+(x.fotos?' · '+x.fotos+' foto(s) en el grupo':''), fotos:[]};
+        let {error}=await sb.from('reportes').insert({...base, servicios:[], areas:[], material_removido:[], lecturas:[]});
+        if(error) ({error}=await sb.from('reportes').insert(base));
+        if(error) mal++; else nuevos++;
+      }
+      cerrar(); render();
+      toast(`${nuevos} reporte(s) guardados`+(ya?` · ${ya} ya estaban`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
+    };
+  };
+}
+
 function arrancarVigia(){
   chatArrancar();
   if(VIGIA) clearInterval(VIGIA);
@@ -6285,7 +6404,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v217 · Mascota: pendientes y recordatorios a oficina</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v218 · Pegar reportes de WhatsApp</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -8034,7 +8153,7 @@ async function vControl(){
         <div class="stat" style="flex:1"><div class="l">ESTIMADOS</div><div class="v">${E.length}</div></div>
       </div>
       <div class="cols">
-        <div><div class="eyebrow">Por hacer · ${A.length}</div>${bloqueHacer}</div>
+        <div><div class="eyebrow">Por hacer · ${A.length}</div><button class="btn ghost wide no-print" id="btn_wa" style="margin-bottom:12px">💬 Pegar reportes de WhatsApp</button>${bloqueHacer}</div>
         <div><div class="eyebrow">Por revisar · ${revisar.length}</div>${bloqueRevisar}</div>
         <div><div class="eyebrow">Contratistas</div>${bloqueCon}
              <div class="eyebrow">Estimados enviados</div>${bloqueEst}</div>
@@ -12026,7 +12145,7 @@ async function vHome(){
 
   return `
     ${selectorDep()}
-    <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span></div>
+    <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span><button class="fl-wa no-print" id="btn_wa">💬 Pegar reportes de WhatsApp</button></div>
 
     <section class="mx-fila">
       <div class="mx-asis">
@@ -16971,6 +17090,7 @@ function accionGlobal(e){
   if(idEl('lev')){ e.preventDefault(); cerrar(); return levantamientoInicial(); }
   if(idEl('miruta')){ e.preventDefault(); return rutaDelTecnico(); }
   if(idEl('btn_brief')){ e.preventDefault(); return resumenDiario(false); }
+  if(idEl('btn_wa')){ e.preventDefault(); return pegarWhatsApp(); }
   if(idEl('ck_in')){ e.preventDefault(); return checar('entrada'); }
   if(idEl('ck_out')){ e.preventDefault(); return checar('salida'); }
   if(idEl('ckc_in')){ e.preventDefault(); return checarC('entrada'); }
