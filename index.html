@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="226">
+<meta name="app-version" content="227">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -4455,15 +4455,49 @@ async function waCarpetPreparar(G){
     x.serv = sv.length?sv:['Carpet cleaning'];
     x.trabajo = L.slice(x.lugarTxt?1:0).join(' · ');
     const nu=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    x.dup = YA.some(j=>j.fecha_inicio===x.fecha && nu(j.unidad)===nu(x.unidad) && (x.prop ? j.propiedad_id===x.prop.id : norm(j.cliente)===norm(x.lugarTxt)));
+    const dj = YA.find(j=>j.fecha_inicio===x.fecha && nu(j.unidad)===nu(x.unidad) && (x.prop ? j.propiedad_id===x.prop.id : norm(j.cliente)===norm(x.lugarTxt)));
+    x.dup = !!dj; x.dupId = dj ? dj.id : null;
+    const nFot = (x.adj||[]).filter(n=>/\.(jpe?g|png|webp)$/i.test(n)).length + (x.fotosUrl||[]).length;
+    x.soloFotos = x.dup && nFot>0;   // ya está en la app: solo se le agregan las fotos
     x.ok = !!x.unidad && !x.dup && (x.prop || x.lugarTxt);
   });
+  // Solo se le agregan fotos a los que ya están y todavía no tienen ninguna (para no repetirlas)
+  const dupIds=[...new Set(G.filter(x=>x.soloFotos).map(x=>x.dupId))];
+  if(dupIds.length){
+    const {data:rf}=await sb.from('reportes').select('job_id,fotos').in('job_id',dupIds);
+    const conFotos=new Set((rf||[]).filter(r=>(r.fotos||[]).length).map(r=>r.job_id));
+    G.forEach(x=>{ if(x.soloFotos && conFotos.has(x.dupId)) x.soloFotos=false; });
+  }
   return {PR, MG};
 }
 /* Mete a la app los trabajos de Carpet ya revisados. Regresa cuántos entraron. */
 async function waCarpetGuardar(sel, ARCH, MG){
-  let nuevos=0, mal=0, sinUnidad=0; const ids=[];
+  let nuevos=0, mal=0, sinUnidad=0, fotosAgregadas=0; const ids=[];
   for(const x of sel){
+    if(x.soloFotos && x.dupId){
+      const fotos=(x.fotosUrl||[]).slice();
+      for(const n of (x.adj||[])){
+        const f=ARCH&&(ARCH[n]||ARCH[Object.keys(ARCH).find(k=>k.endsWith(n))||'']);
+        if(!f || !/\.(jpe?g|png|webp)$/i.test(n)) continue;
+        try{ const blob=await f.async('blob'); const ruta=`carpet/${x.fecha}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+          const {error:eu}=await sb.storage.from('capri').upload(ruta, blob, {contentType:'image/jpeg'});
+          if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl); }catch(e){}
+      }
+      if(!fotos.length){ mal++; ids.push(null); continue; }
+      const {data:rs}=await sb.from('reportes').select('id,fotos').eq('job_id',x.dupId).order('fecha').limit(1);
+      const r0=(rs||[])[0];
+      let er;
+      if(r0){
+        const ya=new Set(r0.fotos||[]);
+        ({error:er}=await sb.from('reportes').update({fotos:[...(r0.fotos||[]), ...fotos.filter(u=>!ya.has(u))]}).eq('id',r0.id));
+      } else {
+        const base={job_id:x.dupId, tecnico_id:null, fecha:x.fecha, tipo_reporte:'inicial', trabajo_realizado:x.serv.join(' · '), notas:x.texto, fotos, servicios:x.serv};
+        ({error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]}));
+        if(er) ({error:er}=await sb.from('reportes').insert(base));
+      }
+      if(er){ mal++; ids.push(null); continue; }
+      fotosAgregadas=(fotosAgregadas||0)+fotos.length; ids.push(x.dupId); continue;
+    }
     if(!x.unidad){ sinUnidad++; ids.push(null); continue; }
     const pr=x.prop;
     const folio=await nuevoFolio('cleaning');
@@ -4490,16 +4524,16 @@ async function waCarpetGuardar(sel, ARCH, MG){
     if(er) ({error:er}=await sb.from('reportes').insert(base));
     nuevos++; ids.push(j.id);
   }
-  return {nuevos, mal, sinUnidad, ids};
+  return {nuevos, mal, sinUnidad, ids, fotosAgregadas};
 }
 async function waCarpet(G, ARCH){
   const {PR, MG} = await waCarpetPreparar(G);
   const opP = sel => `<option value="">— otra: escribir abajo —</option>`+PR.map(p=>`<option value="${p.id}" ${sel&&sel.id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('');
-  $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} trabajos · ${G.filter(x=>x.ok).length} listos para entrar</div>
+  $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} trabajos · ${G.filter(x=>x.ok).length} listos para entrar${G.some(x=>x.soloFotos)?` · ${G.filter(x=>x.soloFotos).length} ya están y les faltan fotos`:''}</div>
     ${G.map((x,i)=>`<div class="wa-m ${x.ok?'si':''}">
-      <label class="wa-ck"><input type="checkbox" data-wc="${i}" ${x.ok?'checked':''}></label>
+      <label class="wa-ck"><input type="checkbox" data-wc="${i}" ${x.ok||x.soloFotos?'checked':''}></label>
       <div class="wa-c">
-        <div class="wa-h"><b>${esc(x.quien)}</b>${x.dup?'<span class="chip azul">YA ESTÁ EN LA APP</span>':''}<span>${fmt(x.fecha)} · ${esc(x.hora)}${x.fotos?' · 📷 '+x.fotos:''}</span></div>
+        <div class="wa-h"><b>${esc(x.quien)}</b>${x.soloFotos?'<span class="chip azul">YA ESTÁ · SE LE AGREGAN LAS FOTOS</span>':x.dup?'<span class="chip azul">YA ESTÁ EN LA APP</span>':''}<span>${fmt(x.fecha)} · ${esc(x.hora)}${x.fotos?' · 📷 '+x.fotos:''}</span></div>
         <div class="wa-tx">${esc(x.texto)}</div>
         <div class="wa-sel"><select data-wcp="${i}">${opP(x.prop)}</select><input data-wcu="${i}" value="${esc(x.unidad)}" placeholder="Unidad" style="margin:0"></div>
         ${!x.prop?`<input data-wcl="${i}" value="${esc(x.lugarTxt)}" placeholder="Propiedad o cliente" style="margin:6px 0 0">`:''}
@@ -4514,9 +4548,9 @@ async function waCarpet(G, ARCH){
     const sel=G.filter((x,i)=>document.querySelector(`[data-wc="${i}"]`)?.checked);
     if(!sel.length) return toast('Marca al menos un trabajo.');
     const b=$('#wa_cok'); b.disabled=true; b.textContent='Guardando…';
-    const {nuevos, mal, sinUnidad} = await waCarpetGuardar(sel, ARCH, MG);
+    const {nuevos, mal, sinUnidad, fotosAgregadas} = await waCarpetGuardar(sel, ARCH, MG);
     cerrar(); render();
-    toast(`${nuevos} trabajo(s) de Carpet agregados`+(sinUnidad?` · ${sinUnidad} sin unidad`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
+    toast(`${nuevos} trabajo(s) de Carpet agregados`+(fotosAgregadas?` · ${fotosAgregadas} foto(s) agregadas a trabajos que ya estaban`:'')+(sinUnidad?` · ${sinUnidad} sin unidad`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
   };
 }
 
@@ -6644,7 +6678,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v226 · Carpet Division entra solo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v227 · Fotos del chat a trabajos que ya están</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
