@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="222">
+<meta name="app-version" content="224">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -3897,7 +3897,7 @@ async function pendientesOficina(){
       sb.from('jobs').select('id',{count:'exact',head:true}).eq('departamento','cleaning').is('invoice_num',null),
       sb.from('jobs').select('id',{count:'exact',head:true}).eq('departamento','cleaning').eq('invoice_revision','corregir')
     ]);
-    if(hora>=13 && !hoyN) P.push('Todavía no capturas los reportes de Carpet de hoy.');
+    if(hora>=12 && !hoyN) P.push('Todavía no traes los trabajos de Carpet de hoy. En Carpet toca Traer trabajos de WhatsApp, sube el chat de Carpet Division, haz el reporte fotográfico y factura.');
     if(sinPrecio) P.push(`Tienes ${pl(sinPrecio,'trabajo de Carpet sin precio','trabajos de Carpet sin precio')}.`);
     if(corregir) P.push(`Jared marcó ${pl(corregir,'factura para corregir','facturas para corregir')}.`);
   }
@@ -6591,7 +6591,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v222 · Reportes de WhatsApp por área</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v224 · Reporte fotográfico Carpet</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -14678,6 +14678,13 @@ async function abrirReporteCarpet(id){
       ${notas.length?`<div class="eyebrow">Notas</div><p style="white-space:pre-wrap;line-height:1.6;margin-top:0">${esc(notas.join('\n\n'))}</p>`:''}
       ${fotos.length?`<div class="eyebrow">Fotos · ${fotos.length}</div>${galeriaHTML(fotos)}`:''}
 
+      ${FACT_CARPET()||fotos.length?`<div class="eyebrow">Reporte fotográfico</div>
+      <div class="g2 no-print">
+        ${FACT_CARPET()?`<label class="btn ghost wide" style="text-align:center;cursor:pointer">📷 Agregar fotos<input type="file" id="rc_fot" accept="image/*" multiple hidden></label>`:'<span></span>'}
+        <button class="btn wide" id="rc_foto" ${fotos.length?'':'disabled'}>📄 Hacer reporte fotográfico</button>
+      </div>
+      ${fotos.length?'':'<div class="sub" style="margin-top:6px">Sube las fotos que mandó el técnico al grupo para poder hacer el reporte.</div>'}`:''}
+
       <div class="eyebrow">Factura</div>
       ${j.invoice_num?`<table class="frm">
           <tr><td class="k">INVOICE</td><td class="v">#${esc(j.invoice_num)} · ${fmt((j.invoice_fecha||'').slice(0,10))}</td></tr>
@@ -14698,6 +14705,84 @@ async function abrirReporteCarpet(id){
   const pd=$('#rc_pdf'); if(pd) pd.onclick=()=>facturaPDF(j,{num:j.invoice_num, fecha:j.invoice_fecha, po:j.po_number, tax:j.invoice_tax||0, notas:j.invoice_notas||'', renglones:RG});
   const pg=$('#rc_pag'); if(pg) pg.onclick=async()=>{ await marcarPagada(id); abrirReporteCarpet(id); };
   const rv=$('#rc_rev'); if(rv) rv.onclick=()=>revisarInvoice(id);
+  const rf=$('#rc_foto'); if(rf) rf.onclick=()=>reporteFotoCarpet(j,R,tec);
+  const ad=$('#rc_fot'); if(ad) ad.onchange=async e=>{
+    const fs=[...e.target.files]; if(!fs.length) return;
+    toast('Subiendo '+fs.length+' foto(s)…');
+    const nuevas=[];
+    for(const f of fs){
+      const n=`carpet/${hoy()}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+      const {error}=await sb.storage.from('capri').upload(n,f,{contentType:f.type||'image/jpeg'});
+      if(!error) nuevas.push(sb.storage.from('capri').getPublicUrl(n).data.publicUrl);
+    }
+    if(!nuevas.length) return toast('No se pudieron subir las fotos.');
+    let er;
+    if(R[0]) ({error:er}=await sb.from('reportes').update({fotos:[...(R[0].fotos||[]),...nuevas]}).eq('id',R[0].id));
+    else {
+      const base={job_id:id, tecnico_id:null, fecha:(j.fecha_inicio||hoy()).slice(0,10), tipo_reporte:'inicial',
+        trabajo_realizado:(j.servicios_carpet||[]).join(' · ')||null, notas:null, fotos:nuevas, servicios:j.servicios_carpet||[]};
+      ({error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]}));
+      if(er) ({error:er}=await sb.from('reportes').insert(base));
+    }
+    if(er) return alert('Las fotos se subieron pero no se guardaron en el reporte:\n\n'+er.message);
+    toast(nuevas.length+' foto(s) agregadas');
+    abrirReporteCarpet(id);
+  };
+}
+
+/* Reporte fotográfico de Carpet: hoja para el cliente con los datos del trabajo y las fotos.
+   Oficina lo hace desde los reportes que mandan los técnicos al grupo y después factura. */
+function reporteFotoCarpet(j, R, tec){
+  const E=s=>esc(s==null?'':String(s));
+  const U_=f=>typeof f==='string'?f:(f&&(f.u||f.url))||'';
+  const fotos=R.flatMap(r=>r.fotos||[]).map(U_).filter(Boolean);
+  if(!fotos.length) return toast('Este trabajo no tiene fotos.');
+  const serv=[...new Set([...(j.servicios_carpet||[]), ...R.flatMap(r=>r.servicios||[])])];
+  const notas=R.map(r=>r.notas).filter(Boolean).join('\n\n');
+  const nom=j.propiedades?.nombre||j.cliente||'';
+  const fe=(R[0]?.fecha||j.fecha_inicio||'').slice(0,10);
+  const Fc=s=>{ if(!s) return '—'; return new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); };
+  const doc=`<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Photo Report · ${E(nom)}${j.unidad?' Unit '+E(j.unidad):''}</title><style>
+  @page{size:letter;margin:14mm}
+  body{font-family:Arial,Helvetica,sans-serif;color:#14181F;font-size:10.5pt;margin:0}
+  .memb{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #14181F;padding-bottom:8px;margin-bottom:14px}
+  .memb-n{font-size:14pt;font-weight:800;letter-spacing:.04em}.memb-s{font-size:7.5pt;letter-spacing:.09em;color:#4A5462;text-transform:uppercase}
+  .memb-r{font-size:8pt;text-align:right;color:#4A5462;line-height:1.55}
+  h1{font-size:20pt;margin:0 0 10px}
+  .dat{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-bottom:12px;background:#F3F6FA;padding:10px 12px;border-radius:6px}
+  .dat span{display:block;font-size:7.5pt;color:#5A6B85;text-transform:uppercase;letter-spacing:.08em}.dat b{font-size:10.5pt}
+  ul{margin:4px 0 10px 18px;padding:0}.k{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6B85;margin-top:8px}
+  .nt{white-space:pre-wrap;margin:4px 0 10px}
+  .gal{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  figure{margin:0;break-inside:avoid;page-break-inside:avoid;border:1px solid #DDE3EC;border-radius:6px;overflow:hidden}
+  figure img{width:100%;height:300px;object-fit:cover;display:block;background:#EEF2F7}
+  figcaption{font-size:8pt;color:#5A6B85;padding:4px 8px}
+  .pie{margin-top:16px;border-top:1px solid #DDE3EC;padding-top:6px;font-size:8pt;color:#5A6B85;text-align:center}
+  .noimp{position:fixed;bottom:16px;right:12px;padding:10px 16px;font-size:14px;font-weight:700;border:0;border-radius:8px;background:#2E8BFF;color:#fff;cursor:pointer}
+  @media print{.noimp{display:none}}
+</style></head><body>
+<button class="noimp" onclick="window.print()">Guardar como PDF</button>
+<div class="memb"><div><div class="memb-n">${E(CAPRI.nombre)}</div><div class="memb-s">Carpet Department</div></div>
+  <div class="memb-r">${E(CAPRI.tel)} &nbsp;·&nbsp; ${E(CAPRI.tel2)}<br>${E(CAPRI.mail)}<br>${E(CAPRI.zona)}</div></div>
+<h1>Photo Report</h1>
+<div class="dat">
+  <div><span>Property</span><b>${E(nom)}${j.unidad?' · Unit '+E(j.unidad):''}</b></div>
+  <div><span>Date of service</span><b>${Fc(fe)}</b></div>
+  <div><span>Management</span><b>${E(j.managements?.nombre||'—')}</b></div>
+  <div><span>Job</span><b>${E(j.folio||'—')}</b></div>
+  <div><span>Address</span><b>${E([j.direccion||j.propiedades?.direccion,j.ciudad,j.zip].filter(Boolean).join(', ')||'—')}</b></div>
+  <div><span>Technician</span><b>${E(tec&&tec!=='—'?tec:'Capri team')}</b></div>
+</div>
+${serv.length?`<div class="k">Work performed</div><ul>${serv.map(s=>`<li>${E(s)}</li>`).join('')}</ul>`:''}
+${notas?`<div class="k">Notes</div><div class="nt">${E(notas)}</div>`:''}
+<div class="k">Photos · ${fotos.length}</div>
+<div class="gal">${fotos.map((u,i)=>`<figure><img src="${E(u)}" loading="eager"><figcaption>Photo ${i+1}</figcaption></figure>`).join('')}</div>
+<div class="pie">Capri Restoration Services Inc · Carpet Department · San Diego, CA</div>
+</body></html>`;
+  const w=window.open('','_blank');
+  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
+  w.document.write(doc); w.document.close();
 }
 
 async function abrirJob(id){
