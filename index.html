@@ -14730,55 +14730,107 @@ async function abrirReporteCarpet(id){
   };
 }
 
-/* Reporte fotográfico de Carpet: hoja para el cliente con los datos del trabajo y las fotos.
-   Oficina lo hace desde los reportes que mandan los técnicos al grupo y después factura. */
+/* Reporte fotográfico de Carpet: documento para el cliente con logo, datos de Capri,
+   datos del trabajo, lo que mandó el técnico y las fotos del grupo, todas del mismo tamaño
+   (6 por hoja, 2 columnas x 3 renglones). Oficina lo hace y después factura. */
 function reporteFotoCarpet(j, R, tec){
   const E=s=>esc(s==null?'':String(s));
   const U_=f=>typeof f==='string'?f:(f&&(f.u||f.url))||'';
   const fotos=R.flatMap(r=>r.fotos||[]).map(U_).filter(Boolean);
   if(!fotos.length) return toast('Este trabajo no tiene fotos.');
-  const serv=[...new Set([...(j.servicios_carpet||[]), ...R.flatMap(r=>r.servicios||[])])];
-  const notas=R.map(r=>r.notas).filter(Boolean).join('\n\n');
+  let logo='';
+  try{ const v=getComputedStyle(document.documentElement).getPropertyValue('--logo')||'';
+       const m=v.match(/url\(["']?([^"')]+)["']?\)/); if(m) logo=m[1]; }catch(e){}
+  const serv=[...new Set([...(j.servicios_carpet||[]), ...R.flatMap(r=>r.servicios||[])])].filter(Boolean);
+  const texto=[...new Set([...R.map(r=>r.notas), j.scope].filter(Boolean).map(s=>String(s).replace(/\n\(\d+ foto\(s\) en el grupo\)$/,'').trim()))].join('\n\n');
   const nom=j.propiedades?.nombre||j.cliente||'';
+  const lugar=nom+(j.unidad?' · Unit '+j.unidad:'');
+  const dir=[j.direccion||j.propiedades?.direccion,j.ciudad,j.zip].filter(Boolean).join(', ');
   const fe=(R[0]?.fecha||j.fecha_inicio||'').slice(0,10);
-  const Fc=s=>{ if(!s) return '—'; return new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); };
+  const Fc=s=>{ if(!s) return '—'; return new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); };
+  const Fs=s=>{ if(!s) return '—'; return new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+  const todo=(texto+' '+(j.notas||'')).toLowerCase();
+  const estado=/vacant|vac[ií]a|vac[ií]o/.test(todo)?'Vacant':/occupied|ocupad/.test(todo)?'Occupied':'—';
+  const tecN=tec&&tec!=='—'?tec:'Capri carpet team';
+  const num=(j.folio||'CARPET')+'-PR';
+  const hoyS=new Date().toLocaleDateString('en-CA');
+  const resumen=`On ${Fc(fe)}, Capri Restoration Services Inc performed ${serv.length?serv.map(s=>s.toLowerCase()).join(', '):'carpet cleaning services'} at ${lugar||'the property'}${dir?' ('+dir+')':''}. The work was completed by ${tecN}. ${fotos.length} photo${fotos.length===1?'':'s'} taken on site are attached as evidence of the service.`;
+  const POR=6, hojas=[];
+  for(let i=0;i<fotos.length;i+=POR) hojas.push(fotos.slice(i,i+POR));
+  const cab=(sub)=>`<div class="memb">
+    ${logo?`<img class="lg" src="${logo}" alt="">`:''}
+    <div class="mt"><div class="memb-n">${E(CAPRI.nombre)}</div><div class="memb-s">${E(CAPRI.lema)}</div>
+      <div class="memb-c">${E(CAPRI.tel)} · ${E(CAPRI.tel2)} · ${E(CAPRI.tel3)} · ${E(CAPRI.mail)} · ${E(CAPRI.zona)}</div></div>
+    <div class="mr"><div class="rn">${E(sub)}</div><div>${E(num)}</div></div></div>`;
+  const pie=(n,t)=>`<div class="pie"><span>${E(CAPRI.nombre)} · Carpet Department</span><span>${E(lugar)}</span><span>Page ${n} of ${t}</span></div>`;
+  const T=1+hojas.length;
   const doc=`<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>Photo Report · ${E(nom)}${j.unidad?' Unit '+E(j.unidad):''}</title><style>
-  @page{size:letter;margin:14mm}
-  body{font-family:Arial,Helvetica,sans-serif;color:#14181F;font-size:10.5pt;margin:0}
-  .memb{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #14181F;padding-bottom:8px;margin-bottom:14px}
-  .memb-n{font-size:14pt;font-weight:800;letter-spacing:.04em}.memb-s{font-size:7.5pt;letter-spacing:.09em;color:#4A5462;text-transform:uppercase}
-  .memb-r{font-size:8pt;text-align:right;color:#4A5462;line-height:1.55}
-  h1{font-size:20pt;margin:0 0 10px}
-  .dat{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-bottom:12px;background:#F3F6FA;padding:10px 12px;border-radius:6px}
-  .dat span{display:block;font-size:7.5pt;color:#5A6B85;text-transform:uppercase;letter-spacing:.08em}.dat b{font-size:10.5pt}
-  ul{margin:4px 0 10px 18px;padding:0}.k{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6B85;margin-top:8px}
-  .nt{white-space:pre-wrap;margin:4px 0 10px}
-  .gal{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-  figure{margin:0;break-inside:avoid;page-break-inside:avoid;border:1px solid #DDE3EC;border-radius:6px;overflow:hidden}
-  figure img{width:100%;height:300px;object-fit:cover;display:block;background:#EEF2F7}
-  figcaption{font-size:8pt;color:#5A6B85;padding:4px 8px}
-  .pie{margin-top:16px;border-top:1px solid #DDE3EC;padding-top:6px;font-size:8pt;color:#5A6B85;text-align:center}
-  .noimp{position:fixed;bottom:16px;right:12px;padding:10px 16px;font-size:14px;font-weight:700;border:0;border-radius:8px;background:#2E8BFF;color:#fff;cursor:pointer}
-  @media print{.noimp{display:none}}
+<title>Photo Report · ${E(lugar)} · ${E(Fs(fe))}</title><style>
+  @page{size:letter;margin:0}
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;color:#14181F;font-size:10pt;margin:0;background:#E9EDF2}
+  .hoja{width:215.9mm;height:279.4mm;padding:12mm 13mm 10mm;background:#fff;margin:0 auto 8mm;position:relative;display:flex;flex-direction:column;overflow:hidden;page-break-after:always;break-after:page}
+  .hoja:last-child{page-break-after:auto;break-after:auto}
+  .memb{display:flex;align-items:center;gap:12px;border-bottom:3px solid #C9A227;padding-bottom:8px;margin-bottom:10px}
+  .lg{width:20mm;height:20mm;object-fit:contain}
+  .mt{flex:1}.memb-n{font-size:14pt;font-weight:800;letter-spacing:.03em;color:#0E1726}
+  .memb-s{font-size:7.5pt;letter-spacing:.06em;color:#8A6D12;text-transform:uppercase;margin-top:1px}
+  .memb-c{font-size:7.5pt;color:#4A5462;margin-top:3px}
+  .mr{text-align:right;font-size:8pt;color:#4A5462}.rn{font-size:11pt;font-weight:800;color:#0E1726;text-transform:uppercase;letter-spacing:.04em}
+  h1{font-size:22pt;margin:6px 0 2px;color:#0E1726}.h1s{color:#5A6B85;margin-bottom:12px;font-size:10.5pt}
+  .dat{display:grid;grid-template-columns:1fr 1fr;border:1px solid #DDE3EC;border-radius:6px;overflow:hidden;margin-bottom:12px}
+  .dat div{padding:7px 10px;border-bottom:1px solid #EEF1F5}.dat div:nth-child(odd){border-right:1px solid #EEF1F5}
+  .dat span{display:block;font-size:7pt;color:#5A6B85;text-transform:uppercase;letter-spacing:.08em}.dat b{font-size:10pt}
+  .k{font-size:8pt;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#0E1726;background:#F3F6FA;border-left:3px solid #C9A227;padding:5px 8px;margin:12px 0 6px}
+  table.sv{width:100%;border-collapse:collapse}table.sv td{border-bottom:1px solid #EEF1F5;padding:6px 8px}table.sv td.c{width:24px;color:#1E9E5A;font-weight:800}
+  .nt{white-space:pre-wrap;line-height:1.5;padding:2px 8px}
+  .res{line-height:1.6;padding:2px 8px}
+  .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+  .mini img{width:100%;height:26mm;object-fit:cover;border-radius:3px;background:#EEF2F7}
+  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:20mm;margin-top:auto;padding-top:10mm}
+  .firmas div{border-top:1px solid #14181F;padding-top:4px;font-size:8pt;color:#4A5462}
+  .gal{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:5mm;min-height:0}
+  figure{margin:0;display:flex;flex-direction:column;border:1px solid #DDE3EC;border-radius:5px;overflow:hidden;min-height:0}
+  figure .im{flex:1;min-height:0;background:#EEF2F7}
+  figure img{width:100%;height:100%;object-fit:cover;display:block}
+  figcaption{font-size:7.5pt;color:#4A5462;padding:4px 7px;display:flex;justify-content:space-between;border-top:1px solid #EEF1F5}
+  figcaption b{color:#0E1726}
+  .pie{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #DDE3EC;padding-top:5px;margin-top:8px;font-size:7.5pt;color:#5A6B85}
+  .noimp{position:fixed;bottom:16px;right:16px;padding:12px 18px;font-size:15px;font-weight:700;border:0;border-radius:10px;background:#2E8BFF;color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  @media print{body{background:#fff}.hoja{margin:0}.noimp{display:none}}
 </style></head><body>
 <button class="noimp" onclick="window.print()">Guardar como PDF</button>
-<div class="memb"><div><div class="memb-n">${E(CAPRI.nombre)}</div><div class="memb-s">Carpet Department</div></div>
-  <div class="memb-r">${E(CAPRI.tel)} &nbsp;·&nbsp; ${E(CAPRI.tel2)}<br>${E(CAPRI.mail)}<br>${E(CAPRI.zona)}</div></div>
-<h1>Photo Report</h1>
-<div class="dat">
-  <div><span>Property</span><b>${E(nom)}${j.unidad?' · Unit '+E(j.unidad):''}</b></div>
-  <div><span>Date of service</span><b>${Fc(fe)}</b></div>
-  <div><span>Management</span><b>${E(j.managements?.nombre||'—')}</b></div>
-  <div><span>Job</span><b>${E(j.folio||'—')}</b></div>
-  <div><span>Address</span><b>${E([j.direccion||j.propiedades?.direccion,j.ciudad,j.zip].filter(Boolean).join(', ')||'—')}</b></div>
-  <div><span>Technician</span><b>${E(tec&&tec!=='—'?tec:'Capri team')}</b></div>
-</div>
-${serv.length?`<div class="k">Work performed</div><ul>${serv.map(s=>`<li>${E(s)}</li>`).join('')}</ul>`:''}
-${notas?`<div class="k">Notes</div><div class="nt">${E(notas)}</div>`:''}
-<div class="k">Photos · ${fotos.length}</div>
-<div class="gal">${fotos.map((u,i)=>`<figure><img src="${E(u)}" loading="eager"><figcaption>Photo ${i+1}</figcaption></figure>`).join('')}</div>
-<div class="pie">Capri Restoration Services Inc · Carpet Department · San Diego, CA</div>
+<section class="hoja">
+  ${cab('Photo Report')}
+  <h1>Carpet Cleaning · Photo Report</h1>
+  <div class="h1s">${E(lugar)} · ${E(Fc(fe))}</div>
+  <div class="dat">
+    <div><span>Property</span><b>${E(nom||'—')}</b></div>
+    <div><span>Unit</span><b>${E(j.unidad||'—')}</b></div>
+    <div><span>Address</span><b>${E(dir||'—')}</b></div>
+    <div><span>Management company</span><b>${E(j.managements?.nombre||'—')}</b></div>
+    <div><span>Date of service</span><b>${E(Fs(fe))}</b></div>
+    <div><span>Unit status</span><b>${E(estado)}</b></div>
+    <div><span>Technician</span><b>${E(tecN)}</b></div>
+    <div><span>Job number</span><b>${E(j.folio||'—')}</b></div>
+    <div><span>PO</span><b>${E(j.po_number||'—')}</b></div>
+    <div><span>Report date</span><b>${E(Fs(hoyS))}</b></div>
+  </div>
+  <div class="k">Summary</div>
+  <div class="res">${E(resumen)}</div>
+  <div class="k">Work performed</div>
+  ${serv.length?`<table class="sv">${serv.map(s=>`<tr><td class="c">✓</td><td>${E(s)}</td></tr>`).join('')}</table>`:'<div class="nt">Carpet cleaning</div>'}
+  ${texto?`<div class="k">Technician notes</div><div class="nt">${E(texto)}</div>`:''}
+  <div class="k">Photo evidence · ${fotos.length} photo${fotos.length===1?'':'s'}</div>
+  <div class="mini">${fotos.slice(0,4).map(u=>`<img src="${E(u)}">`).join('')}</div>
+  <div class="firmas"><div>Prepared by: ${E(U?.nombre||'Office')} · Capri Office</div><div>Received by (name / signature / date)</div></div>
+  ${pie(1,T)}
+</section>
+${hojas.map((g,k)=>`<section class="hoja">
+  ${cab('Photo Evidence')}
+  <div class="gal">${g.map((u,i)=>{ const n=k*POR+i+1; return `<figure><div class="im"><img src="${E(u)}"></div><figcaption><b>Photo ${n} of ${fotos.length}</b><span>${E(lugar)} · ${E(Fs(fe))}</span></figcaption></figure>`; }).join('')}</div>
+  ${pie(k+2,T)}
+</section>`).join('')}
 </body></html>`;
   const w=window.open('','_blank');
   if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
