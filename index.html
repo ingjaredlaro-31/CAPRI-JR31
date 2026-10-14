@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="219">
+<meta name="app-version" content="221">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1394,6 +1394,8 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .wa-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.wa-h span{font-size:12px;color:var(--gris)}
 .wa-tx{white-space:pre-wrap;font-size:13.5px;line-height:1.45;margin:4px 0 6px;max-height:120px;overflow:auto}
 .wa-c select{margin:0;font-size:13px}
+.wa-sel{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+@media(max-width:560px){.wa-sel{grid-template-columns:1fr}}
 .wa-sube{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:16px;border:2px dashed rgba(37,211,102,.55);border-radius:14px;background:rgba(37,211,102,.07);color:#5BE08F;font-weight:800;font-size:15px;cursor:pointer;text-transform:none;letter-spacing:0}
 .qb-e.bien{color:var(--verde);border-color:var(--verde);background:rgba(46,158,126,.12)}
 .qb-e.sr{color:#E0A526;border-color:#E0A526}
@@ -4319,7 +4321,8 @@ function engancharAjustes(){
    Ctrl+C, y los pegas aquí. La app reconoce quién lo mandó, a qué hora,
    y a qué trabajo se refiere (por propiedad y unidad). Lo que confirmes
    queda guardado como el reporte de ese día. */
-function waLeer(texto){
+function waLeer(texto, opc){
+  opc = opc || {};
   const L=String(texto||'').replace(/\r/g,'').split('\n');
   // [10:15 a. m., 8/10/2026] Jesús Lozoya: texto   ·   8/10/26, 10:15 a. m. - Jesús Lozoya: texto
   const R1=/^‎?\[(\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*(?:[ap]\.?\s?m\.?)?),?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\]\s*([^:]{1,60}):\s?(.*)$/i;
@@ -4348,6 +4351,22 @@ function waLeer(texto){
     x.texto = x.texto.replace(/[\u200e\u200f]/g,'').replace(/<(?:adjunto|attached):[^>]*>/gi,'').replace(/[\w\-]+\.(?:jpe?g|png|webp|heic|mp4|opus|pdf)\s*\((?:archivo adjunto|file attached)\)/gi,'')
       .replace(/<?(multimedia omitid[oa]|media omitted|imagen omitida|image omitted|video omitido|video omitted)>?/gi,'').trim();
   });
+  // Carpet: cada mensaje es un trabajo. Las fotos sueltas se pegan al trabajo
+  // de esa misma persona que va justo antes (o justo después si no hay).
+  if(opc.carpet){
+    const T=[]; const sueltas=[];
+    M.forEach((x,i)=>{ const it={...x, i, fotos:x.foto?Math.max(1,x.adj.length):0, adj:x.adj.slice()};
+      if(it.texto) T.push(it); else if(it.fotos) sueltas.push(it); });
+    // Cada foto suelta va con un mensaje de texto de esa persona ese día
+    sueltas.forEach(f=>{
+      const mismos=T.filter(t=>t.quien===f.quien && t.fecha===f.fecha);
+      if(!mismos.length) return;
+      // Los técnicos mandan primero las fotos y luego el texto del trabajo: se prefiere el siguiente texto
+      const dest=mismos.find(t=>t.i>f.i) || mismos.filter(t=>t.i<f.i).pop();
+      dest.fotos+=f.fotos; dest.adj=dest.adj.concat(f.adj);
+    });
+    return T;
+  }
   // Junta mensajes seguidos de la misma persona el mismo día
   const G=[];
   M.forEach(x=>{ const u=G[G.length-1];
@@ -4356,10 +4375,99 @@ function waLeer(texto){
   return G.filter(x=>x.texto || x.fotos);
 }
 
+/* Carpet: los trabajos que los técnicos mandan a "Carpet Division" entran
+   como trabajos de Carpet del día (falta precio), con su reporte y fotos. */
+async function waCarpet(G, ARCH){
+  const [{data:props},{data:mgs},{data:ya}] = await Promise.all([
+    sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip,lat,lng').order('nombre'),
+    sb.from('managements').select('id,nombre').order('nombre'),
+    sb.from('jobs').select('id,unidad,fecha_inicio,propiedad_id,cliente').eq('departamento','cleaning').gte('fecha_inicio',hace(60))
+  ]);
+  const PR=props||[], MG=mgs||[], YA=ya||[];
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const sinRuido=s=>norm(s).replace(/\b(the|apartments?|apts?|homes|villas|at|of)\b/g,'').replace(/\s+/g,' ').trim();
+  const propDe=lin=>{ const t=sinRuido(lin); if(!t) return null;
+    let best=null,bs=0; PR.forEach(p=>{ const n=sinRuido(p.nombre); if(!n) return;
+      const s = n===t?10 : (n.startsWith(t)||t.startsWith(n))?6 : (n.includes(t)||t.includes(n))?4 : 0;
+      if(s>bs){bs=s;best=p;} }); return bs>=4?best:null; };
+  G.forEach(x=>{
+    const L=x.texto.split('\n').map(s=>s.trim()).filter(Boolean);
+    const um=x.texto.match(/\b(?:ap(?:t|artment)?|unit|unidad|#)\.?\s*#?\s*([a-z0-9][\w-]*)/i);
+    x.unidad = um ? um[1].toUpperCase() : '';
+    x.lugarTxt = L[0] && !/^(ap|apt|unit|unidad|#)\b/i.test(L[0]) ? L[0] : '';
+    x.prop = propDe(x.lugarTxt);
+    x.estado = /vacant|vacia|vac[ií]o/i.test(x.texto) ? 'vacante' : /occupied|ocupad/i.test(x.texto) ? 'ocupada' : '';
+    const sv=[]; const t=x.texto.toLowerCase();
+    if(/carpet clean|limpieza de alfombra|shampoo|steam/.test(t)) sv.push('Carpet cleaning');
+    if(/\bpet\b|orina|urine|\buv\b|pet scan/.test(t)) sv.push('Pet odor treatment');
+    if(/stain|mancha/.test(t)) sv.push('Stain removal');
+    if(/tile|grout/.test(t)) sv.push('Tile and grout cleaning');
+    if(/upholster|sofa|couch|loveseat/.test(t)) sv.push('Upholstery cleaning');
+    if(/scrub/.test(t)) sv.push('Scrubber');
+    x.serv = sv.length?sv:['Carpet cleaning'];
+    x.trabajo = L.slice(x.lugarTxt?1:0).join(' · ');
+    const nu=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    x.dup = YA.some(j=>j.fecha_inicio===x.fecha && nu(j.unidad)===nu(x.unidad) && (x.prop ? j.propiedad_id===x.prop.id : norm(j.cliente)===norm(x.lugarTxt)));
+    x.ok = !!x.unidad && !x.dup && (x.prop || x.lugarTxt);
+  });
+  const opP = sel => `<option value="">— otra: escribir abajo —</option>`+PR.map(p=>`<option value="${p.id}" ${sel&&sel.id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('');
+  $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} trabajos · ${G.filter(x=>x.ok).length} listos para entrar</div>
+    ${G.map((x,i)=>`<div class="wa-m ${x.ok?'si':''}">
+      <label class="wa-ck"><input type="checkbox" data-wc="${i}" ${x.ok?'checked':''}></label>
+      <div class="wa-c">
+        <div class="wa-h"><b>${esc(x.quien)}</b>${x.dup?'<span class="chip azul">YA ESTÁ EN LA APP</span>':''}<span>${fmt(x.fecha)} · ${esc(x.hora)}${x.fotos?' · 📷 '+x.fotos:''}</span></div>
+        <div class="wa-tx">${esc(x.texto)}</div>
+        <div class="wa-sel"><select data-wcp="${i}">${opP(x.prop)}</select><input data-wcu="${i}" value="${esc(x.unidad)}" placeholder="Unidad" style="margin:0"></div>
+        ${!x.prop?`<input data-wcl="${i}" value="${esc(x.lugarTxt)}" placeholder="Propiedad o cliente" style="margin:6px 0 0">`:''}
+      </div></div>`).join('')}
+    <div style="height:12px"></div>
+    <button class="btn wide" id="wa_cok">Meter a la lista de Carpet del día</button>
+    <div class="sub" style="margin-top:8px">Cada uno entra como trabajo de Carpet con su fecha, técnico, lo que se hizo y sus fotos, y sale en "Falta precio" para que oficina lo facture. Los que ya están en la app no se duplican.</div>`;
+  document.querySelectorAll('[data-wcp]').forEach(s=>s.onchange=()=>{ G[+s.dataset.wcp].prop=PR.find(p=>p.id===s.value)||null; });
+  document.querySelectorAll('[data-wcu]').forEach(s=>s.oninput=()=>{ G[+s.dataset.wcu].unidad=s.value.trim(); });
+  document.querySelectorAll('[data-wcl]').forEach(s=>s.oninput=()=>{ G[+s.dataset.wcl].lugarTxt=s.value.trim(); });
+  $('#wa_cok').onclick=async()=>{
+    const sel=G.filter((x,i)=>document.querySelector(`[data-wc="${i}"]`)?.checked);
+    if(!sel.length) return toast('Marca al menos un trabajo.');
+    const b=$('#wa_cok'); b.disabled=true; b.textContent='Guardando…';
+    let nuevos=0, mal=0, sinUnidad=0;
+    for(const x of sel){
+      if(!x.unidad){ sinUnidad++; continue; }
+      const pr=x.prop;
+      const mg=pr?MG.find(m=>m.id===pr.management_id):null;
+      const folio=await nuevoFolio('cleaning');
+      const p={folio, departamento:'cleaning', tipo:(TIPOS.cleaning.find(t=>t.toLowerCase()===x.serv[0].toLowerCase())||'carpet cleaning'),
+        estatus:'terminado', origen: pr?'management':'particular', management_id: pr?pr.management_id:null, propiedad_id: pr?pr.id:null,
+        cliente: pr?pr.nombre:(x.lugarTxt||'Sin nombre'), direccion: pr?(pr.direccion||''):'', ciudad: pr?(pr.ciudad||'San Diego'):'San Diego', zip: pr?pr.zip:null,
+        unidad:x.unidad, tipo_propiedad: pr?'apartamento':'casa', fecha_inicio:x.fecha, fecha_cierre:x.fecha,
+        trabajo_especial:true, tecnico_id:null, lat: pr?pr.lat:null, lng: pr?pr.lng:null,
+        servicios_carpet:x.serv, scope:x.texto,
+        notas:'Desde WhatsApp (Carpet Division) · técnico: '+x.quien+' · '+x.hora};
+      const {data:j,error}=await sb.from('jobs').insert(p).select().single();
+      if(error){ mal++; continue; }
+      const fotos=[];
+      for(const n of (x.adj||[])){
+        const f=ARCH&&(ARCH[n]||ARCH[Object.keys(ARCH).find(k=>k.endsWith(n))||'']);
+        if(!f || !/\.(jpe?g|png|webp)$/i.test(n)) continue;
+        try{ const blob=await f.async('blob'); const ruta=`carpet/${x.fecha}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+          const {error:eu}=await sb.storage.from('capri').upload(ruta, blob, {contentType:'image/jpeg'});
+          if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl); }catch(e){}
+      }
+      const base={job_id:j.id, tecnico_id:null, fecha:x.fecha, tipo_reporte:'inicial', trabajo_realizado:x.serv.join(' · '),
+        notas:x.texto+(x.fotos&&!fotos.length?'\n('+x.fotos+' foto(s) en el grupo)':''), fotos, servicios:x.serv};
+      let {error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]});
+      if(er) ({error:er}=await sb.from('reportes').insert(base));
+      nuevos++;
+    }
+    cerrar(); render();
+    toast(`${nuevos} trabajo(s) de Carpet agregados`+(sinUnidad?` · ${sinUnidad} sin unidad`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
+  };
+}
+
 async function pegarWhatsApp(){
   $('#sheet').innerHTML=`<div class="sheet"><div class="sheet-head">
     <div><div class="mono" style="font-size:11px;color:#C3D6F7">WHATSAPP → JR31</div>
-    <div class="disp" style="font-size:21px;line-height:1.1">Pegar reportes del grupo</div></div>
+    <div class="disp" style="font-size:21px;line-height:1.1">${DEPV()==='cleaning'?'Traer trabajos de Carpet Division':'Pegar reportes del grupo'}</div></div>
     <button class="x" id="c1">✕</button></div>
     <div class="sheet-body">
       <div class="ok"><b>Exporta el chat del grupo desde el celular:</b><br>
@@ -4382,6 +4490,11 @@ async function pegarWhatsApp(){
   let ARCH={};   // fotos que vienen en el .zip: nombre → archivo
   const procesar=async(texto)=>{
     const dd=Number($('#wa_r').value)||7, desde=hace(dd-1);
+    if(DEPV()==='cleaning'){
+      const GC=waLeer(texto,{carpet:true}).filter(x=>dd>=9999 || x.fecha>=desde);
+      if(!GC.length) return toast('No encontré trabajos de esos días. Revisa el archivo o escoge más días.');
+      return waCarpet(GC, ARCH);
+    }
     const G=waLeer(texto).filter(x=>dd>=9999 || x.fecha>=desde);
     if(!G.length) return toast('No encontré mensajes de esos días. Revisa el archivo o escoge más días.');
     const [{data:us},{data:js}] = await Promise.all([
@@ -4392,17 +4505,22 @@ async function pegarWhatsApp(){
     const US=us||[], JS=js||[];
     const quienEs = n => { const t=norm(n).split(/\s+/).filter(w=>w.length>2);
       let best=null, bs=0; US.forEach(u=>{ const un=norm(u.nombre); const s=t.filter(w=>un.includes(w)).length; if(s>bs){bs=s;best=u;} }); return best; };
+    let TOK=new Set(), TOK2=new Set();
     const trabajoDe = txt => { const t=' '+norm(txt).replace(/[^a-z0-9#\- ]/g,' ')+' ';
+      // "1446O", "1446-O", "#1446 O" → 1446o
+      TOK=new Set(t.split(/\s+/).map(w=>w.replace(/[^a-z0-9]/g,'')).filter(Boolean));
+      const ws=t.split(/\s+/).filter(Boolean); TOK2=new Set(ws.slice(0,-1).map((w,i)=>(w+ws[i+1]).replace(/[^a-z0-9]/g,'')));
       let best=null, bs=0;
       JS.forEach(j=>{ let s=0; const pn=norm(j.propiedades?.nombre||j.cliente);
         const pal=pn.split(/\s+/).filter(w=>w.length>3 && !['apartments','apartment','apts','the','homes','villas'].includes(w));
         if(pal.length && pal.some(w=>t.includes(' '+w))) s+=2;
-        const un=norm(j.unidad).trim();
-        if(un && new RegExp('[ #\\-]'+un.replace(/[-]/g,'\\-')+'[ ,.]').test(t)) s+=3;
+        const un=norm(j.unidad).replace(/[^a-z0-9]/g,'');
+        if(un && (TOK.has(un) || TOK2.has(un))) s+=3;
         if(j.folio && t.includes(norm(j.folio))) s+=5;
         if(s>bs){ bs=s; best=j; } });
       return bs>=3 ? best : null; };
-    G.forEach(x=>{ x.u=quienEs(x.quien); x.j=trabajoDe(x.texto); });
+    const esScope = t => /scope of work|pre-?work requirements|moisture (inspection|remediation)|structural drying|property:\s*\S[\s\S]{0,80}unit:/i.test(t||'');
+    G.forEach(x=>{ x.u=quienEs(x.quien); x.j=trabajoDe(x.texto); x.tipo = esScope(x.texto) ? 'scope' : 'rep'; });
     const opJ = sel => `<option value="">— no es reporte de un trabajo —</option>`+JS.map(j=>`<option value="${j.id}" ${sel&&sel.id===j.id?'selected':''}>${esc((j.propiedades?.nombre||j.cliente||'')+(j.unidad?' · '+j.unidad:'')+' · '+(j.folio||''))}</option>`).join('');
     const ok=G.filter(x=>x.j).length;
     $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} mensajes · ${ok} reconocidos</div>
@@ -4411,11 +4529,13 @@ async function pegarWhatsApp(){
         <div class="wa-c">
           <div class="wa-h"><b>${esc(x.u?x.u.nombre:x.quien)}</b>${!x.u?'<span class="chip ambar">NO ESTÁ EN PERSONAL</span>':''}<span>${fmt(x.fecha)} · ${esc(x.hora)}${x.fotos?' · 📷 '+x.fotos:''}</span></div>
           <div class="wa-tx">${esc(x.texto||'(solo fotos)')}</div>
-          <select data-waj="${i}">${opJ(x.j)}</select>
+          <div class="wa-sel"><select data-waj="${i}">${opJ(x.j)}</select>
+          <select data-wat="${i}"><option value="rep" ${x.tipo==='rep'?'selected':''}>Guardar como reporte del día</option><option value="scope" ${x.tipo==='scope'?'selected':''}>Guardar como SCOPE OF WORK</option></select></div>
         </div></div>`).join('')}
       <div style="height:12px"></div>
       <button class="btn wide" id="wa_ok">Guardar como reportes</button>
       <div class="sub" style="margin-top:8px">Si ya hay un reporte de ese técnico en ese trabajo ese día, no se duplica. Las fotos no se copian desde WhatsApp; esas se suben aparte.</div>`;
+    document.querySelectorAll('[data-wat]').forEach(s=>s.onchange=()=>{ G[+s.dataset.wat].tipo=s.value; });
     document.querySelectorAll('[data-waj]').forEach(s=>s.onchange=()=>{ const i=+s.dataset.waj; G[i].j=JS.find(j=>j.id===s.value)||null;
       const c=document.querySelector(`[data-wa="${i}"]`); if(c) c.checked=!!G[i].j; });
     $('#wa_ok').onclick=async()=>{
@@ -4423,12 +4543,26 @@ async function pegarWhatsApp(){
       const sel=G.filter((x,i)=>document.querySelector(`[data-wa="${i}"]`)?.checked && x.j);
       if(!sel.length) return toast('Marca al menos un mensaje con su trabajo.');
       let nuevos=0, ya=0, mal=0;
+      let scopes=0;
       for(const x of sel){
         const tid=x.u?x.u.id:null;
+        if(x.tipo==='scope'){
+          // El scope va al trabajo; si ya tenía uno distinto, el anterior queda en comentarios
+          const {data:jj}=await sb.from('jobs').select('scope').eq('id',x.j.id).maybeSingle();
+          const viejo=(jj&&jj.scope)||'';
+          if(viejo.trim()!==x.texto.trim()){
+            if(viejo.trim()) try{ await sb.from('notas').insert({job_id:x.j.id, usuario_id:U.id, autor:U.nombre, texto:'Scope anterior (reemplazado desde WhatsApp):\n\n'+viejo}); }catch(e){}
+            const {error:es}=await sb.from('jobs').update({scope:x.texto}).eq('id',x.j.id);
+            if(es){ mal++; continue; }
+            scopes++;
+          } else ya++;
+          if(!(x.adj||[]).length) continue;
+        }
         let q=sb.from('reportes').select('id',{count:'exact',head:true}).eq('job_id',x.j.id).eq('fecha',x.fecha);
         if(tid) q=q.eq('tecnico_id',tid);
         const {count}=await q;
-        if(count){ ya++; continue; }
+        if(count && x.tipo!=='scope'){ ya++; continue; }
+        if(count && x.tipo==='scope') continue;
         // Fotos del .zip que pertenecen a este mensaje
         const fotos=[];
         for(const n of (x.adj||[])){
@@ -4440,15 +4574,15 @@ async function pegarWhatsApp(){
             if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl);
           }catch(e){}
         }
-        const base={job_id:x.j.id, tecnico_id:tid, fecha:x.fecha, tipo_reporte:'seguimiento',
-          trabajo_realizado:(x.texto||'Fotos por WhatsApp').slice(0,1500),
+        const base={job_id:x.j.id, tecnico_id:tid, fecha:x.fecha, tipo_reporte:x.tipo==='scope'?'inicial':'seguimiento',
+          trabajo_realizado:x.tipo==='scope'?'Inspección y scope of work (fotos por WhatsApp)':(x.texto||'Fotos por WhatsApp').slice(0,1500),
           notas:'Desde WhatsApp · '+(x.u?x.u.nombre:x.quien)+' · '+x.hora+(x.fotos&&!fotos.length?' · '+x.fotos+' foto(s) en el grupo':''), fotos};
         let {error}=await sb.from('reportes').insert({...base, servicios:[], areas:[], material_removido:[], lecturas:[]});
         if(error) ({error}=await sb.from('reportes').insert(base));
         if(error) mal++; else nuevos++;
       }
       cerrar(); render();
-      toast(`${nuevos} reporte(s) guardados`+(ya?` · ${ya} ya estaban`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
+      toast(`${nuevos} reporte(s) guardados`+(scopes?` · ${scopes} scope(s) of work`:'')+(ya?` · ${ya} ya estaban`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
     };
   };
   $('#wa_leer').onclick=()=>procesar($('#wa_t').value);
@@ -6454,7 +6588,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v219 · Subir chat exportado de WhatsApp</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v221 · Carpet desde WhatsApp</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -12445,7 +12579,7 @@ async function vHoyCarpet(){
       </div>
     </section>
 
-    ${FACT_CARPET()?`<button class="btn wide no-print" id="cp_new" style="margin-bottom:16px">🧽 + Reporte de Carpet nuevo</button>`:''}
+    ${FACT_CARPET()?`<div class="g2 no-print" style="margin-bottom:16px"><button class="btn wide" id="cp_new">🧽 + Reporte de Carpet nuevo</button><button class="btn ghost wide" id="btn_wa">💬 Traer trabajos de WhatsApp</button></div>`:''}
 
     <div class="eyebrow">🧹 ${CPFIL==='falta'?'Falta precio':CPFIL==='fact'?'Facturados':'Trabajos del día'} · ${(CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).length}</div>
     ${J.length ? (CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).map(fila).join('')
