@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="221">
+<meta name="app-version" content="222">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1387,6 +1387,9 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .mx-fb ul{margin:7px 0 0;padding-left:18px;font-size:14px;line-height:1.45}
 .mx-fbt{display:flex;justify-content:flex-end;gap:6px;margin-top:9px}
 .fl-wa{margin-left:auto;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.45);color:#5BE08F;border-radius:20px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.wa-link{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:12px;align-items:center;text-decoration:none;color:inherit;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.4);border-radius:14px;padding:12px 16px;margin:0 0 14px;font-size:22px}
+.wa-link b{grid-column:2;font-size:15px;color:#5BE08F}.wa-link span{grid-column:2;font-size:12.5px;color:var(--gris)}.wa-link i{grid-column:3;grid-row:1/3;font-style:normal;font-size:26px;color:#5BE08F}
+.wa-link{grid-template-areas:none}.wa-link>:first-child{grid-row:1/3}
 .wa-m{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--linea)}
 .wa-m.si{background:linear-gradient(90deg,rgba(47,211,138,.06),transparent)}
 .wa-ck input{width:20px;height:20px;margin-top:2px}
@@ -6588,7 +6591,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v221 · Carpet desde WhatsApp</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v222 · Reportes de WhatsApp por área</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -12330,6 +12333,7 @@ async function vHome(){
   return `
     ${selectorDep()}
     <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span><button class="fl-wa no-print" id="btn_wa">💬 Pegar reportes de WhatsApp</button></div>
+    <a class="wa-link no-print" href="https://claude.ai/artifact/7Vid9UxWZr1Uc6Arc8ABw3#restoration" target="_blank" rel="noopener">📲 <b>Lo que reportaron hoy en Capri Restoration</b><span>Lista de WhatsApp que se llena sola cada hora · solo Restoration</span><i>›</i></a>
 
     <section class="mx-fila">
       <div class="mx-asis">
@@ -12580,6 +12584,7 @@ async function vHoyCarpet(){
     </section>
 
     ${FACT_CARPET()?`<div class="g2 no-print" style="margin-bottom:16px"><button class="btn wide" id="cp_new">🧽 + Reporte de Carpet nuevo</button><button class="btn ghost wide" id="btn_wa">💬 Traer trabajos de WhatsApp</button></div>`:''}
+    <a class="wa-link no-print" href="https://claude.ai/artifact/7Vid9UxWZr1Uc6Arc8ABw3#carpet" target="_blank" rel="noopener">📲 <b>Lo que reportaron hoy en Carpet Division</b><span>Lista de WhatsApp que se llena sola cada hora · solo Carpet</span><i>›</i></a>
 
     <div class="eyebrow">🧹 ${CPFIL==='falta'?'Falta precio':CPFIL==='fact'?'Facturados':'Trabajos del día'} · ${(CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).length}</div>
     ${J.length ? (CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).map(fila).join('')
