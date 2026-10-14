@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="224">
+<meta name="app-version" content="226">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1387,6 +1387,7 @@ body:not(.dark) .fl-ev b{color:#14181F}
 .mx-fb ul{margin:7px 0 0;padding-left:18px;font-size:14px;line-height:1.45}
 .mx-fbt{display:flex;justify-content:flex-end;gap:6px;margin-top:9px}
 .fl-wa{margin-left:auto;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.45);color:#5BE08F;border-radius:20px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.rc-prev{display:block;width:100%;height:72vh;min-height:420px;border:0;border-radius:12px;background:#E9EDF2;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 .wa-link{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:12px;align-items:center;text-decoration:none;color:inherit;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.4);border-radius:14px;padding:12px 16px;margin:0 0 14px;font-size:22px}
 .wa-link b{grid-column:2;font-size:15px;color:#5BE08F}.wa-link span{grid-column:2;font-size:12.5px;color:var(--gris)}.wa-link i{grid-column:3;grid-row:1/3;font-style:normal;font-size:26px;color:#5BE08F}
 .wa-link{grid-template-areas:none}.wa-link>:first-child{grid-row:1/3}
@@ -3844,6 +3845,7 @@ async function leerVozPermitida(){
 }
 async function vigilarAvisos(){
   if(!U) return;
+  procesarBandeja();
   await leerVozPermitida();
   try{
     let q=sb.from('notificaciones').select('id,titulo,texto,job_id,tipo,created_at,de_usuario')
@@ -4380,7 +4382,50 @@ function waLeer(texto, opc){
 
 /* Carpet: los trabajos que los técnicos mandan a "Carpet Division" entran
    como trabajos de Carpet del día (falta precio), con su reporte y fotos. */
-async function waCarpet(G, ARCH){
+/* ===== Bandeja de WhatsApp =====
+   Cada hora se revisa el grupo Carpet Division y lo nuevo cae en la tabla wa_bandeja.
+   Cuando oficina o administración tiene la app abierta, la app lo convierte sola en
+   trabajos de Carpet del día (con su reporte), y ahí se quedan para facturar. */
+let BANDEJA_OCUPADA=false, BANDEJA_ULT=0, BANDEJA_FALTA=false;
+async function procesarBandeja(forzar, sinPintar){
+  if(BANDEJA_OCUPADA || BANDEJA_FALTA || !U || !FACT_CARPET() || !CARPET_ON) return 0;
+  if(!forzar && Date.now()-BANDEJA_ULT<4*60*1000) return 0;
+  BANDEJA_OCUPADA=true; BANDEJA_ULT=Date.now();
+  try{
+    const {data:rows,error}=await sb.from('wa_bandeja').select('*').eq('area','carpet').eq('estado','nuevo').order('fecha').order('id').limit(40);
+    if(error){ if(/wa_bandeja|relation|schema cache/i.test(error.message||'')) BANDEJA_FALTA=true; return 0; }
+    if(!rows||!rows.length) return 0;
+    // Apartar los mensajes para que dos personas con la app abierta no los metan doble
+    const mios=[];
+    for(const r of rows){
+      const {data:ok}=await sb.from('wa_bandeja').update({estado:'procesando'}).eq('id',r.id).eq('estado','nuevo').select('id');
+      if(ok&&ok.length) mios.push(r);
+    }
+    if(!mios.length) return 0;
+    const G=mios.map(r=>({quien:r.quien||'', fecha:String(r.fecha).slice(0,10), hora:r.hora||'', texto:r.texto||'', fotos:r.fotos||0, adj:[], fotosUrl:r.fotos_url||[], _id:r.id}));
+    const {MG}=await waCarpetPreparar(G);
+    const listos=G.filter(x=>x.ok);
+    const {ids}=await waCarpetGuardar(listos, null, MG);
+    let n=0;
+    for(let i=0;i<listos.length;i++){
+      const x=listos[i];
+      await sb.from('wa_bandeja').update({estado:ids[i]?'hecho':'revisar', job_id:ids[i]||null}).eq('id',x._id);
+      if(ids[i]) n++;
+    }
+    for(const x of G.filter(x=>!x.ok)) await sb.from('wa_bandeja').update({estado:x.dup?'duplicado':'revisar'}).eq('id',x._id);
+    if(n){ toast(`📲 ${n} trabajo(s) nuevo(s) de Carpet Division agregados al día`); try{ if(!sinPintar && V==='resumen' && DEPV()==='cleaning' && !($('#sheet')?.innerHTML||'').trim()) render(); }catch(e){} }
+    return n;
+  }catch(e){ return 0; }
+  finally{ BANDEJA_OCUPADA=false; }
+}
+/* Lo que llegó del grupo pero no se pudo leer solo (sin unidad o sin propiedad) */
+async function bandejaRevisar(){
+  if(BANDEJA_FALTA) return [];
+  const {data,error}=await sb.from('wa_bandeja').select('id,quien,fecha,hora,texto,fotos').eq('area','carpet').eq('estado','revisar').order('fecha',{ascending:false}).limit(20);
+  return error?[]:(data||[]);
+}
+
+async function waCarpetPreparar(G){
   const [{data:props},{data:mgs},{data:ya}] = await Promise.all([
     sb.from('propiedades').select('id,nombre,management_id,direccion,ciudad,zip,lat,lng').order('nombre'),
     sb.from('managements').select('id,nombre').order('nombre'),
@@ -4413,6 +4458,42 @@ async function waCarpet(G, ARCH){
     x.dup = YA.some(j=>j.fecha_inicio===x.fecha && nu(j.unidad)===nu(x.unidad) && (x.prop ? j.propiedad_id===x.prop.id : norm(j.cliente)===norm(x.lugarTxt)));
     x.ok = !!x.unidad && !x.dup && (x.prop || x.lugarTxt);
   });
+  return {PR, MG};
+}
+/* Mete a la app los trabajos de Carpet ya revisados. Regresa cuántos entraron. */
+async function waCarpetGuardar(sel, ARCH, MG){
+  let nuevos=0, mal=0, sinUnidad=0; const ids=[];
+  for(const x of sel){
+    if(!x.unidad){ sinUnidad++; ids.push(null); continue; }
+    const pr=x.prop;
+    const folio=await nuevoFolio('cleaning');
+    const p={folio, departamento:'cleaning', tipo:(TIPOS.cleaning.find(t=>t.toLowerCase()===x.serv[0].toLowerCase())||'carpet cleaning'),
+      estatus:'terminado', origen: pr?'management':'particular', management_id: pr?pr.management_id:null, propiedad_id: pr?pr.id:null,
+      cliente: pr?pr.nombre:(x.lugarTxt||'Sin nombre'), direccion: pr?(pr.direccion||''):'', ciudad: pr?(pr.ciudad||'San Diego'):'San Diego', zip: pr?pr.zip:null,
+      unidad:x.unidad, tipo_propiedad: pr?'apartamento':'casa', fecha_inicio:x.fecha, fecha_cierre:x.fecha,
+      trabajo_especial:true, tecnico_id:null, lat: pr?pr.lat:null, lng: pr?pr.lng:null,
+      servicios_carpet:x.serv, scope:x.texto,
+      notas:'Desde WhatsApp (Carpet Division) · técnico: '+x.quien+' · '+x.hora};
+    const {data:j,error}=await sb.from('jobs').insert(p).select().single();
+    if(error){ mal++; ids.push(null); continue; }
+    const fotos=(x.fotosUrl||[]).slice();
+    for(const n of (x.adj||[])){
+      const f=ARCH&&(ARCH[n]||ARCH[Object.keys(ARCH).find(k=>k.endsWith(n))||'']);
+      if(!f || !/\.(jpe?g|png|webp)$/i.test(n)) continue;
+      try{ const blob=await f.async('blob'); const ruta=`carpet/${x.fecha}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+        const {error:eu}=await sb.storage.from('capri').upload(ruta, blob, {contentType:'image/jpeg'});
+        if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl); }catch(e){}
+    }
+    const base={job_id:j.id, tecnico_id:null, fecha:x.fecha, tipo_reporte:'inicial', trabajo_realizado:x.serv.join(' · '),
+      notas:x.texto+(x.fotos&&!fotos.length?'\n('+x.fotos+' foto(s) en el grupo)':''), fotos, servicios:x.serv};
+    let {error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]});
+    if(er) ({error:er}=await sb.from('reportes').insert(base));
+    nuevos++; ids.push(j.id);
+  }
+  return {nuevos, mal, sinUnidad, ids};
+}
+async function waCarpet(G, ARCH){
+  const {PR, MG} = await waCarpetPreparar(G);
   const opP = sel => `<option value="">— otra: escribir abajo —</option>`+PR.map(p=>`<option value="${p.id}" ${sel&&sel.id===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('');
   $('#wa_res').innerHTML=`<div class="eyebrow">${G.length} trabajos · ${G.filter(x=>x.ok).length} listos para entrar</div>
     ${G.map((x,i)=>`<div class="wa-m ${x.ok?'si':''}">
@@ -4433,35 +4514,7 @@ async function waCarpet(G, ARCH){
     const sel=G.filter((x,i)=>document.querySelector(`[data-wc="${i}"]`)?.checked);
     if(!sel.length) return toast('Marca al menos un trabajo.');
     const b=$('#wa_cok'); b.disabled=true; b.textContent='Guardando…';
-    let nuevos=0, mal=0, sinUnidad=0;
-    for(const x of sel){
-      if(!x.unidad){ sinUnidad++; continue; }
-      const pr=x.prop;
-      const mg=pr?MG.find(m=>m.id===pr.management_id):null;
-      const folio=await nuevoFolio('cleaning');
-      const p={folio, departamento:'cleaning', tipo:(TIPOS.cleaning.find(t=>t.toLowerCase()===x.serv[0].toLowerCase())||'carpet cleaning'),
-        estatus:'terminado', origen: pr?'management':'particular', management_id: pr?pr.management_id:null, propiedad_id: pr?pr.id:null,
-        cliente: pr?pr.nombre:(x.lugarTxt||'Sin nombre'), direccion: pr?(pr.direccion||''):'', ciudad: pr?(pr.ciudad||'San Diego'):'San Diego', zip: pr?pr.zip:null,
-        unidad:x.unidad, tipo_propiedad: pr?'apartamento':'casa', fecha_inicio:x.fecha, fecha_cierre:x.fecha,
-        trabajo_especial:true, tecnico_id:null, lat: pr?pr.lat:null, lng: pr?pr.lng:null,
-        servicios_carpet:x.serv, scope:x.texto,
-        notas:'Desde WhatsApp (Carpet Division) · técnico: '+x.quien+' · '+x.hora};
-      const {data:j,error}=await sb.from('jobs').insert(p).select().single();
-      if(error){ mal++; continue; }
-      const fotos=[];
-      for(const n of (x.adj||[])){
-        const f=ARCH&&(ARCH[n]||ARCH[Object.keys(ARCH).find(k=>k.endsWith(n))||'']);
-        if(!f || !/\.(jpe?g|png|webp)$/i.test(n)) continue;
-        try{ const blob=await f.async('blob'); const ruta=`carpet/${x.fecha}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
-          const {error:eu}=await sb.storage.from('capri').upload(ruta, blob, {contentType:'image/jpeg'});
-          if(!eu) fotos.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl); }catch(e){}
-      }
-      const base={job_id:j.id, tecnico_id:null, fecha:x.fecha, tipo_reporte:'inicial', trabajo_realizado:x.serv.join(' · '),
-        notas:x.texto+(x.fotos&&!fotos.length?'\n('+x.fotos+' foto(s) en el grupo)':''), fotos, servicios:x.serv};
-      let {error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]});
-      if(er) ({error:er}=await sb.from('reportes').insert(base));
-      nuevos++;
-    }
+    const {nuevos, mal, sinUnidad} = await waCarpetGuardar(sel, ARCH, MG);
     cerrar(); render();
     toast(`${nuevos} trabajo(s) de Carpet agregados`+(sinUnidad?` · ${sinUnidad} sin unidad`:'')+(mal?` · ${mal} no se pudieron guardar`:''));
   };
@@ -6591,7 +6644,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v224 · Reporte fotográfico Carpet</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v226 · Carpet Division entra solo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -12333,7 +12386,6 @@ async function vHome(){
   return `
     ${selectorDep()}
     <div class="fl-hola"><h2>${saludo}, ${esc(nomU)}</h2><span>${esc(fecha)}</span><button class="fl-wa no-print" id="btn_wa">💬 Pegar reportes de WhatsApp</button></div>
-    <a class="wa-link no-print" href="https://claude.ai/artifact/7Vid9UxWZr1Uc6Arc8ABw3#restoration" target="_blank" rel="noopener">📲 <b>Lo que reportaron hoy en Capri Restoration</b><span>Lista de WhatsApp que se llena sola cada hora · solo Restoration</span><i>›</i></a>
 
     <section class="mx-fila">
       <div class="mx-asis">
@@ -12514,6 +12566,8 @@ function animarConteos(){
 let CPDIA = null, CPFIL = 'todos';
 async function vHoyCarpet(){
   const h = CPDIA || hoy();
+  if(FACT_CARPET()) await procesarBandeja(false, true);
+  const REV = FACT_CARPET() ? await bandejaRevisar() : [];
   const [{data:jobs},{data:pend}] = await Promise.all([
     sb.from('jobs')
       .select('id,folio,cliente,unidad,tipo,estatus,notas,fecha_inicio,created_at,invoice_num,invoice_monto,invoice_pagado,invoice_revision,invoice_revision_nota,servicios_carpet, propiedades(nombre), managements(nombre)')
@@ -12545,11 +12599,13 @@ async function vHoyCarpet(){
     return `<div class="fila ${e[1]==='r'?'r':'a'}" data-cpver="${x.id}" style="cursor:pointer">
       <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · Unit '+esc(x.unidad):''}</b>
       <span class="sub">${esc(serv)}</span>
-      <span class="meta">${esc(x.folio||'')}${tecDe(x)?' · '+esc(tecDe(x)):''}${(r.fotos||[]).length?' · 📷 '+r.fotos.length:''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
+      <span class="meta">${/Desde WhatsApp/.test(x.notas||'')?'💬 ':''}${esc(x.folio||'')}${tecDe(x)?' · '+esc(tecDe(x)):''}${(r.fotos||[]).length?' · 📷 '+r.fotos.length:''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
       <div style="text-align:right">
         ${ver&&x.invoice_num?`<div class="disp" style="font-size:18px">${cf(x.invoice_monto)}</div>`:''}
         <span class="chip ${e[1]==='r'?'rojo':'azul'}">${e[0]}</span>
-        ${!x.invoice_num&&FACT_CARPET()?`<div style="margin-top:6px"><button class="btn mini" data-cpfac="${x.id}">PONER PRECIO</button></div>`:''}
+        <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn mini ghost" data-cpver="${x.id}">📄 Reporte PDF</button>
+          ${!x.invoice_num&&FACT_CARPET()?`<button class="btn mini" data-cpfac="${x.id}">PONER PRECIO</button>`:''}</div>
       </div></div>`;
   };
 
@@ -12584,12 +12640,18 @@ async function vHoyCarpet(){
     </section>
 
     ${FACT_CARPET()?`<div class="g2 no-print" style="margin-bottom:16px"><button class="btn wide" id="cp_new">🧽 + Reporte de Carpet nuevo</button><button class="btn ghost wide" id="btn_wa">💬 Traer trabajos de WhatsApp</button></div>`:''}
-    <a class="wa-link no-print" href="https://claude.ai/artifact/7Vid9UxWZr1Uc6Arc8ABw3#carpet" target="_blank" rel="noopener">📲 <b>Lo que reportaron hoy en Carpet Division</b><span>Lista de WhatsApp que se llena sola cada hora · solo Carpet</span><i>›</i></a>
 
     <div class="eyebrow">🧹 ${CPFIL==='falta'?'Falta precio':CPFIL==='fact'?'Facturados':'Trabajos del día'} · ${(CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).length}</div>
     ${J.length ? (CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).map(fila).join('')
       : `<div class="ok"><div class="t">No hay trabajos de Carpet capturados ${esHoy?'hoy':'ese día'}.</div>
          <div class="sub">Cuando oficina capture un reporte con esta fecha de servicio, aparece aquí con su precio.</div></div>`}
+
+    ${REV.length?`
+      <div class="eyebrow">💬 Del grupo, por revisar · ${REV.length}</div>
+      <div class="sub" style="margin:-4px 0 8px">Llegaron a Carpet Division pero no traen unidad o propiedad clara. Captúralos con + Reporte de Carpet nuevo.</div>
+      ${REV.map(r=>`<div class="fila r"><div class="t"><b>${esc(r.quien||'')} · ${fmt(String(r.fecha).slice(0,10))} ${esc(r.hora||'')}${r.fotos?' · 📷 '+r.fotos:''}</b>
+        <span class="sub" style="white-space:pre-wrap">${esc(r.texto)}</span></div>
+        ${FACT_CARPET()?`<button class="btn mini ghost" data-bjx="${r.id}">Listo</button>`:''}</div>`).join('')}`:''}
 
     ${(pend||[]).length?`
       <div class="eyebrow">Días anteriores sin precio · ${pend.length}</div>
@@ -12608,6 +12670,8 @@ function engancharHoyCarpet(){
   animarConteos();
   document.querySelectorAll('[data-cpf]').forEach(b=>b.onclick=()=>{ CPFIL = (CPFIL===b.dataset.cpf && b.dataset.cpf!=='todos') ? 'todos' : b.dataset.cpf; render(); });
   const n=$('#cp_new');   if(n) n.onclick=()=>nuevaFacturaCarpet();
+  document.querySelectorAll('[data-bjx]').forEach(b=>b.onclick=async()=>{
+    await sb.from('wa_bandeja').update({estado:'descartado'}).eq('id',b.dataset.bjx); render(); });
   const t=$('#cp_todas'); if(t) t.onclick=()=>{ V='cobranza'; render(); };
   const mueve=d=>{ const x=new Date((CPDIA||hoy())+'T12:00:00'); x.setDate(x.getDate()+d);
     const v=x.toLocaleDateString('en-CA'); CPDIA = v>=hoy()?null:v; render(); };
@@ -12621,6 +12685,7 @@ function engancharHoyCarpet(){
     formInvoiceCarpet(b.dataset.cpfac);
   });
   document.querySelectorAll('[data-cpver]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
     if(e.target.closest('[data-cpfac]')) return;
     abrirReporteCarpet(b.dataset.cpver);
   });
@@ -14667,6 +14732,14 @@ async function abrirReporteCarpet(id){
       <span class="chip ${est[1]}" style="font-size:13px">${esc(est[0])}</span>
       ${j.invoice_revision==='corregir'&&j.invoice_revision_nota?`<div class="ok" style="margin-top:10px;border-left-color:var(--rojo)">${esc(j.invoice_revision_nota)}</div>`:''}
 
+      <div class="eyebrow">Reporte fotográfico · ${fotos.length} foto${fotos.length===1?'':'s'}</div>
+      <iframe id="rc_prev" class="rc-prev" title="Reporte fotográfico"></iframe>
+      <div class="g2 no-print" style="margin-top:10px">
+        <button class="btn wide" id="rc_foto">⬇ Descargar PDF</button>
+        ${FACT_CARPET()?`<label class="btn ghost wide" style="text-align:center;cursor:pointer">📷 Agregar fotos<input type="file" id="rc_fot" accept="image/*" multiple hidden></label>`:'<button class="btn ghost wide" id="rc_abr">Abrir en grande</button>'}
+      </div>
+      ${fotos.length?'':'<div class="sub" style="margin-top:6px">Todavía no tiene fotos. Sube las que mandó el técnico al grupo.</div>'}
+
       <div class="eyebrow">Reporte del técnico</div>
       <table class="frm">
         <tr><td class="k">TÉCNICO</td><td class="v">${esc(tec)}</td></tr>
@@ -14676,14 +14749,7 @@ async function abrirReporteCarpet(id){
       <div class="eyebrow">Trabajo que se hizo</div>
       ${serv.length?`<ul style="margin:0 0 6px 18px;line-height:1.7">${serv.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<div class="sub">—</div>'}
       ${notas.length?`<div class="eyebrow">Notas</div><p style="white-space:pre-wrap;line-height:1.6;margin-top:0">${esc(notas.join('\n\n'))}</p>`:''}
-      ${fotos.length?`<div class="eyebrow">Fotos · ${fotos.length}</div>${galeriaHTML(fotos)}`:''}
 
-      ${FACT_CARPET()||fotos.length?`<div class="eyebrow">Reporte fotográfico</div>
-      <div class="g2 no-print">
-        ${FACT_CARPET()?`<label class="btn ghost wide" style="text-align:center;cursor:pointer">📷 Agregar fotos<input type="file" id="rc_fot" accept="image/*" multiple hidden></label>`:'<span></span>'}
-        <button class="btn wide" id="rc_foto" ${fotos.length?'':'disabled'}>📄 Hacer reporte fotográfico</button>
-      </div>
-      ${fotos.length?'':'<div class="sub" style="margin-top:6px">Sube las fotos que mandó el técnico al grupo para poder hacer el reporte.</div>'}`:''}
 
       <div class="eyebrow">Factura</div>
       ${j.invoice_num?`<table class="frm">
@@ -14705,7 +14771,10 @@ async function abrirReporteCarpet(id){
   const pd=$('#rc_pdf'); if(pd) pd.onclick=()=>facturaPDF(j,{num:j.invoice_num, fecha:j.invoice_fecha, po:j.po_number, tax:j.invoice_tax||0, notas:j.invoice_notas||'', renglones:RG});
   const pg=$('#rc_pag'); if(pg) pg.onclick=async()=>{ await marcarPagada(id); abrirReporteCarpet(id); };
   const rv=$('#rc_rev'); if(rv) rv.onclick=()=>revisarInvoice(id);
-  const rf=$('#rc_foto'); if(rf) rf.onclick=()=>reporteFotoCarpet(j,R,tec);
+  const pv=$('#rc_prev'); if(pv) pv.srcdoc=docReporteCarpet(j,R,tec);
+  const rf=$('#rc_foto'); if(rf) rf.onclick=()=>{
+    try{ pv.contentWindow.focus(); pv.contentWindow.print(); }catch(e){ reporteFotoCarpet(j,R,tec); } };
+  const ab=$('#rc_abr'); if(ab) ab.onclick=()=>reporteFotoCarpet(j,R,tec);
   const ad=$('#rc_fot'); if(ad) ad.onchange=async e=>{
     const fs=[...e.target.files]; if(!fs.length) return;
     toast('Subiendo '+fs.length+' foto(s)…');
@@ -14734,10 +14803,15 @@ async function abrirReporteCarpet(id){
    datos del trabajo, lo que mandó el técnico y las fotos del grupo, todas del mismo tamaño
    (6 por hoja, 2 columnas x 3 renglones). Oficina lo hace y después factura. */
 function reporteFotoCarpet(j, R, tec){
+  const doc=docReporteCarpet(j,R,tec);
+  const w=window.open('','_blank');
+  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
+  w.document.write(doc); w.document.close();
+}
+function docReporteCarpet(j, R, tec){
   const E=s=>esc(s==null?'':String(s));
   const U_=f=>typeof f==='string'?f:(f&&(f.u||f.url))||'';
   const fotos=R.flatMap(r=>r.fotos||[]).map(U_).filter(Boolean);
-  if(!fotos.length) return toast('Este trabajo no tiene fotos.');
   let logo='';
   try{ const v=getComputedStyle(document.documentElement).getPropertyValue('--logo')||'';
        const m=v.match(/url\(["']?([^"')]+)["']?\)/); if(m) logo=m[1]; }catch(e){}
@@ -14751,10 +14825,10 @@ function reporteFotoCarpet(j, R, tec){
   const Fs=s=>{ if(!s) return '—'; return new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
   const todo=(texto+' '+(j.notas||'')).toLowerCase();
   const estado=/vacant|vac[ií]a|vac[ií]o/.test(todo)?'Vacant':/occupied|ocupad/.test(todo)?'Occupied':'—';
-  const tecN=tec&&tec!=='—'?tec:'Capri carpet team';
+  const tecN=tec&&String(tec).trim()&&tec!=='—'?String(tec).trim():'Capri carpet team';
   const num=(j.folio||'CARPET')+'-PR';
   const hoyS=new Date().toLocaleDateString('en-CA');
-  const resumen=`On ${Fc(fe)}, Capri Restoration Services Inc performed ${serv.length?serv.map(s=>s.toLowerCase()).join(', '):'carpet cleaning services'} at ${lugar||'the property'}${dir?' ('+dir+')':''}. The work was completed by ${tecN}. ${fotos.length} photo${fotos.length===1?'':'s'} taken on site are attached as evidence of the service.`;
+  const resumen=`On ${Fc(fe)}, Capri Restoration Services Inc performed ${serv.length?serv.map(s=>s.toLowerCase()).join(', '):'carpet cleaning services'} at ${lugar||'the property'}${dir?' ('+dir+')':''}. The work was completed by ${tecN}.${fotos.length?` ${fotos.length} photo${fotos.length===1?'':'s'} taken on site ${fotos.length===1?'is':'are'} attached as evidence of the service.`:''}`;
   const POR=6, hojas=[];
   for(let i=0;i<fotos.length;i+=POR) hojas.push(fotos.slice(i,i+POR));
   const cab=(sub)=>`<div class="memb">
@@ -14822,6 +14896,7 @@ function reporteFotoCarpet(j, R, tec){
   ${serv.length?`<table class="sv">${serv.map(s=>`<tr><td class="c">✓</td><td>${E(s)}</td></tr>`).join('')}</table>`:'<div class="nt">Carpet cleaning</div>'}
   ${texto?`<div class="k">Technician notes</div><div class="nt">${E(texto)}</div>`:''}
   <div class="k">Photo evidence · ${fotos.length} photo${fotos.length===1?'':'s'}</div>
+  ${fotos.length?'':'<div class="nt">Photos pending.</div>'}
   <div class="mini">${fotos.slice(0,4).map(u=>`<img src="${E(u)}">`).join('')}</div>
   <div class="firmas"><div>Prepared by: ${E(U?.nombre||'Office')} · Capri Office</div><div>Received by (name / signature / date)</div></div>
   ${pie(1,T)}
@@ -14831,10 +14906,15 @@ ${hojas.map((g,k)=>`<section class="hoja">
   <div class="gal">${g.map((u,i)=>{ const n=k*POR+i+1; return `<figure><div class="im"><img src="${E(u)}"></div><figcaption><b>Photo ${n} of ${fotos.length}</b><span>${E(lugar)} · ${E(Fs(fe))}</span></figcaption></figure>`; }).join('')}</div>
   ${pie(k+2,T)}
 </section>`).join('')}
+<script>
+function z(){ var s=Math.min(1,(window.innerWidth-6)/830); document.body.style.zoom=s; }
+z(); addEventListener('resize',z);
+try{ if(window.frameElement){ var bt=document.querySelector('.noimp'); if(bt) bt.style.display='none'; } }catch(e){}
+addEventListener('beforeprint',function(){document.body.style.zoom=1});
+addEventListener('afterprint',z);
+<\/script>
 </body></html>`;
-  const w=window.open('','_blank');
-  if(!w) return toast('El navegador bloqueó la ventana. Permite las ventanas emergentes.');
-  w.document.write(doc); w.document.close();
+  return doc;
 }
 
 async function abrirJob(id){
