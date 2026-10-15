@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="227">
+<meta name="app-version" content="228">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -4447,7 +4447,8 @@ async function waCarpetPreparar(G){
     x.estado = /vacant|vacia|vac[ií]o/i.test(x.texto) ? 'vacante' : /occupied|ocupad/i.test(x.texto) ? 'ocupada' : '';
     const sv=[]; const t=x.texto.toLowerCase();
     if(/carpet clean|limpieza de alfombra|shampoo|steam/.test(t)) sv.push('Carpet cleaning');
-    if(/\bpet\b|orina|urine|\buv\b|pet scan/.test(t)) sv.push('Pet odor treatment');
+    if(esPetScan(t)) sv.push('Pet scan (UV)');
+    if(/pet (odor|treat)|enzyme|enzima|orina|urine|odor/.test(t) || (/\bpet\b/.test(t) && !esPetScan(t))) sv.push('Pet odor treatment');
     if(/stain|mancha/.test(t)) sv.push('Stain removal');
     if(/tile|grout/.test(t)) sv.push('Tile and grout cleaning');
     if(/upholster|sofa|couch|loveseat/.test(t)) sv.push('Upholstery cleaning');
@@ -6678,7 +6679,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v227 · Fotos del chat a trabajos que ya están</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v228 · Reporte de Pet Scan</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -12633,6 +12634,7 @@ async function vHoyCarpet(){
     return `<div class="fila ${e[1]==='r'?'r':'a'}" data-cpver="${x.id}" style="cursor:pointer">
       <div class="t"><b>${esc(x.propiedades?.nombre||x.cliente||'Sin nombre')}${x.unidad?' · Unit '+esc(x.unidad):''}</b>
       <span class="sub">${esc(serv)}</span>
+      ${esPetScan('', r.servicios&&r.servicios.length?r.servicios:(x.servicios_carpet||[]))?'<span class="chip rojo" style="margin:4px 0">🐾 PET SCAN</span>':''}
       <span class="meta">${/Desde WhatsApp/.test(x.notas||'')?'💬 ':''}${esc(x.folio||'')}${tecDe(x)?' · '+esc(tecDe(x)):''}${(r.fotos||[]).length?' · 📷 '+r.fotos.length:''}${x.managements?.nombre?' · '+esc(x.managements.nombre):''}${x.invoice_num?' · inv '+esc(x.invoice_num):''}</span></div>
       <div style="text-align:right">
         ${ver&&x.invoice_num?`<div class="disp" style="font-size:18px">${cf(x.invoice_monto)}</div>`:''}
@@ -14833,6 +14835,67 @@ async function abrirReporteCarpet(id){
   };
 }
 
+/* ===== PET SCAN =====
+   Reconoce un pet scan y saca del mensaje del técnico los cuartos, lo que encontró,
+   qué tan fuerte y qué recomienda, para armar el reporte detallado. */
+function esPetScan(txt, serv){
+  const t=(String(txt||'')+' '+(serv||[]).join(' ')).toLowerCase();
+  return /pet\s*-?\s*scan|\buv\b|black\s*light|luz\s*(uv|negra)|escaneo/.test(t);
+}
+function analizaPetScan(txt){
+  const T=String(txt||'');
+  const CU=[
+    [/master\s*(bed(room)?|br)|rec[aá]mara\s*principal|cuarto\s*principal/i,'Master bedroom'],
+    [/(bed(room)?|br|rec[aá]mara|cuarto)\s*#?\s*(\d)/i,null],
+    [/\bbed(room)?s?\b|rec[aá]mara|\bcuarto\b/i,'Bedroom'],
+    [/living\s*room|\bliving\b|\bsala\b/i,'Living room'],
+    [/family\s*room/i,'Family room'],
+    [/dining|comedor/i,'Dining room'],
+    [/hall(way)?|pasillo/i,'Hallway'],
+    [/walk[\s-]*in|closet|cl[oó]set/i,'Closet'],
+    [/stair|escaler/i,'Stairs'],
+    [/loft|den\b|office|oficina|estudio/i,'Den / office'],
+    [/entry|entrada/i,'Entry']
+  ];
+  const sev=s=>/heavy|severe|bad|lots?|a lot|many|mucho|muchas|fuerte|grave|saturad/i.test(s)?'Heavy'
+             :/moderate|medium|some|varias|regular|moderad/i.test(s)?'Moderate'
+             :/light|minor|small|few|poc[oa]s?|leve|little/i.test(s)?'Light':'';
+  const neg=s=>/\b(no|none|clean|negative|nothing|limpi[oa]|sin|nada)\b/i.test(s) && !/\d+\s*(spots?|manchas?|areas?)/i.test(s);
+  const partes=T.split(/\n|;|\.\s|,(?=\s*(?:master|bed|br|living|dining|hall|closet|stair|rec|cuarto|sala|comedor|pasillo|escal|family|loft|den|entry))/i).map(s=>s.trim()).filter(Boolean);
+  const areas=[];
+  partes.forEach(s=>{
+    let cuarto=null;
+    for(const [re,n] of CU){ const m=s.match(re); if(m){ cuarto = n || ('Bedroom '+m[m.length-1]); break; } }
+    if(!cuarto) return;
+    if(/recomm|recomiend|replace|cambiar|suggest|sugier/i.test(s)) return;   // es recomendación, no hallazgo
+    const sp=s.match(/(\d+)\s*(spots?|manchas?|areas?|[aá]reas?|puntos?)/i);
+    const negativo=neg(s);
+    areas.push({cuarto, resultado: negativo?'Negative':'Positive', spots: sp?+sp[1]:null,
+      severidad: negativo?'—':(sev(s)||'Moderate'), sx: !!sev(s), nota: s});
+  });
+  // si dijo el cuarto en una línea y los detalles en otra, junta repetidos
+  const vistos={}; const A=[];
+  areas.forEach(a=>{ if(vistos[a.cuarto]){ const b=vistos[a.cuarto]; if(a.spots) b.spots=(b.spots||0)+a.spots; if(a.resultado==='Positive') b.resultado='Positive'; if(a.sx && a.severidad!=='—') b.severidad=a.severidad; b.nota+=' · '+a.nota; } else { vistos[a.cuarto]=a; A.push(a); } });
+  const total=A.reduce((s,a)=>s+(a.spots||0),0);
+  const algunoPos=A.some(a=>a.resultado==='Positive');
+  const negGeneral=/\b(negative|no (pet|urine|stains?|spots?)|nothing found|clean|sin (orina|manchas)|no se encontr|limpio)\b/i.test(T);
+  const positivo = A.length ? algunoPos : !negGeneral;
+  const orden={Heavy:3,Moderate:2,Light:1};
+  const peor=A.reduce((m,a)=>(orden[a.severidad]||0)>(orden[m]||0)?a.severidad:m,'') || (positivo?(sev(T)||'Moderate'):'—');
+  const rec=[];
+  if(/pad|cojin|bajo alfombra/i.test(T)) rec.push('Replace carpet pad in the affected areas.');
+  if(/replace\s*(the\s*)?carpet|new carpet|cambiar (la )?alfombra|alfombra nueva/i.test(T)) rec.push('Replace carpet in the affected areas.');
+  if(/seal|sell|subfloor|sub-floor|concrete|concreto/i.test(T)) rec.push('Seal the subfloor (odor-blocking primer) before installing new pad/carpet.');
+  if(/enzyme|enzima/i.test(T)) rec.push('Enzyme treatment of the affected areas.');
+  if(!rec.length && positivo){
+    if(peor==='Heavy') rec.push('Replace carpet pad in the affected areas.','Seal the subfloor before re-installing.','Enzyme treatment and deodorization after repairs.');
+    else if(peor==='Light') rec.push('Enzyme / pet urine treatment of the marked spots.','Re-inspect after treatment if odor persists.');
+    else rec.push('Pet urine enzyme treatment of the affected areas.','Pad replacement if odor persists after treatment.');
+  }
+  const trat=/treat|enzyme|enzima|tratad|aplic|odor|neutraliz/i.test(T);
+  return {areas:A, total, positivo, peor, rec, trat};
+}
+
 /* Reporte fotográfico de Carpet: documento para el cliente con logo, datos de Capri,
    datos del trabajo, lo que mandó el técnico y las fotos del grupo, todas del mismo tamaño
    (6 por hoja, 2 columnas x 3 renglones). Oficina lo hace y después factura. */
@@ -14862,7 +14925,8 @@ function docReporteCarpet(j, R, tec){
   const tecN=tec&&String(tec).trim()&&tec!=='—'?String(tec).trim():'Capri carpet team';
   const num=(j.folio||'CARPET')+'-PR';
   const hoyS=new Date().toLocaleDateString('en-CA');
-  const resumen=`On ${Fc(fe)}, Capri Restoration Services Inc performed ${serv.length?serv.map(s=>s.toLowerCase()).join(', '):'carpet cleaning services'} at ${lugar||'the property'}${dir?' ('+dir+')':''}. The work was completed by ${tecN}.${fotos.length?` ${fotos.length} photo${fotos.length===1?'':'s'} taken on site ${fotos.length===1?'is':'are'} attached as evidence of the service.`:''}`;
+  const PS = esPetScan(texto, serv) ? analizaPetScan([texto, ...serv.filter(s=>/:/.test(s))].join('\n')) : null;
+  const resumen=`On ${Fc(fe)}, Capri Restoration Services Inc performed ${serv.length?serv.map(s=>s.replace(/:.*$/,'')).map(s=>/^Pet scan/i.test(s)?s:s.toLowerCase()).join(', '):'carpet cleaning services'} at ${lugar||'the property'}${dir?' ('+dir+')':''}. The work was completed by ${tecN}.${fotos.length?` ${fotos.length} photo${fotos.length===1?'':'s'} taken on site ${fotos.length===1?'is':'are'} attached as evidence of the service.`:''}`;
   const POR=6, hojas=[];
   for(let i=0;i<fotos.length;i+=POR) hojas.push(fotos.slice(i,i+POR));
   const cab=(sub)=>`<div class="memb">
@@ -14871,7 +14935,7 @@ function docReporteCarpet(j, R, tec){
       <div class="memb-c">${E(CAPRI.tel)} · ${E(CAPRI.tel2)} · ${E(CAPRI.tel3)} · ${E(CAPRI.mail)} · ${E(CAPRI.zona)}</div></div>
     <div class="mr"><div class="rn">${E(sub)}</div><div>${E(num)}</div></div></div>`;
   const pie=(n,t)=>`<div class="pie"><span>${E(CAPRI.nombre)} · Carpet Department</span><span>${E(lugar)}</span><span>Page ${n} of ${t}</span></div>`;
-  const T=1+hojas.length;
+  const T=1+(PS?1:0)+hojas.length;
   const doc=`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Photo Report · ${E(lugar)} · ${E(Fs(fe))}</title><style>
   @page{size:letter;margin:0}
@@ -14905,12 +14969,24 @@ function docReporteCarpet(j, R, tec){
   figcaption b{color:#0E1726}
   .pie{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #DDE3EC;padding-top:5px;margin-top:8px;font-size:7.5pt;color:#5A6B85}
   .noimp{position:fixed;bottom:16px;right:16px;padding:12px 18px;font-size:15px;font-weight:700;border:0;border-radius:10px;background:#2E8BFF;color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .hoja>*{flex-shrink:0}.hoja>.gal{flex-shrink:1}
+  .ps-tag{align-self:flex-start;display:inline-block;background:#B4232A;color:#fff;font-weight:800;font-size:9pt;letter-spacing:.1em;padding:4px 10px;border-radius:4px;margin-top:2px}
+  .ps-res{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border-radius:6px;padding:9px 12px;margin:8px 0 0}
+  .ps-res.pos{background:#FDECEC;border:1px solid #F3B8B8}.ps-res.negat{background:#E8F6EE;border:1px solid #A8DCBE}
+  .ps-res b{font-size:10.5pt}.ps-res.pos b{color:#B4232A}.ps-res.negat b{color:#1E7A47}.ps-res span{font-size:9.5pt}.ps-res i{font-size:8pt;color:#5A6B85}
+  table.pst{width:100%;border-collapse:collapse;font-size:9pt}table.pst th{text-align:left;background:#0E1726;color:#fff;font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;padding:6px 7px}
+  table.pst td{border-bottom:1px solid #E6EAF0;padding:6px 7px;vertical-align:top}table.pst.leg td:first-child{width:80px}
+  .pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:7.5pt;font-weight:800}.pill.pos{background:#FDECEC;color:#B4232A}.pill.negat{background:#E8F6EE;color:#1E7A47}
+  .psg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 0}.psg div{border:1px solid #DDE3EC;border-radius:6px;padding:7px 9px}
+  .psg span{display:block;font-size:7pt;color:#5A6B85;text-transform:uppercase;letter-spacing:.08em}.psg b{font-size:12pt}.psg .rojo{color:#B4232A}.psg .verde{color:#1E7A47}
+  .disc{margin-top:auto;font-size:7.5pt;color:#5A6B85;border-top:1px dashed #DDE3EC;padding-top:6px}
   @media print{body{background:#fff}.hoja{margin:0}.noimp{display:none}}
 </style></head><body>
 <button class="noimp" onclick="window.print()">Guardar como PDF</button>
 <section class="hoja">
-  ${cab('Photo Report')}
-  <h1>Carpet Cleaning · Photo Report</h1>
+  ${cab(PS?'Pet Scan Report':'Photo Report')}
+  ${PS?`<div class="ps-tag">🐾 PET SCAN · UV INSPECTION</div>`:''}
+  <h1>${PS?'Pet Scan · UV Inspection Report':'Carpet Cleaning · Photo Report'}</h1>
   <div class="h1s">${E(lugar)} · ${E(Fc(fe))}</div>
   <div class="dat">
     <div><span>Property</span><b>${E(nom||'—')}</b></div>
@@ -14926,19 +15002,48 @@ function docReporteCarpet(j, R, tec){
   </div>
   <div class="k">Summary</div>
   <div class="res">${E(resumen)}</div>
+  ${PS?`<div class="ps-res ${PS.positivo?'pos':'negat'}"><b>Pet scan result: ${PS.positivo?'POSITIVE':'NEGATIVE'}</b><span>${PS.positivo?`${PS.areas.filter(a=>a.resultado==='Positive').length||'—'} area${PS.areas.filter(a=>a.resultado==='Positive').length===1?'':'s'} affected${PS.total?` · ${PS.total} spot${PS.total===1?'':'s'} marked`:''} · Overall severity: ${PS.peor}`:'No pet urine contamination detected under UV light.'}</span><i>Full findings on page 2</i></div>`:''}
   <div class="k">Work performed</div>
   ${serv.length?`<table class="sv">${serv.map(s=>`<tr><td class="c">✓</td><td>${E(s)}</td></tr>`).join('')}</table>`:'<div class="nt">Carpet cleaning</div>'}
-  ${texto?`<div class="k">Technician notes</div><div class="nt">${E(texto)}</div>`:''}
+  ${texto&&!PS?`<div class="k">Technician notes</div><div class="nt">${E(texto)}</div>`:''}
   <div class="k">Photo evidence · ${fotos.length} photo${fotos.length===1?'':'s'}</div>
   ${fotos.length?'':'<div class="nt">Photos pending.</div>'}
   <div class="mini">${fotos.slice(0,4).map(u=>`<img src="${E(u)}">`).join('')}</div>
   <div class="firmas"><div>Prepared by: ${E(U?.nombre||'Office')} · Capri Office</div><div>Received by (name / signature / date)</div></div>
   ${pie(1,T)}
 </section>
+${PS?`<section class="hoja">
+  ${cab('Pet Scan Findings')}
+  <h1 style="font-size:18pt">Pet Scan Findings · ${E(lugar)}</h1>
+  <div class="h1s">UV blacklight inspection performed ${E(Fc(fe))} by ${E(tecN)}</div>
+  <div class="k">Inspection method</div>
+  <div class="res">The carpet was inspected with an ultraviolet (UV) blacklight in low-light conditions. Dried pet urine fluoresces under UV light, which allows the technician to locate contamination that is not visible in normal light. Each fluorescent area was checked and noted by room. Where indicated, the spots were marked and photographed.</div>
+  <div class="k">Findings by area</div>
+  ${PS.areas.length?`<table class="pst"><thead><tr><th>Area</th><th>Result</th><th>Spots</th><th>Severity</th><th>Technician observation</th></tr></thead><tbody>
+    ${PS.areas.map(a=>`<tr><td><b>${E(a.cuarto)}</b></td><td><span class="pill ${a.resultado==='Positive'?'pos':'negat'}">${a.resultado}</span></td><td>${a.spots??'—'}</td><td>${E(a.severidad)}</td><td>${E(a.nota)}</td></tr>`).join('')}
+  </tbody></table>`:`<div class="nt">The technician reported the result for the whole unit (no room-by-room breakdown): ${PS.positivo?'pet urine contamination was detected.':'no contamination was detected.'}</div>`}
+  <div class="psg">
+    <div><span>Overall result</span><b class="${PS.positivo?'rojo':'verde'}">${PS.positivo?'Positive':'Negative'}</b></div>
+    <div><span>Areas affected</span><b>${PS.areas.filter(a=>a.resultado==='Positive').length||(PS.positivo?'See notes':'0')}</b></div>
+    <div><span>Spots marked</span><b>${PS.total||'—'}</b></div>
+    <div><span>Overall severity</span><b>${E(PS.peor)}</b></div>
+  </div>
+  <div class="k">Severity guide</div>
+  <table class="pst leg"><tr><td><b>Light</b></td><td>Few small spots, surface level. Usually resolved with enzyme treatment.</td></tr>
+    <tr><td><b>Moderate</b></td><td>Several spots or larger areas; urine may have reached the pad.</td></tr>
+    <tr><td><b>Heavy</b></td><td>Large or repeated contamination; pad (and possibly subfloor) affected. Replacement is usually needed.</td></tr></table>
+  <div class="k">Treatment performed</div>
+  <div class="res">${PS.trat?'Pet urine / enzyme treatment was applied to the affected areas as reported by the technician.':'Inspection only. No treatment was reported as part of this visit.'}${serv.length?' Services: '+E(serv.join(', '))+'.':''}</div>
+  ${PS.positivo&&PS.rec.length?`<div class="k">Recommendations</div><table class="sv">${PS.rec.map(r=>`<tr><td class="c">→</td><td>${E(r)}</td></tr>`).join('')}</table>`:''}
+  <div class="k">Technician report (as sent)</div>
+  <div class="nt">${E(texto||'—')}</div>
+  <div class="disc">Note: UV inspection detects fluorescent residue consistent with pet urine. Some cleaning products and other organic residues can also fluoresce, and contamination below the surface may extend beyond the visible area. Results reflect the conditions found at the time of inspection.</div>
+  ${pie(2,T)}
+</section>`:''}
 ${hojas.map((g,k)=>`<section class="hoja">
   ${cab('Photo Evidence')}
-  <div class="gal">${g.map((u,i)=>{ const n=k*POR+i+1; return `<figure><div class="im"><img src="${E(u)}"></div><figcaption><b>Photo ${n} of ${fotos.length}</b><span>${E(lugar)} · ${E(Fs(fe))}</span></figcaption></figure>`; }).join('')}</div>
-  ${pie(k+2,T)}
+  <div class="gal">${g.map((u,i)=>{ const n=k*POR+i+1; return `<figure><div class="im"><img src="${E(u)}"></div><figcaption><b>${PS?'Pet scan photo':'Photo'} ${n} of ${fotos.length}</b><span>${E(lugar)} · ${E(Fs(fe))}</span></figcaption></figure>`; }).join('')}</div>
+  ${pie(k+(PS?3:2),T)}
 </section>`).join('')}
 <script>
 function z(){ var s=Math.min(1,(window.innerWidth-6)/830); document.body.style.zoom=s; }
