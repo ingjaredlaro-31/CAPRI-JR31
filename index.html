@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="228">
+<meta name="app-version" content="230">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -6679,7 +6679,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v228 · Reporte de Pet Scan</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v230 · Fecha del reporte editable</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -7006,7 +7006,7 @@ async function formReporte(jobId,fecha,tecOverride){
 
       <div class="eyebrow">Start work${prev?' · ya enviado, puedes corregirlo':''}</div>
       <div class="g2">
-        <div><label>Fecha</label><input id="h0" type="date" value="${esc(fecha)}" disabled></div>
+        <div><label>Fecha del reporte</label><input id="h0" type="date" value="${esc(fecha)}" max="${hoy()}"></div>
         <div><label>Hora de inicio</label><input id="h1" type="time" value="${esc(r.hora_entrada||now)}"></div>
       </div>
       <label>Hora de salida</label><input id="h2" type="time" value="${esc(r.hora_salida||'')}">
@@ -7155,7 +7155,13 @@ async function formReporte(jobId,fecha,tecOverride){
   $('#c1').onclick=$('#c2').onclick=cerrar;
   $('#env').onclick=async()=>{
     if(!SERV.length) return toast('Marca al menos un service / work.');
-    const p={job_id:jobId,tecnico_id:U.id,fecha,
+    const fNueva=$('#h0').value||fecha;
+    if(fNueva>hoy()) return toast('La fecha no puede ser en el futuro.');
+    if(fNueva!==fecha){
+      const {data:ocup}=await sb.from('reportes').select('id').eq('job_id',jobId).eq('tecnico_id',U.id).eq('fecha',fNueva).maybeSingle();
+      if(ocup && (!prev || ocup.id!==prev.id)) return toast('Ya hay un reporte tuyo el '+fmt(fNueva)+'. Ábrelo desde el calendario.');
+    }
+    const p={job_id:jobId,tecnico_id:U.id,fecha:fNueva,
       hora_entrada:$('#h1').value,hora_salida:$('#h2').value,
       after_hours:AH, ocupada:OC, agua_extraida:WX, wipe_down:WD, demo:DM, removio_pad_base:PB,
       servicios:SERV, areas:AREAS, material_removido:MATS,
@@ -7171,10 +7177,12 @@ async function formReporte(jobId,fecha,tecOverride){
       p.lecturas=[...$('#lec').children].map(d=>{const i=[...d.querySelectorAll('input')].map(x=>x.value.trim());
         return {area:i[0],material:i[1],mc:i[2],temp:i[3]};}).filter(l=>l.area||l.material||l.mc);
     }
-    const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
+    const {error}= (prev&&prev.id&&fNueva!==fecha)
+      ? await sb.from('reportes').update(p).eq('id',prev.id)
+      : await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
     if(error) return toast('No se guardó: '+error.message);
     await revisarCierre(jobId, p);
-    try{ await avisarReporte(j, !prev, SERV, fecha); }catch(e){}
+    try{ await avisarReporte(j, !prev, SERV, fNueva); }catch(e){}
 
     if(MATS.length){
       const {data:ya}=await sb.from('partidas').select('nombre').eq('job_id',jobId);
@@ -7253,9 +7261,14 @@ async function reporteGuiado(jobId, fecha, tipoForzado, tecOverride){
     : (hayInicial
       ? `El inicial se levantó el ${fmt(iniPrevio.fecha)}${iniPrevio.usuarios?.nombre?' por '+iniPrevio.usuarios.nombre:''}. Aquí reportas cómo va hoy.`
       : 'Este trabajo todavía no tiene reporte inicial. Levanta toda la información del sitio.');
+  if(!prev && tipoAuto==='inicial' && fecha===hoy() && j && j.fecha_inicio && String(j.fecha_inicio).slice(0,10)<fecha){
+    const fi=String(j.fecha_inicio).slice(0,10);
+    const {data:yaFi}=await sb.from('reportes').select('id').eq('job_id',jobId).eq('tecnico_id',TID).eq('fecha',fi).maybeSingle();
+    if(!yaFi) fecha=fi;   // el inicial lleva la fecha real en que empezó el trabajo
+  }
   const bor = leerBorrador(jobId, fecha, 'job');
   G = {
-    job:j, fecha, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni, tid:TID, hayInicial,
+    job:j, fecha, fechaOrig:fecha, prevId:prev?prev.id:null, paso:0, prev:!!prev, tipo:tipoAuto, info:infoIni, tid:TID, hayInicial,
     acat:(acat||[]).map(x=>x.nombre), mcat:(mcat||[]).map(x=>x.nombre),
     scat:(()=>{
       const dep=(j&&j.departamento)||DEP;
@@ -7841,6 +7854,10 @@ function pintaGuiado(){
       ${(G.paso===0 && G.info && G.modo!=='intake')?`<div class="${G.tipo==='inicial'?'alerta':'ok'}" style="margin-bottom:14px">
         <div class="disp" style="font-size:19px;color:${G.tipo==='inicial'?'var(--rojo)':'var(--azul-d)'}">${G.tipo==='inicial'?'Reporte inicial':'Reporte de seguimiento'}</div>
         <div class="sub" style="color:${G.tipo==='inicial'?'var(--rojo-d)':'var(--azul-d)'}">${esc(G.info)}</div></div>`:''}
+      ${G.paso===0?`<div class="card" style="border-left-color:var(--ambar);margin:0 0 12px;padding:10px 12px">
+        <label style="margin:0 0 4px">${ING()?'Report date':'Fecha del reporte'}${G.tipo==='inicial'&&G.job&&G.job.fecha_inicio?` · ${ING()?'job started':'el trabajo empezó el'} ${fmt(String(G.job.fecha_inicio).slice(0,10))}`:''}</label>
+        <input id="gfecha" type="date" value="${esc(G.fecha)}" max="${hoy()}" style="font-family:var(--mono);font-size:18px;margin:0">
+        <div class="sub" style="margin-top:4px;font-size:13px">${ING()?'Pick the day the work was actually done. You can choose earlier days.':'Escoge el día en que de verdad se hizo. Puedes escoger días anteriores.'}</div></div>`:''}
       <div class="disp" style="font-size:27px;line-height:1.05;margin-top:6px">${esc(p.t)}</div>
       <div class="sub" style="margin-bottom:10px">${esc(p.s)}</div>
       ${cuerpo}
@@ -7859,6 +7876,9 @@ function pintaGuiado(){
   const qs=sel=>SH.querySelectorAll(sel);
   const q1=sel=>SH.querySelector(sel);
   $('#gx').onclick=cerrar;
+  const gfe=q1('#gfecha');
+  if(gfe) gfe.onchange=()=>{ const v=gfe.value; if(!v) return; if(v>hoy()){ gfe.value=G.fecha; return toast('La fecha no puede ser en el futuro.'); }
+    guardaPaso(); G.fecha=v; guardarBorrador(); pintaGuiado(); };
   const gf=q1('#gform');
   if(G.modo==='intake'){ gf.style.display='none'; }
   else gf.onclick=()=>{ const j=G.job.id, f=G.fecha, t=G.tid; cerrar(); formReporte(j,f,t); };
@@ -8130,7 +8150,13 @@ async function enviarGuiado(){
     trabajo_realizado:(G.tipo==='seguimiento' && !d.servicios.length) ? d.situacion.join(' · ') : d.servicios.join(' · '),
     siguiente_trabajo:d.siguiente_trabajo||null, notas:d.notas||null};
   const yaHabia=G.prev;
-  const {error}=await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
+  if(fecha!==G.fechaOrig){
+    const {data:ocup}=await sb.from('reportes').select('id').eq('job_id',jobId).eq('tecnico_id',p.tecnico_id).eq('fecha',fecha).maybeSingle();
+    if(ocup && ocup.id!==G.prevId) return toast('Ya hay un reporte de ese técnico el '+fmt(fecha)+'. Escoge otra fecha o ábrelo desde el calendario.');
+  }
+  const {error}= (G.prevId && fecha!==G.fechaOrig)
+    ? await sb.from('reportes').update(p).eq('id',G.prevId)
+    : await sb.from('reportes').upsert(p,{onConflict:'job_id,tecnico_id,fecha'});
   if(error) return toast('No se guardó: '+error.message);
   await revisarCierre(jobId, p);
 
@@ -12599,6 +12625,49 @@ function animarConteos(){
    Lo que se hizo cada día (por fecha del servicio): propiedad, unidad,
    trabajo hecho, técnico, estado de la factura y cuánto sale. */
 let CPDIA = null, CPFIL = 'todos';
+/* Sube muchas fotos de una vez y pega cada una a su trabajo de Carpet por el número de
+   unidad que trae el nombre del archivo (ej. CAPRI-Legacy-22304-1.jpg → Unit 22304). */
+async function fotosDelDia(files){
+  if(!files.length) return;
+  if(!FACT_CARPET()) return toast('Solo oficina y administración.');
+  const h=CPDIA||hoy();
+  const {data:js}=await sb.from('jobs').select('id,unidad,fecha_inicio,cliente, propiedades(nombre)').eq('departamento','cleaning').gte('fecha_inicio',hace(14)).order('fecha_inicio',{ascending:false});
+  const J=js||[];
+  const nu=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const nomN=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const porJob={}, sinMatch=[];
+  for(const f of files){
+    const base=f.name.replace(/\.[a-z0-9]+$/i,'');
+    const toks=base.split(/[^A-Za-z0-9]+/).filter(t=>/\d/.test(t));
+    let cands=J.filter(j=>j.unidad && toks.some(t=>nu(t)===nu(j.unidad)));
+    if(cands.length>1){ const pn=nomN(base); const c2=cands.filter(j=>{ const w=nomN(j.propiedades?.nombre||j.cliente).slice(0,5); return w && pn.includes(w); }); if(c2.length) cands=c2; }
+    if(cands.length>1){ const c3=cands.filter(j=>j.fecha_inicio===h); if(c3.length) cands=c3; }
+    if(!cands.length){ sinMatch.push(f.name); continue; }
+    (porJob[cands[0].id]=porJob[cands[0].id]||{job:cands[0],files:[]}).files.push(f);
+  }
+  const grupos=Object.values(porJob);
+  if(!grupos.length) return alert('No encontré a qué trabajo va ninguna foto.\n\nEl nombre del archivo debe traer el número de unidad (ej. Legacy-22304-1.jpg).');
+  if(!confirm(grupos.map(g=>`${g.job.propiedades?.nombre||g.job.cliente} · Unit ${g.job.unidad}: ${g.files.length} foto(s)`).join('\n')+(sinMatch.length?`\n\nSin trabajo (no se suben): ${sinMatch.join(', ')}`:'')+'\n\n¿Subirlas?')) return;
+  toast('Subiendo fotos…');
+  let ok=0;
+  for(const g of grupos){
+    const urls=[];
+    for(const f of g.files){
+      const ruta=`carpet/${g.job.fecha_inicio||h}/${g.job.id}-${f.name.replace(/[^A-Za-z0-9._-]/g,'_')}`;
+      const {error}=await sb.storage.from('capri').upload(ruta,f,{contentType:f.type||'image/jpeg', upsert:true});
+      if(!error) urls.push(sb.storage.from('capri').getPublicUrl(ruta).data.publicUrl);
+    }
+    if(!urls.length) continue;
+    const {data:rs}=await sb.from('reportes').select('id,fotos').eq('job_id',g.job.id).order('fecha').limit(1);
+    const r0=(rs||[])[0];
+    if(r0){ const ya=new Set(r0.fotos||[]); await sb.from('reportes').update({fotos:[...(r0.fotos||[]), ...urls.filter(u=>!ya.has(u))]}).eq('id',r0.id); }
+    else { const base={job_id:g.job.id, tecnico_id:null, fecha:g.job.fecha_inicio||h, tipo_reporte:'inicial', trabajo_realizado:null, notas:null, fotos:urls, servicios:[]};
+      let {error:er}=await sb.from('reportes').insert({...base, areas:[], material_removido:[], lecturas:[]}); if(er) await sb.from('reportes').insert(base); }
+    ok+=urls.length;
+  }
+  toast(`${ok} foto(s) pegadas a ${grupos.length} trabajo(s)`); render();
+}
+
 async function vHoyCarpet(){
   const h = CPDIA || hoy();
   if(FACT_CARPET()) await procesarBandeja(false, true);
@@ -12675,7 +12744,8 @@ async function vHoyCarpet(){
       </div>
     </section>
 
-    ${FACT_CARPET()?`<div class="g2 no-print" style="margin-bottom:16px"><button class="btn wide" id="cp_new">🧽 + Reporte de Carpet nuevo</button><button class="btn ghost wide" id="btn_wa">💬 Traer trabajos de WhatsApp</button></div>`:''}
+    ${FACT_CARPET()?`<div class="g2 no-print" style="margin-bottom:10px"><button class="btn wide" id="cp_new">🧽 + Reporte de Carpet nuevo</button><button class="btn ghost wide" id="btn_wa">💬 Traer trabajos de WhatsApp</button></div>
+    <label class="btn ghost wide no-print" style="display:block;text-align:center;cursor:pointer;margin-bottom:16px">📷 Subir fotos del día (cada foto se pega a su trabajo por el número de unidad)<input type="file" id="cp_fotos" accept="image/*" multiple hidden></label>`:''}
 
     <div class="eyebrow">🧹 ${CPFIL==='falta'?'Falta precio':CPFIL==='fact'?'Facturados':'Trabajos del día'} · ${(CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).length}</div>
     ${J.length ? (CPFIL==='falta'?falta:CPFIL==='fact'?fact:J).map(fila).join('')
@@ -12706,6 +12776,7 @@ function engancharHoyCarpet(){
   animarConteos();
   document.querySelectorAll('[data-cpf]').forEach(b=>b.onclick=()=>{ CPFIL = (CPFIL===b.dataset.cpf && b.dataset.cpf!=='todos') ? 'todos' : b.dataset.cpf; render(); });
   const n=$('#cp_new');   if(n) n.onclick=()=>nuevaFacturaCarpet();
+  const cf_=$('#cp_fotos'); if(cf_) cf_.onchange=e=>fotosDelDia([...e.target.files]);
   document.querySelectorAll('[data-bjx]').forEach(b=>b.onclick=async()=>{
     await sb.from('wa_bandeja').update({estado:'descartado'}).eq('id',b.dataset.bjx); render(); });
   const t=$('#cp_todas'); if(t) t.onclick=()=>{ V='cobranza'; render(); };
