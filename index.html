@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="231">
+<meta name="app-version" content="232">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -4440,9 +4440,13 @@ async function waCarpetPreparar(G){
       if(s>bs){bs=s;best=p;} }); return bs>=4?best:null; };
   G.forEach(x=>{
     const L=x.texto.split('\n').map(s=>s.trim()).filter(Boolean);
-    const um=x.texto.match(/\b(?:ap(?:t|artment)?|unit|unidad|#)\.?\s*#?\s*([a-z0-9][\w-]*)/i);
-    x.unidad = um ? um[1].toUpperCase() : '';
-    x.lugarTxt = L[0] && !/^(ap|apt|unit|unidad|#)\b/i.test(L[0]) ? L[0] : '';
+    const um=x.texto.match(/(?:\b(?:ap(?:t|artment)?|unit|unidad)\b\.?\s*#?|#)\s*([a-z]?\d[\w]*(?:\s*-\s*[a-z0-9]+)?)/i);
+    x.unidad = um ? um[1].replace(/\s+/g,'').toUpperCase() : '';
+    // Si la primera línea trae todo junto ("Parc one #3405 (flooring…"), la propiedad es lo que va antes del # / Apt
+    let L0 = L[0] && !/^(ap|apt|unit|unidad|#)\b/i.test(L[0]) ? L[0] : '';
+    const corte = L0.search(/\s(?:#|ap(?:t|artment)?\b|unit\b|unidad\b)/i);
+    if(corte>0) L0 = L0.slice(0,corte).trim();
+    x.lugarTxt = L0;
     x.prop = propDe(x.lugarTxt);
     x.estado = /vacant|vacia|vac[ií]o/i.test(x.texto) ? 'vacante' : /occupied|ocupad/i.test(x.texto) ? 'ocupada' : '';
     const sv=[]; const t=x.texto.toLowerCase();
@@ -4453,6 +4457,11 @@ async function waCarpetPreparar(G){
     if(/tile|grout/.test(t)) sv.push('Tile and grout cleaning');
     if(/upholster|sofa|couch|loveseat/.test(t)) sv.push('Upholstery cleaning');
     if(/scrub/.test(t)) sv.push('Scrubber');
+    if(/stretch/.test(t)) sv.push('Carpet stretching');
+    if(/patch|parche|carpet repair|repairs?\b/.test(t) && !/flooring/.test(t)) sv.push('Carpet repair / patch');
+    if(/vinyl|plank|flooring|laminate|lvp/.test(t)) sv.push('Floor installation');
+    if(/baseboard|zoclo|moldura/.test(t)) sv.push('Baseboard installation');
+    if(/\bpad\b/.test(t) && /install/.test(t)) sv.push('Pad replacement');
     x.serv = sv.length?sv:['Carpet cleaning'];
     x.trabajo = L.slice(x.lugarTxt?1:0).join(' · ');
     const nu=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -6433,12 +6442,16 @@ function terminarEntrada(data){
   const AREA_PUERTA = CARPET_ON ? {restoration:'restoration', carpet:'cleaning'} : {restoration:'restoration'};
   const areaP = AREA_PUERTA[PUERTA];
   U=data; sessionStorage.setItem('jr31',JSON.stringify(U));
+  // Administración y oficina quedan con la sesión guardada en esta computadora (30 días),
+  // para que la app siga abierta en pestañas nuevas. "Salir" la borra.
+  try{ if(['admin','oficina','gerente'].includes(U.rol)){ const {password_hash, ...limpio}=U;
+    localStorage.setItem('jr31_rec', JSON.stringify({u:limpio, hasta:Date.now()+30*864e5})); } }catch(e){}
   DEP = (U.rol==='admin' && U.departamento==='ambos' && areaP) ? areaP
       : (areaP || (U.departamento==='ambos' ? 'restoration' : U.departamento));
   V = U.rol==='tecnico' ? 'reporte' : 'resumen';
   bienvenida(U, render);
 }
-function salir(){ sessionStorage.removeItem('jr31'); U=null; PUERTA=null;
+function salir(){ sessionStorage.removeItem('jr31'); try{ localStorage.removeItem('jr31_rec'); }catch(e){} U=null; PUERTA=null;
   if(RELOJ){clearInterval(RELOJ);RELOJ=null;}
   if(VIGIA){clearInterval(VIGIA);VIGIA=null;}
   NOTIF=0;
@@ -6679,7 +6692,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v231 · PDF de Carpet listo para correo</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v232 · WhatsApp + sesión guardada</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -17792,7 +17805,10 @@ if(tokenURL()){
 } else if(_p.has('cliente') || _p.has('job')){
   buscarCliente(_p.get('job')||'');
 } else {
-  const g=sessionStorage.getItem('jr31');
+  let g=sessionStorage.getItem('jr31');
+  if(!g){ try{ const r=JSON.parse(localStorage.getItem('jr31_rec')||'null');
+    if(r && r.u && r.hasta>Date.now()){ g=JSON.stringify(r.u); sessionStorage.setItem('jr31',g); }
+    else localStorage.removeItem('jr31_rec'); }catch(e){} }
   if(g){ U=JSON.parse(g); PUERTA=U.rol; DEP=U.departamento==='ambos'?'restoration':U.departamento;
     V = U.rol==='tecnico' ? 'reporte' : 'resumen'; render(); } else portada();
 }
