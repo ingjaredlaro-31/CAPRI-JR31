@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="230">
+<meta name="app-version" content="231">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -6679,7 +6679,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v230 · Fecha del reporte editable</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v231 · PDF de Carpet listo para correo</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -14879,8 +14879,14 @@ async function abrirReporteCarpet(id){
   const pg=$('#rc_pag'); if(pg) pg.onclick=async()=>{ await marcarPagada(id); abrirReporteCarpet(id); };
   const rv=$('#rc_rev'); if(rv) rv.onclick=()=>revisarInvoice(id);
   const pv=$('#rc_prev'); if(pv) pv.srcdoc=docReporteCarpet(j,R,tec);
-  const rf=$('#rc_foto'); if(rf) rf.onclick=()=>{
-    try{ pv.contentWindow.focus(); pv.contentWindow.print(); }catch(e){ reporteFotoCarpet(j,R,tec); } };
+  const rf=$('#rc_foto'); if(rf) rf.onclick=async()=>{
+    rf.disabled=true; const t0=rf.textContent; rf.textContent='Haciendo el PDF…';
+    try{
+      const b=await pdfBlobCarpet(j,R,tec);
+      const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=nombrePdfCarpet(j,R);
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+    }catch(e){ try{ pv.contentWindow.focus(); pv.contentWindow.print(); }catch(_){ reporteFotoCarpet(j,R,tec); } }
+    rf.disabled=false; rf.textContent=t0; };
   const ab=$('#rc_abr'); if(ab) ab.onclick=()=>reporteFotoCarpet(j,R,tec);
   const ad=$('#rc_fot'); if(ad) ad.onchange=async e=>{
     const fs=[...e.target.files]; if(!fs.length) return;
@@ -14967,6 +14973,71 @@ function analizaPetScan(txt){
   return {areas:A, total, positivo, peor, rec, trat};
 }
 
+/* ===== PDF real del reporte de Carpet (archivo .pdf, no imprimir) =====
+   Arma el mismo reporte en una ventana oculta y lo convierte hoja por hoja a PDF.
+   También lo usa la revisión automática para dejar el borrador en Gmail con el PDF. */
+function cargaJs(src){ return new Promise((ok,no)=>{ if(document.querySelector(`script[src="${src}"]`)) return ok();
+  const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+async function datosCarpet(id){
+  const [{data:j},{data:reps}] = await Promise.all([
+    sb.from('jobs').select('*, managements(nombre), propiedades(nombre,direccion)').eq('id',id).single(),
+    sb.from('reportes').select('*').eq('job_id',id).order('fecha')
+  ]);
+  const R=reps||[];
+  const tec=(R.map(r=>r.tecnico_nombre).filter(Boolean)[0])||((j&&j.notas||'').match(/técnico: ([^\n·]+)/)||[])[1]||'—';
+  return {j,R,tec};
+}
+function nombrePdfCarpet(j,R){
+  const fe=(R[0]?.fecha||j.fecha_inicio||'').slice(0,10);
+  const nom=(j.propiedades?.nombre||j.cliente||'CARPET').toUpperCase();
+  const ps=esPetScan([...R.map(r=>r.notas),j.scope].join(' '), j.servicios_carpet||[]);
+  const tipo=ps?'PET SCAN REPORT':'PHOTO REPORT';
+  return `${nom}${j.unidad?' UNIT '+String(j.unidad).toUpperCase():''} -- ${fe.slice(5,7)}${fe.slice(8,10)}${fe.slice(0,4)} -- ${tipo} CAPRI RESTORATION SERVICES INC.pdf`.replace(/[\\/:*?"<>|]/g,' ');
+}
+async function pdfBlobCarpet(j,R,tec){
+  await cargaJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  await cargaJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const fr=document.createElement('iframe');
+  fr.style.cssText='position:fixed;left:-10000px;top:0;width:840px;height:1100px;border:0;visibility:hidden';
+  document.body.appendChild(fr);
+  try{
+    fr.srcdoc=docReporteCarpet(j,R,tec);
+    await new Promise(r=>{ fr.onload=r; setTimeout(r,8000); });
+    const d=fr.contentDocument; d.body.style.zoom=1; d.body.style.background='#fff';
+    await Promise.all([...d.images].map(im=>im.complete?0:new Promise(r=>{ im.onload=im.onerror=r; setTimeout(r,15000); })));
+    const hojas=[...d.querySelectorAll('.hoja')];
+    const pdf=new window.jspdf.jsPDF({unit:'pt',format:'letter',orientation:'portrait',compress:true});
+    const W=pdf.internal.pageSize.getWidth(), H=pdf.internal.pageSize.getHeight();
+    for(let i=0;i<hojas.length;i++){
+      hojas[i].style.margin='0';
+      const cv=await window.html2canvas(hojas[i],{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+      if(i) pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg',0.85),'JPEG',0,0,W,H);
+    }
+    return pdf.output('blob');
+  } finally { fr.remove(); }
+}
+/* Para la revisión automática: JR31_pdfCarpet(id) → {blob, nombre, asunto, cuerpo} */
+window.JR31_pdfCarpet = async (id)=>{
+  const {j,R,tec}=await datosCarpet(id); if(!j) throw new Error('no job');
+  const blob=await pdfBlobCarpet(j,R,tec);
+  const fe=(R[0]?.fecha||j.fecha_inicio||'').slice(0,10);
+  const fUS=fe?`${fe.slice(5,7)}/${fe.slice(8,10)}/${fe.slice(0,4)}`:'';
+  const lugar=(j.propiedades?.nombre||j.cliente||'')+(j.unidad?' Unit '+j.unidad:'');
+  const ps=esPetScan([...R.map(r=>r.notas),j.scope].join(' '), j.servicios_carpet||[]);
+  const tipo=ps?'Pet Scan Report':'Photo Report';
+  return {blob, nombre:nombrePdfCarpet(j,R), asunto:`${lugar} · Carpet ${tipo} · ${fUS}`,
+    cuerpo:`Good morning,\n\nAttached is the Carpet ${tipo} for ${lugar}, service date ${fUS}.\n\nPlease let us know if you have any questions.\n\nThank you,\nCapri Restoration Services Inc · Carpet Department`,
+    fotos:R.flatMap(r=>r.fotos||[]).length, folio:j.folio, invoice:j.invoice_num||null};
+};
+/* Lista de trabajos de Carpet con reporte, para la revisión automática (solo lectura) */
+window.JR31_carpetDias = async (desde, hasta)=>{
+  const {data}=await sb.from('jobs').select('id,folio,cliente,unidad,fecha_inicio,invoice_num, propiedades(nombre)').eq('departamento','cleaning').gte('fecha_inicio',desde).lte('fecha_inicio',hasta||desde).order('fecha_inicio');
+  const ids=(data||[]).map(x=>x.id); let fot={};
+  if(ids.length){ const {data:rs}=await sb.from('reportes').select('job_id,fotos').in('job_id',ids); (rs||[]).forEach(r=>fot[r.job_id]=(fot[r.job_id]||0)+(r.fotos||[]).length); }
+  return (data||[]).map(x=>({id:x.id, folio:x.folio, lugar:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' Unit '+x.unidad:''), fecha:x.fecha_inicio, fotos:fot[x.id]||0, invoice:x.invoice_num||null}));
+};
+
 /* Reporte fotográfico de Carpet: documento para el cliente con logo, datos de Capri,
    datos del trabajo, lo que mandó el técnico y las fotos del grupo, todas del mismo tamaño
    (6 por hoja, 2 columnas x 3 renglones). Oficina lo hace y después factura. */
@@ -14987,7 +15058,8 @@ function docReporteCarpet(j, R, tec){
   const texto=[...new Set([...R.map(r=>r.notas), j.scope].filter(Boolean).map(s=>String(s).replace(/\n\(\d+ foto\(s\) en el grupo\)$/,'').trim()))].join('\n\n');
   const nom=j.propiedades?.nombre||j.cliente||'';
   const lugar=nom+(j.unidad?' · Unit '+j.unidad:'');
-  const dir=[j.direccion||j.propiedades?.direccion,j.ciudad,j.zip].filter(Boolean).join(', ');
+  const dirBase=j.direccion||j.propiedades?.direccion||'';
+  const dir=/\b\d{5}\b/.test(dirBase)?dirBase:[dirBase,j.ciudad,j.zip].filter(Boolean).join(', ');
   const fe=(R[0]?.fecha||j.fecha_inicio||'').slice(0,10);
   const Fc=s=>{ if(!s) return '—'; return new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); };
   const Fs=s=>{ if(!s) return '—'; return new Date(s.slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
