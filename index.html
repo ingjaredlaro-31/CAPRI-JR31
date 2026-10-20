@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="232">
+<meta name="app-version" content="233">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -3779,6 +3779,7 @@ function vozFrase(n){
     else if(/inicial/i.test(t)) que='Reporte inicial recibido';
     else que='Reporte recibido';
   }
+  if(/^Faltan fotos de Carpet/.test(t)) return 'Oficina: faltan las fotos de '+String(t.split(' · ')[1]||'Carpet').toLowerCase()+'. Súbelas por favor.';
   else if(tipo==='nota') que='Comentario recibido';
   else if(tipo==='propiedad') que='Propiedad nueva creada';
   else if(tipo==='nofui') que='Visita no realizada';
@@ -6692,7 +6693,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v232 · WhatsApp + sesión guardada</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v233 · Carpet en inglés + pedir fotos</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -15051,6 +15052,31 @@ window.JR31_carpetDias = async (desde, hasta)=>{
   return (data||[]).map(x=>({id:x.id, folio:x.folio, lugar:(x.propiedades?.nombre||x.cliente||'')+(x.unidad?' Unit '+x.unidad:''), fecha:x.fecha_inicio, fotos:fot[x.id]||0, invoice:x.invoice_num||null}));
 };
 
+/* Revisión automática: deja el reporte de Carpet ESCRITO EN INGLÉS (detallado).
+   Cambia lo que se hizo (reporte y scope); el texto original del técnico se guarda en las notas internas. */
+window.JR31_ingles = async (id, en)=>{
+  en=String(en||'').trim(); if(!id||en.length<20) throw new Error('texto corto');
+  const {data:j}=await sb.from('jobs').select('id,scope,notas,departamento').eq('id',id).maybeSingle();
+  if(!j||j.departamento!=='cleaning') throw new Error('no es Carpet');
+  const {data:rs}=await sb.from('reportes').select('id,notas').eq('job_id',id).order('fecha').limit(1);
+  const r0=(rs||[])[0]; const orig=(r0&&r0.notas)||j.scope||'';
+  if(orig.trim()===en) return {ok:true, igual:true};
+  const notasJ=(j.notas||'')+(orig&&!(j.notas||'').includes('Original del técnico')?'\nOriginal del técnico: '+orig.replace(/\n\(\d+ foto\(s\) en el grupo\)$/,''):'');
+  const {error:e1}=await sb.from('jobs').update({scope:en, notas:notasJ}).eq('id',id);
+  let e2=null; if(r0) ({error:e2}=await sb.from('reportes').update({notas:en}).eq('id',r0.id));
+  return {ok:!e1&&!e2, error:(e1||e2)?.message||null};
+};
+/* Revisión automática: le pide a oficina (con voz en la app) que suba las fotos que faltan.
+   Una vez al día por trabajo. */
+window.JR31_pedirFotos = async (id, lugar, quien)=>{
+  const h=hoy(); const titulo='Faltan fotos de Carpet · '+lugar;
+  const {data:ya}=await sb.from('notificaciones').select('id').eq('titulo',titulo).gte('created_at',h+'T00:00:00').limit(1);
+  if(ya&&ya.length) return {ok:true, ya:true};
+  const texto=`Office, please upload the photos for ${lugar}${quien?' ('+quien+')':''}. Open it in Trabajos del día and tap 📷 Agregar fotos.`;
+  await notifIns({titulo, texto, job_id:id, tipo:'recordatorio', departamento:'cleaning', para_rol:'admin', de_usuario:'Gachupín'});
+  return {ok:true};
+};
+
 /* Reporte fotográfico de Carpet: documento para el cliente con logo, datos de Capri,
    datos del trabajo, lo que mandó el técnico y las fotos del grupo, todas del mismo tamaño
    (6 por hoja, 2 columnas x 3 renglones). Oficina lo hace y después factura. */
@@ -15161,7 +15187,7 @@ function docReporteCarpet(j, R, tec){
   ${PS?`<div class="ps-res ${PS.positivo?'pos':'negat'}"><b>Pet scan result: ${PS.positivo?'POSITIVE':'NEGATIVE'}</b><span>${PS.positivo?`${PS.areas.filter(a=>a.resultado==='Positive').length||'—'} area${PS.areas.filter(a=>a.resultado==='Positive').length===1?'':'s'} affected${PS.total?` · ${PS.total} spot${PS.total===1?'':'s'} marked`:''} · Overall severity: ${PS.peor}`:'No pet urine contamination detected under UV light.'}</span><i>Full findings on page 2</i></div>`:''}
   <div class="k">Work performed</div>
   ${serv.length?`<table class="sv">${serv.map(s=>`<tr><td class="c">✓</td><td>${E(s)}</td></tr>`).join('')}</table>`:'<div class="nt">Carpet cleaning</div>'}
-  ${texto&&!PS?`<div class="k">Technician notes</div><div class="nt">${E(texto)}</div>`:''}
+  ${texto&&!PS?`<div class="k">Service details</div><div class="nt">${E(texto)}</div>`:''}
   <div class="k">Photo evidence · ${fotos.length} photo${fotos.length===1?'':'s'}</div>
   ${fotos.length?'':'<div class="nt">Photos pending.</div>'}
   <div class="mini">${fotos.slice(0,4).map(u=>`<img src="${E(u)}">`).join('')}</div>
