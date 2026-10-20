@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#0A0E15">
-<meta name="app-version" content="233">
+<meta name="app-version" content="234">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -2201,6 +2201,12 @@ body.w-full   main{max-width:none;padding-left:24px;padding-right:24px}
   body.dark .card,body.dark .kpi,body.dark .fila,body.dark .frm td{background:#fff;color:#0B0D11}
   .sheet{position:static}
 }
+.rc-sel{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.rc-ft{position:relative;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:#0E1726;cursor:pointer;aspect-ratio:1}
+.rc-ft img{width:100%;height:100%;object-fit:cover;display:block}
+.rc-ft span{position:absolute;left:4px;top:4px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:1px 6px;border-radius:6px}
+.rc-ft b{display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:rgba(180,35,42,.6);color:#fff;font-size:13px}
+.rc-ft.fuera{border-color:#E5484D}.rc-ft.fuera b{display:flex}.rc-ft.fuera img{opacity:.45}
 </style>
 </head>
 <body>
@@ -6693,7 +6699,7 @@ function shell(html){
       <main>${html}
         <footer><div class="n">Capri Restoration Services Inc</div><div class="s">REPORTS WORKS</div>
         <div class="s" style="margin-top:9px;letter-spacing:.14em">JULIO IBARRIA · ING. JARED RODRÍGUEZ</div>
-        <div class="s" style="margin-top:6px;opacity:.7">v233 · Carpet en inglés + pedir fotos</div></footer>
+        <div class="s" style="margin-top:6px;opacity:.7">v234 · Escoger fotos de Carpet</div></footer>
       </main>
       ${EDIT()?`<button class="fab" id="fab" title="Nuevo">+</button><div id="fabm"></div>`:''}
       ${esTec?`<nav>${tabs.map(([k,t])=>`<button data-v="${k}" class="${V===k?'on':''}">${svgIC(k)}${t}${k==='pend'&&PEND?'<span class="dot"></span>':''}</button>`).join('')}</nav>`:''}
@@ -14860,6 +14866,9 @@ async function abrirReporteCarpet(id){
         ${FACT_CARPET()?`<label class="btn ghost wide" style="text-align:center;cursor:pointer">📷 Agregar fotos<input type="file" id="rc_fot" accept="image/*" multiple hidden></label>`:'<button class="btn ghost wide" id="rc_abr">Abrir en grande</button>'}
       </div>
       ${fotos.length?'':'<div class="sub" style="margin-top:6px">Todavía no tiene fotos. Sube las que mandó el técnico al grupo.</div>'}
+      ${fotos.length&&FACT_CARPET()?`<div class="eyebrow">Escoger fotos · toca la que NO es para quitarla</div>
+        <div class="rc-sel no-print">${fotos.map((f,i)=>{const u=typeof f==='string'?f:(f&&(f.u||f.url))||''; return `<button type="button" class="rc-ft" data-rf="${i}"><img src="${esc(u)}" loading="lazy"><span>${i+1}</span><b>✕ QUITAR</b></button>`;}).join('')}</div>
+        <button class="btn wide no-print" id="rc_fsv" style="margin-top:8px" disabled>Guardar fotos</button>`:''}
 
       <div class="eyebrow">Reporte del técnico</div>
       <table class="frm">
@@ -14893,6 +14902,20 @@ async function abrirReporteCarpet(id){
   const pg=$('#rc_pag'); if(pg) pg.onclick=async()=>{ await marcarPagada(id); abrirReporteCarpet(id); };
   const rv=$('#rc_rev'); if(rv) rv.onclick=()=>revisarInvoice(id);
   const pv=$('#rc_prev'); if(pv) pv.srcdoc=docReporteCarpet(j,R,tec);
+  // Escoger fotos: oficina/admin quitan las que no son de este trabajo (el archivo no se borra).
+  const fuera=new Set(); const sv=$('#rc_fsv');
+  document.querySelectorAll('[data-rf]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.rf; fuera.has(i)?fuera.delete(i):fuera.add(i);
+    b.classList.toggle('fuera',fuera.has(i)); if(sv){ sv.disabled=!fuera.size; sv.textContent=fuera.size?`Guardar · quitar ${fuera.size} foto${fuera.size===1?'':'s'}`:'Guardar fotos'; } });
+  if(sv) sv.onclick=async()=>{
+    if(!fuera.size) return;
+    if(!confirm(`¿Quitar ${fuera.size} foto${fuera.size===1?'':'s'} de este reporte?`)) return;
+    sv.disabled=true; sv.textContent='Guardando…';
+    let k=0, mal=false;
+    for(const r of R){ const fs=r.fotos||[]; const quedan=fs.filter((_,i)=>!fuera.has(k+i)); k+=fs.length;
+      if(quedan.length!==fs.length){ const {error}=await sb.from('reportes').update({fotos:quedan}).eq('id',r.id); if(error) mal=true; } }
+    toast(mal?'No se pudo guardar. Intenta otra vez.':'Listo, fotos actualizadas.');
+    abrirReporteCarpet(id);
+  };
   const rf=$('#rc_foto'); if(rf) rf.onclick=async()=>{
     rf.disabled=true; const t0=rf.textContent; rf.textContent='Haciendo el PDF…';
     try{
